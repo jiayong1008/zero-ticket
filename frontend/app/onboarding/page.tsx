@@ -232,7 +232,11 @@ export default function OnboardingPage() {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
 
-      <div className="w-full max-w-xl glass-panel rounded-2xl p-8 border border-white/10 z-10">
+      <div className={`w-full max-w-xl rounded-2xl p-8 border z-10 transition-colors ${
+        isLightMode
+          ? "bg-white border-slate-200 shadow-xl shadow-slate-200/60"
+          : "glass-panel border-white/10"
+      }`}>
         {/* Theme Toggle + Back Button Row */}
         <div className="flex justify-between items-center mb-2">
           {isAddingProject ? (
@@ -280,14 +284,16 @@ export default function OnboardingPage() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
+          <h1 className={`text-3xl font-extrabold tracking-tight mb-2 transition-colors ${
+            isLightMode ? "text-slate-800" : "text-white"
+          }`}>
             {isAddingProject ? (
               <>Add <span className="text-gradient">New Project</span></>
             ) : (
               <>Setup <span className="text-gradient">ZeroTicket</span></>
             )}
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className={`text-sm transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
             {isAddingProject
               ? `Adding project to ${companyName || "your account"}`
               : "Automate customer support directly from your source code and database rules"}
@@ -304,6 +310,8 @@ export default function OnboardingPage() {
                     ? "bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]"
                     : step > s
                     ? "bg-emerald-500 text-white"
+                    : isLightMode
+                    ? "bg-slate-200 text-slate-500 border border-slate-300"
                     : "bg-slate-800 text-slate-400"
                 }`}
               >
@@ -318,7 +326,11 @@ export default function OnboardingPage() {
               {idx < arr.length - 1 && (
                 <div
                   className={`h-0.5 w-16 sm:w-24 transition-colors duration-300 ${
-                    step > s ? "bg-emerald-500" : "bg-slate-800"
+                    step > s
+                      ? "bg-emerald-500"
+                      : isLightMode
+                      ? "bg-slate-200"
+                      : "bg-slate-800"
                   }`}
                 />
               )}
@@ -327,7 +339,11 @@ export default function OnboardingPage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-950/50 border border-red-500/30 text-red-300 text-sm">
+          <div className={`mb-6 p-4 rounded-lg border text-sm ${
+            isLightMode
+              ? "bg-red-50 border-red-200 text-red-700"
+              : "bg-red-950/50 border-red-500/30 text-red-300"
+          }`}>
             {error}
           </div>
         )}
@@ -336,7 +352,9 @@ export default function OnboardingPage() {
         {step === 1 && (
           <form onSubmit={handleCreateCompany} className="space-y-6">
             <div>
-              <label htmlFor="companyName" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              <label htmlFor="companyName" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                isLightMode ? "text-slate-600" : "text-slate-400"
+              }`}>
                 Company / Organization Name
               </label>
               <input
@@ -369,8 +387,12 @@ export default function OnboardingPage() {
           <form onSubmit={handleConnectRepo} className="space-y-6">
             <div className="space-y-4">
               <div>
-                <label htmlFor="projectName" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Project Name <span className="text-slate-600 normal-case font-normal">(optional)</span>
+                <label htmlFor="projectName" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
+                  Project Name <span className={`normal-case font-normal ${
+                    isLightMode ? "text-slate-400" : "text-slate-600"
+                  }`}>(optional)</span>
                 </label>
                 <input
                   id="projectName"
@@ -380,13 +402,15 @@ export default function OnboardingPage() {
                   placeholder="e.g. EduKids Web Portal"
                   className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                 />
-                <p className="mt-1 text-xs text-slate-500">
+                <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
                   A friendly label for this project. Defaults to the folder name if left blank.
                 </p>
               </div>
 
               <div>
-                <label htmlFor="repoPath" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label htmlFor="repoPath" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
                   Local Repository Absolute Path
                 </label>
                 <input
@@ -398,13 +422,15 @@ export default function OnboardingPage() {
                   className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                   required
                 />
-                <p className="mt-1 text-xs text-slate-500">
+                <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
                   Input the folder path of the software project code on your machine.
                 </p>
               </div>
 
               <div>
-                <label htmlFor="branch" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label htmlFor="branch" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
                   Target Branch
                 </label>
                 <input
@@ -423,7 +449,11 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={() => setStep(1)}
                 disabled={loading}
-                className="px-6 py-3 rounded-lg border border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-sm transition-all disabled:opacity-50"
+                className={`px-6 py-3 rounded-lg border font-semibold text-sm transition-all disabled:opacity-50 ${
+                  isLightMode
+                    ? "border-slate-300 hover:bg-slate-50 text-slate-600"
+                    : "border-white/10 hover:bg-white/5 text-slate-300"
+                }`}
               >
                 Back
               </button>
@@ -448,7 +478,9 @@ export default function OnboardingPage() {
           <form onSubmit={handleConnectDB} className="space-y-6">
             {/* DB Type Selector */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                isLightMode ? "text-slate-600" : "text-slate-400"
+              }`}>
                 Database Type
               </label>
               <div className="flex gap-2">
@@ -476,7 +508,9 @@ export default function OnboardingPage() {
 
             <div className="grid grid-cols-6 gap-4">
               <div className="col-span-4">
-                <label htmlFor="dbHost" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label htmlFor="dbHost" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
                   {dbType === "postgres" ? "PostgreSQL" : "MySQL"} Host
                 </label>
                 <input
@@ -491,7 +525,9 @@ export default function OnboardingPage() {
               </div>
 
               <div className="col-span-2">
-                <label htmlFor="dbPort" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label htmlFor="dbPort" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
                   Port
                 </label>
                 <input
@@ -506,7 +542,9 @@ export default function OnboardingPage() {
               </div>
 
               <div className="col-span-3">
-                <label htmlFor="dbUser" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label htmlFor="dbUser" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
                   User (Read-Only Recommended)
                 </label>
                 <input
@@ -521,7 +559,9 @@ export default function OnboardingPage() {
               </div>
 
               <div className="col-span-3">
-                <label htmlFor="dbPass" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label htmlFor="dbPass" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
                   Password
                 </label>
                 <input
@@ -535,7 +575,9 @@ export default function OnboardingPage() {
               </div>
 
               <div className="col-span-6">
-                <label htmlFor="dbName" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label htmlFor="dbName" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
                   Database Name
                 </label>
                 <input
@@ -555,7 +597,11 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={() => setStep(2)}
                 disabled={loading}
-                className="px-6 py-3 rounded-lg border border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-sm transition-all disabled:opacity-50"
+                className={`px-6 py-3 rounded-lg border font-semibold text-sm transition-all disabled:opacity-50 ${
+                  isLightMode
+                    ? "border-slate-300 hover:bg-slate-50 text-slate-600"
+                    : "border-white/10 hover:bg-white/5 text-slate-300"
+                }`}
               >
                 Back
               </button>
@@ -580,7 +626,9 @@ export default function OnboardingPage() {
           <div className="space-y-6">
             {/* Model Provider Selector */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                isLightMode ? "text-slate-600" : "text-slate-400"
+              }`}>
                 AI Model Provider
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -612,8 +660,12 @@ export default function OnboardingPage() {
 
             {/* Model name override (optional) */}
             <div>
-              <label htmlFor="llmModel" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                Model Name <span className="text-slate-600 normal-case font-normal">(optional override)</span>
+              <label htmlFor="llmModel" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                isLightMode ? "text-slate-600" : "text-slate-400"
+              }`}>
+                Model Name <span className={`normal-case font-normal ${
+                  isLightMode ? "text-slate-400" : "text-slate-600"
+                }`}>(optional override)</span>
               </label>
               <input
                 id="llmModel"
@@ -623,15 +675,19 @@ export default function OnboardingPage() {
                 placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : "gemini-2.5-flash"}
                 className="w-full px-4 py-3 rounded-lg glass-input text-sm"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
                 Leave blank to use the recommended default model for the selected provider.
               </p>
             </div>
 
             <div>
-              <label htmlFor="apiKeyInput" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              <label htmlFor="apiKeyInput" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                isLightMode ? "text-slate-600" : "text-slate-400"
+              }`}>
                 {llmProvider === "gemini" ? "GEMINI_API_KEY" : llmProvider === "openai" ? "OPENAI_API_KEY" : llmProvider === "anthropic" ? "ANTHROPIC_API_KEY" : llmProvider === "deepseek" ? "DEEPSEEK_API_KEY" : "DASHSCOPE_API_KEY"}
-                <span className="text-slate-600 normal-case font-normal ml-1">(Leave blank if set in backend environment)</span>
+                <span className={`normal-case font-normal ml-1 ${
+                  isLightMode ? "text-slate-400" : "text-slate-600"
+                }`}>(Leave blank if set in backend environment)</span>
               </label>
               <input
                 id="apiKeyInput"
@@ -641,18 +697,20 @@ export default function OnboardingPage() {
                 placeholder={llmProvider === "gemini" ? "AIzaSy..." : llmProvider === "openai" ? "sk-..." : llmProvider === "anthropic" ? "sk-ant-..." : "Enter API key"}
                 className="w-full px-4 py-3 rounded-lg glass-input text-sm"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
                 Required to generate code embeddings and execute the agent thought processes.
               </p>
             </div>
 
-            <div className="glass-panel p-5 rounded-lg border border-white/5 space-y-4">
-              <h3 className="text-sm font-semibold text-white">Pipeline Sync Progress</h3>
+            <div className={`p-5 rounded-lg border space-y-4 transition-colors ${
+              isLightMode ? "bg-slate-50 border-slate-200" : "glass-panel border-white/5"
+            }`}>
+              <h3 className={`text-sm font-semibold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>Pipeline Sync Progress</h3>
               
               <div className="space-y-3">
                 {/* Scan Status */}
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 flex items-center gap-2">
+                  <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
                     {syncStatus === "cloning" || syncStatus === "parsing" ? (
                       <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
                     ) : syncStatus === "linked" ? (
@@ -660,16 +718,16 @@ export default function OnboardingPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+                      <div className={`w-2.5 h-2.5 rounded-full ${isLightMode ? "bg-slate-300" : "bg-slate-700"}`} />
                     )}
                     1. Code Parsing & AST Mapping
                   </span>
-                  <span className="font-semibold text-slate-300 capitalize">{syncStatus === "idle" ? "Pending" : syncStatus === "linked" ? "Success" : syncStatus === "failed" ? "Failed" : "Running..."}</span>
+                  <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{syncStatus === "idle" ? "Pending" : syncStatus === "linked" ? "Success" : syncStatus === "failed" ? "Failed" : "Running..."}</span>
                 </div>
 
                 {/* Vector DB Status */}
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 flex items-center gap-2">
+                  <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
                     {syncStatus === "parsing" ? (
                       <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
                     ) : syncStatus === "linked" ? (
@@ -677,34 +735,38 @@ export default function OnboardingPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+                      <div className={`w-2.5 h-2.5 rounded-full ${isLightMode ? "bg-slate-300" : "bg-slate-700"}`} />
                     )}
                     2. Vectorizing Codebase (ChromaDB)
                   </span>
-                  <span className="font-semibold text-slate-300">
+                  <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
                     {syncStatus === "linked" ? `${indexedChunks} chunks` : syncStatus === "parsing" ? "Generating..." : "Pending"}
                   </span>
                 </div>
 
                 {/* DB Schema Extraction */}
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 flex items-center gap-2">
+                  <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
                     {syncStatus === "linked" ? (
                       <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+                      <div className={`w-2.5 h-2.5 rounded-full ${isLightMode ? "bg-slate-300" : "bg-slate-700"}`} />
                     )}
                     3. Target DB Schema & Relationships Linked
                   </span>
-                  <span className="font-semibold text-slate-300">{syncStatus === "linked" ? "Synced" : "Pending"}</span>
+                  <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{syncStatus === "linked" ? "Synced" : "Pending"}</span>
                 </div>
               </div>
             </div>
 
             {syncStatus === "linked" ? (
-              <div className="flex items-center justify-center gap-2 text-sm text-emerald-400 bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-lg animate-pulse">
+              <div className={`flex items-center justify-center gap-2 text-sm p-3 rounded-lg border animate-pulse ${
+                isLightMode
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                  : "bg-emerald-950/20 border-emerald-500/20 text-emerald-400"
+              }`}>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -720,7 +782,11 @@ export default function OnboardingPage() {
                     setError("");
                   }}
                   disabled={loading}
-                  className="px-6 py-3 rounded-lg border border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-sm transition-all disabled:opacity-50"
+                  className={`px-6 py-3 rounded-lg border font-semibold text-sm transition-all disabled:opacity-50 ${
+                    isLightMode
+                      ? "border-slate-300 hover:bg-slate-50 text-slate-600"
+                      : "border-white/10 hover:bg-white/5 text-slate-300"
+                  }`}
                 >
                   Back
                 </button>
