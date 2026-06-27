@@ -24,6 +24,7 @@ export default function SandboxPage() {
   
   // Chat state
   const [query, setQuery] = useState("");
+  const [lastQuery, setLastQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: "assistant",
@@ -130,6 +131,7 @@ export default function SandboxPage() {
 
     const userMessage = query;
     setQuery("");
+    setLastQuery(userMessage);
     setMessages((prev) => [...prev, { sender: "user", content: userMessage }]);
     setLoading(true);
     setError("");
@@ -178,6 +180,77 @@ export default function SandboxPage() {
       ]);
       
       // Automatically select the latest thought log for review
+      setActiveThoughtLog(data.thought_log);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "system",
+          content: `Error: ${err.message || "Failed to communicate with execution agent engine."}`,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetryMessage = async (queryToRetry: string) => {
+    if (!queryToRetry.trim() || loading) return;
+
+    setLoading(true);
+    setError("");
+    
+    // Clear last error bubble for clean flow
+    setMessages((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1].sender === "system") {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+
+    let parsedClaims = {};
+    try {
+      parsedClaims = JSON.parse(customClaims);
+    } catch (e) {
+      setError("Failed to parse Custom Claims JSON. Please verify syntax.");
+      setLoading(false);
+      return;
+    }
+
+    const mergedClaims = {
+      user_id: mockUserId,
+      tenant_id: mockTenantId,
+      company_id: companyId,
+      ...parsedClaims,
+    };
+
+    try {
+      const savedGeminiKey = localStorage.getItem("gemini_api_key") || "";
+      
+      const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_id: companyId,
+          query: queryToRetry,
+          mock_claims: mergedClaims,
+          gemini_api_key: savedGeminiKey
+        }),
+      });
+
+      if (!res.ok) throw new Error("Agent failed to process inquiry.");
+      const data = await res.json();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "assistant",
+          content: data.answer,
+          thoughtLog: data.thought_log,
+        },
+      ]);
+      
       setActiveThoughtLog(data.thought_log);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -355,6 +428,19 @@ export default function SandboxPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                     Inspect Engine Thoughts
+                  </button>
+                )}
+
+                {msg.sender === "system" && i === messages.length - 1 && (
+                  <button
+                    onClick={() => handleRetryMessage(lastQuery)}
+                    disabled={loading}
+                    className="mt-1.5 text-xs text-red-500 hover:text-red-650 hover:underline flex items-center gap-1.5 font-semibold disabled:opacity-50"
+                  >
+                    <svg className="w-3.5 h-3.5 animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.28 15H18" />
+                    </svg>
+                    Retry Query
                   </button>
                 )}
               </div>
