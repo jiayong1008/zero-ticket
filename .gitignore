@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local databases & logs
+backend/chroma_db/
+backend/chroma_db_test/
+backend/zeroticket.db
+backend/ingestion_error.log
+backend/models.log
+backend/models_err.log
+*.log
+
+# Environment variables & secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

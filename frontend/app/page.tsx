@@ -1,0 +1,294 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  
+  // Settings state
+  const [companyName, setCompanyName] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [repoPath, setRepoPath] = useState("");
+  const [repoBranch, setRepoBranch] = useState("");
+  const [dbHost, setDbHost] = useState("");
+  const [dbName, setDbName] = useState("");
+  
+  const [syncStatus, setSyncStatus] = useState("linked");
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isLightMode, setIsLightMode] = useState(false);
+
+  const BACKEND_URL = "http://localhost:8088";
+
+  useEffect(() => {
+    setMounted(true);
+    const savedCompanyId = localStorage.getItem("company_id");
+    const repoLinked = localStorage.getItem("repo_linked");
+    const savedTheme = localStorage.getItem("theme");
+
+    if (savedTheme === "light") {
+      setIsLightMode(true);
+      document.body.classList.add("light");
+    } else {
+      setIsLightMode(false);
+      document.body.classList.remove("light");
+    }
+
+    if (!savedCompanyId || repoLinked !== "true") {
+      router.push("/onboarding");
+    } else {
+      setCompanyId(savedCompanyId);
+      setCompanyName(localStorage.getItem("company_name") || "Developer Account");
+      setApiKey(localStorage.getItem("api_key") || "zt_secret_key");
+      setRepoPath(localStorage.getItem("repo_path") || "");
+      setRepoBranch(localStorage.getItem("repo_branch") || "main");
+      setDbHost(localStorage.getItem("db_host") || "");
+      setDbName(localStorage.getItem("db_name") || "");
+    }
+  }, [router]);
+
+  const toggleTheme = () => {
+    const nextTheme = !isLightMode;
+    setIsLightMode(nextTheme);
+    localStorage.setItem("theme", nextTheme ? "light" : "dark");
+    if (nextTheme) {
+      document.body.classList.add("light");
+    } else {
+      document.body.classList.remove("light");
+    }
+  };
+
+  const handleSyncCodebase = async () => {
+    setSyncing(true);
+    setError("");
+    setSuccess("");
+    setSyncStatus("parsing");
+
+    try {
+      const savedKey = localStorage.getItem("gemini_api_key") || "";
+      const res = await fetch(`${BACKEND_URL}/api/ingest?company_id=${companyId}&gemini_api_key=${encodeURIComponent(savedKey)}`, {
+        method: "POST",
+      });
+
+      if (!res.ok) throw new Error("Failed to re-sync codebase and schema.");
+      const data = await res.json();
+      
+      setSuccess(`Success! Re-indexed ${data.code_chunks_indexed} codebase chunks and database relationships.`);
+      setSyncStatus("linked");
+    } catch (err: any) {
+      setSyncStatus("failed");
+      setError(err.message || "An error occurred during synchronization.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleResetSettings = () => {
+    if (confirm("Are you sure you want to reset ZeroTicket onboarding details? This will clear local configurations.")) {
+      localStorage.clear();
+      router.push("/onboarding");
+    }
+  };
+
+  if (!mounted || !companyId) {
+    return <div className="p-8 text-xs text-slate-400">Loading ZeroTicket Dashboard...</div>;
+  }
+
+  // Sample widget embedding code snippet
+  const embedCode = `<iframe 
+  src="http://localhost:3000/widget?token=VERIFIED_JWT_TOKEN" 
+  style="border: none; width: 350px; height: 500px; position: fixed; bottom: 20px; right: 20px; z-index: 9999;"
+></iframe>`;
+
+  const backendSignCode = `// PHP (Laravel) Controller Example to generate signed JWT for Widget
+use Firebase\\JWT\\JWT;
+
+$payload = [
+    'iss' => '${companyId}',
+    'company_id' => '${companyId}',
+    'user_id' => Auth::user()->id,       // Logged in User ID
+    'tenant_id' => Auth::user()->company_id, // Tenant Context ID
+    'exp' => time() + 3600,             // 1 Hour Expiry
+];
+
+// Sign using your raw API Key
+$jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
+
+  return (
+    <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full space-y-8 relative">
+      {/* Background blur */}
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
+
+      {/* Top Header */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            ZeroTicket <span className="text-gradient font-extrabold text-sm uppercase tracking-wider bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded">Dashboard</span>
+          </h1>
+          <p className="text-xs text-slate-400">Manage connections and embedded AI ticket widget details</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold ${
+              isLightMode 
+                ? "bg-slate-250 hover:bg-slate-300 text-slate-700 shadow-sm border border-slate-300" 
+                : "bg-white/5 hover:bg-white/10 text-slate-300"
+            }`}
+          >
+            {isLightMode ? (
+              <>
+                <svg className="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" clipRule="evenodd" />
+                </svg>
+                Light
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+                Dark
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => router.push("/sandbox")}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 transition-colors text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow-md"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Open Sandbox Emulator
+          </button>
+
+          <button
+            onClick={handleResetSettings}
+            className={`px-3 py-2 transition-colors text-xs rounded-lg ${isLightMode ? "bg-slate-200 hover:bg-slate-300 text-slate-700" : "bg-white/5 hover:bg-white/10 text-slate-300"}`}
+          >
+            Reset Settings
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-950/40 border border-red-500/30 text-red-300 text-sm">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="p-4 rounded-lg bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 text-sm">
+          {success}
+        </div>
+      )}
+
+      {/* Grid of Connections Info */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Repo Card */}
+        <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Codebase</span>
+            <h2 className="text-sm font-bold text-white truncate">{repoPath.split("/").pop()}</h2>
+            <div className="text-xs text-slate-400 space-y-1">
+              <p>Path: <code className="text-slate-300 bg-white/5 px-1 py-0.5 rounded text-[10px]">{repoPath}</code></p>
+              <p>Branch: <span className="font-semibold text-slate-300">{repoBranch}</span></p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs">
+            <span className="text-slate-400">Status</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              syncStatus === "linked" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse"
+            }`}>
+              {syncStatus === "linked" ? "Synced" : "Syncing..."}
+            </span>
+          </div>
+        </div>
+
+        {/* Database Card */}
+        <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Target Database</span>
+            <h2 className="text-sm font-bold text-white truncate">{dbName}</h2>
+            <div className="text-xs text-slate-400 space-y-1">
+              <p>Host: <span className="font-semibold text-slate-300">{dbHost}</span></p>
+              <p>Type: <span className="font-semibold text-slate-300">MySQL Replica</span></p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs">
+            <span className="text-slate-400">Connection</span>
+            <span className="text-emerald-400 font-semibold flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Active
+            </span>
+          </div>
+        </div>
+
+        {/* Platform API Details */}
+        <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Developer API Keys</span>
+            <h2 className="text-sm font-bold text-white">{companyName}</h2>
+            <div className="text-xs text-slate-400 space-y-1">
+              <p>API Key: <code className="text-slate-300 bg-white/5 px-1 py-0.5 rounded text-[10px]">{apiKey.substring(0, 8)}...</code></p>
+              <p>Company ID: <code className="text-slate-300 bg-white/5 px-1 py-0.5 rounded text-[10px]">{companyId.substring(0, 8)}...</code></p>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleSyncCodebase}
+            disabled={syncing}
+            className="mt-4 w-full py-2 bg-white/5 hover:bg-white/10 text-slate-200 transition-colors text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5"
+          >
+            {syncing ? "Syncing..." : "Sync Repository Code"}
+            {!syncing && (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.28 15H18" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Integration Code Blocks Section */}
+      <div className="space-y-4">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+          Widget Embedding Guide
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Frontend Embedding code */}
+          <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-3">
+            <div>
+              <h3 className="text-xs font-bold text-white">1. Embed Iframe Widget</h3>
+              <p className="text-[11px] text-slate-400">Embed this iframe in your website. Ensure you pass the signed JWT token in search parameters.</p>
+            </div>
+            
+            <pre className="p-3 bg-slate-950/80 border border-white/5 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre">
+              {embedCode}
+            </pre>
+          </div>
+
+          {/* Backend JWT sign code */}
+          <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-3">
+            <div>
+              <h3 className="text-xs font-bold text-white">2. Generate JWT Token on Client Backend</h3>
+              <p className="text-[11px] text-slate-400">Sign user information using your ZeroTicket API key before rendering the support chat widget.</p>
+            </div>
+            
+            <pre className="p-3 bg-slate-950/80 border border-white/5 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre">
+              {backendSignCode}
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

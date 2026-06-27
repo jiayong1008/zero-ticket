@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b0f19;
+  --foreground: #f8fafc;
+  --card-bg: rgba(17, 24, 39, 0.7);
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.light {
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --border-color: rgba(15, 23, 42, 0.08);
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-input {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+  outline: none;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Loading animations */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.pulse-slow {
+  animation: pulse-slow 2s infinite ease-in-out;
+}
+
+/* Light mode component specific overrides */
+body.light .glass-panel {
+  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.04);
+}
+
+body.light .glass-input {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+body.light .glass-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+body.light ::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+}
+
+body.light ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+}
+
+body.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.3);
+}
+
+/* Override utility text colors to ensure high contrast in light mode */
+body.light .text-slate-400 {
+  color: #64748b !important;
+}
+
+body.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+body.light .text-slate-200 {
+  color: #1e293b !important;
+}
+
+body.light .border-white\/5,
+body.light .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light .bg-\[\#0b0f19\],
+body.light .bg-\[\#0b1329\] {
+  background-color: #f8fafc !important;
+}
+
+body.light .bg-slate-950\/80 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
