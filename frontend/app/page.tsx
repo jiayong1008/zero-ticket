@@ -179,13 +179,21 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
       </div>
 
       {error && (
-        <div className="p-4 rounded-lg bg-red-950/40 border border-red-500/30 text-red-300 text-sm">
+        <div className={`p-4 rounded-lg border text-sm transition-colors ${
+          isLightMode 
+            ? "bg-red-50 border-red-200 text-red-800" 
+            : "bg-red-950/40 border border-red-500/30 text-red-300"
+        }`}>
           {error}
         </div>
       )}
 
       {success && (
-        <div className="p-4 rounded-lg bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 text-sm">
+        <div className={`p-4 rounded-lg border text-sm transition-colors ${
+          isLightMode 
+            ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
+            : "bg-emerald-950/20 border border-emerald-500/30 text-emerald-400"
+        }`}>
           {success}
         </div>
       )}
@@ -193,19 +201,23 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
       {/* Grid of Connections Info */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Repo Card */}
-        <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
+        <div className={`rounded-xl p-5 border flex flex-col justify-between transition-all shadow-sm ${
+          isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
+        }`}>
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Codebase</span>
+            <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Codebase</span>
             <h2 className={`text-sm font-bold truncate transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{repoPath.split("/").pop()}</h2>
-            <div className="text-xs text-slate-400 space-y-1">
+            <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
               <p>Path: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{repoPath}</code></p>
               <p>Branch: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{repoBranch}</span></p>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Status</span>
+          <div className={`mt-4 pt-4 border-t flex items-center justify-between text-xs transition-colors ${isLightMode ? "border-slate-100" : "border-white/5"}`}>
+            <span className={isLightMode ? "text-slate-500" : "text-slate-400"}>Status</span>
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-              syncStatus === "linked" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse"
+              syncStatus === "linked" 
+                ? (isLightMode ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20") 
+                : "bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse"
             }`}>
               {syncStatus === "linked" ? "Synced" : "Syncing..."}
             </span>
@@ -213,30 +225,34 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
         </div>
 
         {/* Database Card */}
-        <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
+        <div className={`rounded-xl p-5 border flex flex-col justify-between transition-all shadow-sm ${
+          isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
+        }`}>
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Target Database</span>
+            <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Target Database</span>
             <h2 className={`text-sm font-bold truncate transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{dbName}</h2>
-            <div className="text-xs text-slate-400 space-y-1">
-              <p>Host: <span className="font-semibold text-slate-300">{dbHost}</span></p>
-              <p>Type: <span className="font-semibold text-slate-300">MySQL Replica</span></p>
+            <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+              <p>Host: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{dbHost}</span></p>
+              <p>Type: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>MySQL Replica</span></p>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Connection</span>
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <div className={`mt-4 pt-4 border-t flex items-center justify-between text-xs transition-colors ${isLightMode ? "border-slate-100" : "border-white/5"}`}>
+            <span className={isLightMode ? "text-slate-500" : "text-slate-400"}>Connection</span>
+            <span className={`font-semibold flex items-center gap-1 ${isLightMode ? "text-emerald-600" : "text-emerald-400"}`}>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Active
             </span>
           </div>
         </div>
 
         {/* Platform API Details */}
-        <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
+        <div className={`rounded-xl p-5 border flex flex-col justify-between transition-all shadow-sm ${
+          isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
+        }`}>
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Developer API Keys</span>
+            <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Developer API Keys</span>
             <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{companyName}</h2>
-            <div className="text-xs text-slate-400 space-y-1">
+            <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
               <p>API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{apiKey.substring(0, 8)}...</code></p>
               <p>Company ID: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{companyId.substring(0, 8)}...</code></p>
             </div>
@@ -247,7 +263,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
             disabled={syncing}
             className={`mt-4 w-full py-2 transition-colors text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 ${
               isLightMode 
-                ? "bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-350 shadow-sm" 
+                ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-250 shadow-sm" 
                 : "bg-white/5 hover:bg-white/10 text-slate-200"
             }`}
           >
@@ -263,31 +279,39 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
 
       {/* Integration Code Blocks Section */}
       <div className="space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+        <h2 className={`text-sm font-bold uppercase tracking-wider transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
           Widget Embedding Guide
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Frontend Embedding code */}
-          <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-3">
+          <div className={`p-5 rounded-xl border space-y-3 transition-all ${
+            isLightMode ? "bg-white border-slate-200/80 shadow-sm shadow-slate-100" : "glass-panel border-white/5 shadow-md shadow-black/45"
+          }`}>
             <div>
               <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>1. Embed Iframe Widget</h3>
-              <p className="text-[11px] text-slate-400">Embed this iframe in your website. Ensure you pass the signed JWT token in search parameters.</p>
+              <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Embed this iframe in your website. Ensure you pass the signed JWT token in search parameters.</p>
             </div>
             
-            <pre className="p-3 bg-slate-950/80 border border-white/5 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre">
+            <pre className={`p-3 border rounded-lg text-[10px] font-mono overflow-x-auto whitespace-pre transition-colors ${
+              isLightMode ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-slate-950/80 border-white/5 text-slate-300"
+            }`}>
               {embedCode}
             </pre>
           </div>
 
           {/* Backend JWT sign code */}
-          <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-3">
+          <div className={`p-5 rounded-xl border space-y-3 transition-all ${
+            isLightMode ? "bg-white border-slate-200/80 shadow-sm shadow-slate-100" : "glass-panel border-white/5 shadow-md shadow-black/45"
+          }`}>
             <div>
               <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>2. Generate JWT Token on Client Backend</h3>
-              <p className="text-[11px] text-slate-400">Sign user information using your ZeroTicket API key before rendering the support chat widget.</p>
+              <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Sign user information using your ZeroTicket API key before rendering the support chat widget.</p>
             </div>
             
-            <pre className="p-3 bg-slate-950/80 border border-white/5 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre">
+            <pre className={`p-3 border rounded-lg text-[10px] font-mono overflow-x-auto whitespace-pre transition-colors ${
+              isLightMode ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-slate-950/80 border-white/5 text-slate-300"
+            }`}>
               {backendSignCode}
             </pre>
           </div>
