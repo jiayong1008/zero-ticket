@@ -76,8 +76,46 @@ class ChatMessage(Base):
 engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def _auto_migrate(connection):
+    """Add any missing columns to existing SQLite tables without dropping data."""
+    cursor = connection.cursor()
+    for table in Base.metadata.sorted_tables:
+        try:
+            cursor.execute(f"PRAGMA table_info({table.name})")
+            existing_cols = {row[1] for row in cursor.fetchall()}
+        except Exception:
+            existing_cols = set()
+        for col in table.columns:
+            if col.name not in existing_cols:
+                col_type = col.type.compile(engine.dialect)
+                nullable = "" if col.nullable else " NOT NULL"
+                default = ""
+                if col.default is not None:
+                    try:
+                        val = col.default.arg
+                        if callable(val):
+                            val = val()
+                        if isinstance(val, str):
+                            default = f" DEFAULT '{val}'"
+                        else:
+                            default = f" DEFAULT {val}"
+                    except Exception:
+                        pass
+                try:
+                    cursor.execute(
+                        f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}{nullable}{default}"
+                    )
+                    print(f"[db] Auto-migrated: {table.name}.{col.name} ({col_type})")
+                except Exception as e:
+                    # Column may already exist or is non-nullable without a default — skip silently.
+                    pass
+    connection.commit()
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Auto-migrate: add any columns present in the model but missing from the DB file.
+    with engine.connect() as conn:
+        _auto_migrate(conn.connection)
 
 def get_db():
     db = SessionLocal()
