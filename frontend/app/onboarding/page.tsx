@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isAddingProject = Boolean(searchParams.get("step"));
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -50,9 +52,24 @@ export default function OnboardingPage() {
 
     const savedCompanyId = localStorage.getItem("company_id");
     const savedLinked = localStorage.getItem("repo_linked");
-    if (savedCompanyId && savedLinked === "true") {
+    const targetStep = searchParams.get("step");
+
+    if (targetStep) {
+      // User was intentionally redirected here to add a new project.
+      // Restore existing company context and jump to the requested step.
+      if (savedCompanyId) {
+        setCompanyId(savedCompanyId);
+        setCompanyName(localStorage.getItem("company_name") || "");
+        // Restore existing llm settings so step 4 looks right
+        setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
+        setLlmModel(localStorage.getItem("llm_model") || "");
+      }
+      setStep(Number(targetStep));
+    } else if (savedCompanyId && savedLinked === "true") {
+      // Fully onboarded with no explicit step override → go to dashboard.
       router.push("/");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const toggleTheme = () => {
@@ -216,8 +233,24 @@ export default function OnboardingPage() {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
 
       <div className="w-full max-w-xl glass-panel rounded-2xl p-8 border border-white/10 z-10">
-        {/* Theme Toggle Button */}
-        <div className="flex justify-end mb-2">
+        {/* Theme Toggle + Back Button Row */}
+        <div className="flex justify-between items-center mb-2">
+          {isAddingProject ? (
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all ${
+                isLightMode ? "text-slate-600 hover:bg-slate-100" : "text-slate-400 hover:bg-white/5"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Dashboard
+            </button>
+          ) : (
+            <div />
+          )}
           <button
             onClick={toggleTheme}
             type="button"
@@ -248,16 +281,22 @@ export default function OnboardingPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
-            Setup <span className="text-gradient">ZeroTicket</span>
+            {isAddingProject ? (
+              <>Add <span className="text-gradient">New Project</span></>
+            ) : (
+              <>Setup <span className="text-gradient">ZeroTicket</span></>
+            )}
           </h1>
           <p className="text-sm text-slate-400">
-            Automate customer support directly from your source code and database rules
+            {isAddingProject
+              ? `Adding project to ${companyName || "your account"}`
+              : "Automate customer support directly from your source code and database rules"}
           </p>
         </div>
 
-        {/* Step Indicators */}
+        {/* Step Indicators — only show steps relevant to current mode */}
         <div className="flex items-center justify-between mb-8 px-4">
-          {[1, 2, 3, 4].map((s) => (
+          {(isAddingProject ? [2, 3, 4] : [1, 2, 3, 4]).map((s, idx, arr) => (
             <div key={s} className="flex items-center">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
@@ -273,10 +312,10 @@ export default function OnboardingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  s
+                  isAddingProject ? idx + 1 : s
                 )}
               </div>
-              {s < 4 && (
+              {idx < arr.length - 1 && (
                 <div
                   className={`h-0.5 w-16 sm:w-24 transition-colors duration-300 ${
                     step > s ? "bg-emerald-500" : "bg-slate-800"
