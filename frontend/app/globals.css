@@ -125,10 +125,6 @@ body.light .border-white\/10 {
   border-color: rgba(15, 23, 42, 0.08) !important;
 }
 
-body.light .bg-\[\#0b0f19\],
-body.light .bg-\[\#0b1329\] {
-  background-color: #f8fafc !important;
-}
 
 body.light .bg-slate-950\/80 {
   background-color: #f1f5f9 !important;
