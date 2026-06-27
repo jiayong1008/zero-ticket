@@ -12,18 +12,23 @@ export default function OnboardingPage() {
   // State variables
   const [companyName, setCompanyName] = useState("");
   const [companyId, setCompanyId] = useState("");
-  const [apiKey, setApiKey] = useState("");
   
   const [repoPath, setRepoPath] = useState("");
+  const [projectName, setProjectName] = useState("");
   const [branch, setBranch] = useState("main");
+  const [repositoryId, setRepositoryId] = useState("");
   
+  const [dbType, setDbType] = useState<"mysql" | "postgres">("mysql");
   const [dbHost, setDbHost] = useState("127.0.0.1");
   const [dbPort, setDbPort] = useState(3306);
   const [dbUser, setDbUser] = useState("root");
   const [dbPass, setDbPass] = useState("");
   const [dbName, setDbName] = useState("");
 
-  const [geminiKey, setGeminiKey] = useState("");
+  // LLM Provider
+  const [llmProvider, setLlmProvider] = useState("gemini");
+  const [llmModel, setLlmModel] = useState("");
+  const [apiKey, setApiKey] = useState("");
   
   // Ingestion status state
   const [syncStatus, setSyncStatus] = useState("idle");
@@ -105,14 +110,17 @@ export default function OnboardingPage() {
           company_id: companyId,
           repo_path: repoPath,
           branch: branch,
+          project_name: projectName || undefined,
         }),
       });
       
       if (!res.ok) throw new Error("Failed to connect repository folder.");
       const data = await res.json();
       
+      setRepositoryId(data.repository_id);
       localStorage.setItem("repo_path", repoPath);
       localStorage.setItem("repo_branch", branch);
+      localStorage.setItem("repository_id", data.repository_id);
       
       setStep(3);
     } catch (err: any) {
@@ -134,6 +142,8 @@ export default function OnboardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company_id: companyId,
+          repository_id: repositoryId || undefined,
+          db_type: dbType,
           db_host: dbHost,
           db_port: Number(dbPort),
           db_user: dbUser,
@@ -142,11 +152,12 @@ export default function OnboardingPage() {
         }),
       });
       
-      if (!res.ok) throw new Error("Failed to connect target MySQL DB connection details.");
+      if (!res.ok) throw new Error(`Failed to connect target ${dbType === "postgres" ? "PostgreSQL" : "MySQL"} DB connection details.`);
       
       localStorage.setItem("db_host", dbHost);
       localStorage.setItem("db_name", dbName);
       localStorage.setItem("db_user", dbUser);
+      localStorage.setItem("db_type", dbType);
       
       setStep(4);
     } catch (err: any) {
@@ -162,13 +173,22 @@ export default function OnboardingPage() {
     setSyncStatus("cloning");
 
     try {
-      // Save Gemini key temporarily to local storage if typed
-      if (geminiKey.trim()) {
-        localStorage.setItem("gemini_api_key", geminiKey);
+      if (apiKey.trim()) {
+        localStorage.setItem("gemini_api_key", apiKey);
+        localStorage.setItem("llm_api_key", apiKey);
       }
+      localStorage.setItem("llm_provider", llmProvider);
+      localStorage.setItem("llm_model", llmModel);
       
-      const res = await fetch(`${BACKEND_URL}/api/ingest?company_id=${companyId}&gemini_api_key=${encodeURIComponent(geminiKey)}`, {
+      const res = await fetch(`${BACKEND_URL}/api/ingest`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_id: companyId,
+          repository_id: repositoryId || undefined,
+          llm_provider: llmProvider,
+          api_key: apiKey,
+        }),
       });
       
       if (!res.ok) throw new Error("Ingestion process failed. Verify repository path and target database replica are reachable.");
@@ -178,7 +198,6 @@ export default function OnboardingPage() {
       setSyncStatus("linked");
       localStorage.setItem("repo_linked", "true");
       
-      // Redirect to home dashboard
       setTimeout(() => {
         router.push("/");
       }, 2000);
@@ -311,6 +330,23 @@ export default function OnboardingPage() {
           <form onSubmit={handleConnectRepo} className="space-y-6">
             <div className="space-y-4">
               <div>
+                <label htmlFor="projectName" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Project Name <span className="text-slate-600 normal-case font-normal">(optional)</span>
+                </label>
+                <input
+                  id="projectName"
+                  type="text"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="e.g. EduKids Web Portal"
+                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  A friendly label for this project. Defaults to the folder name if left blank.
+                </p>
+              </div>
+
+              <div>
                 <label htmlFor="repoPath" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                   Local Repository Absolute Path
                 </label>
@@ -371,10 +407,38 @@ export default function OnboardingPage() {
         {/* Step 3: Connect DB */}
         {step === 3 && (
           <form onSubmit={handleConnectDB} className="space-y-6">
+            {/* DB Type Selector */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                Database Type
+              </label>
+              <div className="flex gap-2">
+                {(["mysql", "postgres"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setDbType(t);
+                      setDbPort(t === "postgres" ? 5432 : 3306);
+                    }}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold border transition-all ${
+                      dbType === t
+                        ? "bg-blue-600/20 border-blue-500/60 text-blue-400"
+                        : isLightMode
+                        ? "border-slate-300 text-slate-500 hover:border-slate-400"
+                        : "border-white/10 text-slate-400 hover:border-white/20"
+                    }`}
+                  >
+                    {t === "mysql" ? "MySQL" : "PostgreSQL"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-6 gap-4">
               <div className="col-span-4">
                 <label htmlFor="dbHost" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  MySQL Replica Host
+                  {dbType === "postgres" ? "PostgreSQL" : "MySQL"} Host
                 </label>
                 <input
                   id="dbHost"
@@ -461,7 +525,7 @@ export default function OnboardingPage() {
                 disabled={loading}
                 className="flex-1 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(59,130,246,0.25)] hover:shadow-[0_4px_25px_rgba(59,130,246,0.4)] disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading ? "Testing MySQL replica connection..." : "Connect Target Database"}
+                {loading ? `Testing ${dbType === "postgres" ? "PostgreSQL" : "MySQL"} connection...` : "Connect Target Database"}
                 {!loading && (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -475,16 +539,67 @@ export default function OnboardingPage() {
         {/* Step 4: Run Ingestion */}
         {step === 4 && (
           <div className="space-y-6">
+            {/* Model Provider Selector */}
             <div>
-              <label htmlFor="geminiKey" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                GEMINI_API_KEY (Leave blank if set on backend shell environment)
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                AI Model Provider
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { id: "gemini", label: "Gemini", sub: "Google" },
+                  { id: "openai", label: "GPT-4o", sub: "OpenAI" },
+                  { id: "anthropic", label: "Claude", sub: "Anthropic" },
+                  { id: "deepseek", label: "DeepSeek", sub: "DeepSeek AI" },
+                  { id: "qwen", label: "Qwen", sub: "Alibaba" },
+                ] as const).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setLlmProvider(p.id)}
+                    className={`py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all text-left ${
+                      llmProvider === p.id
+                        ? "bg-blue-600/20 border-blue-500/60 text-blue-400"
+                        : isLightMode
+                        ? "border-slate-300 text-slate-500 hover:border-slate-400"
+                        : "border-white/10 text-slate-400 hover:border-white/20"
+                    }`}
+                  >
+                    <div className="font-bold">{p.label}</div>
+                    <div className="text-[10px] opacity-60">{p.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Model name override (optional) */}
+            <div>
+              <label htmlFor="llmModel" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                Model Name <span className="text-slate-600 normal-case font-normal">(optional override)</span>
               </label>
               <input
-                id="geminiKey"
+                id="llmModel"
+                type="text"
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : "gemini-2.5-flash"}
+                className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Leave blank to use the recommended default model for the selected provider.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="apiKeyInput" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                {llmProvider === "gemini" ? "GEMINI_API_KEY" : llmProvider === "openai" ? "OPENAI_API_KEY" : llmProvider === "anthropic" ? "ANTHROPIC_API_KEY" : llmProvider === "deepseek" ? "DEEPSEEK_API_KEY" : "DASHSCOPE_API_KEY"}
+                <span className="text-slate-600 normal-case font-normal ml-1">(Leave blank if set in backend environment)</span>
+              </label>
+              <input
+                id="apiKeyInput"
                 type="password"
-                value={geminiKey}
-                onChange={(e) => setGeminiKey(e.target.value)}
-                placeholder="AIzaSy..."
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={llmProvider === "gemini" ? "AIzaSy..." : llmProvider === "openai" ? "sk-..." : llmProvider === "anthropic" ? "sk-ant-..." : "Enter API key"}
                 className="w-full px-4 py-3 rounded-lg glass-input text-sm"
               />
               <p className="mt-1 text-xs text-slate-500">

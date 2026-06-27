@@ -13,6 +13,9 @@ export default function SandboxPage() {
   const router = useRouter();
   const [companyId, setCompanyId] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [repositoryId, setRepositoryId] = useState("");
+  const [llmProvider, setLlmProvider] = useState("gemini");
+  const [llmModel, setLlmModel] = useState("");
   
   // Theme state
   const [isLightMode, setIsLightMode] = useState(false);
@@ -106,6 +109,9 @@ export default function SandboxPage() {
     } else {
       setCompanyId(savedId);
       setCompanyName(savedName || "Default Company");
+      setRepositoryId(localStorage.getItem("repository_id") || "");
+      setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
+      setLlmModel(localStorage.getItem("llm_model") || "");
     }
   }, [router]);
 
@@ -154,16 +160,19 @@ export default function SandboxPage() {
     };
 
     try {
-      const savedGeminiKey = localStorage.getItem("gemini_api_key") || "";
+      const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
       
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company_id: companyId,
+          repository_id: repositoryId || undefined,
           query: userMessage,
           mock_claims: mergedClaims,
-          gemini_api_key: savedGeminiKey
+          llm_provider: llmProvider || "gemini",
+          llm_model: llmModel || undefined,
+          api_key: savedKey,
         }),
       });
 
@@ -226,16 +235,19 @@ export default function SandboxPage() {
     };
 
     try {
-      const savedGeminiKey = localStorage.getItem("gemini_api_key") || "";
+      const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
       
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company_id: companyId,
+          repository_id: repositoryId || undefined,
           query: queryToRetry,
           mock_claims: mergedClaims,
-          gemini_api_key: savedGeminiKey
+          llm_provider: llmProvider || "gemini",
+          llm_model: llmModel || undefined,
+          api_key: savedKey,
         }),
       });
 
