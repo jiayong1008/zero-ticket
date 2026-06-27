@@ -126,7 +126,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-white/5 pb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          <h1 className={`text-2xl font-bold tracking-tight flex items-center gap-2 transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
             ZeroTicket <span className="text-gradient font-extrabold text-sm uppercase tracking-wider bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded">Dashboard</span>
           </h1>
           <p className="text-xs text-slate-400">Manage connections and embedded AI ticket widget details</p>
@@ -196,10 +196,10 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
         <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
           <div className="space-y-2">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Codebase</span>
-            <h2 className="text-sm font-bold text-white truncate">{repoPath.split("/").pop()}</h2>
+            <h2 className={`text-sm font-bold truncate transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{repoPath.split("/").pop()}</h2>
             <div className="text-xs text-slate-400 space-y-1">
-              <p>Path: <code className="text-slate-300 bg-white/5 px-1 py-0.5 rounded text-[10px]">{repoPath}</code></p>
-              <p>Branch: <span className="font-semibold text-slate-300">{repoBranch}</span></p>
+              <p>Path: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{repoPath}</code></p>
+              <p>Branch: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{repoBranch}</span></p>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs">
@@ -216,7 +216,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
         <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
           <div className="space-y-2">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Target Database</span>
-            <h2 className="text-sm font-bold text-white truncate">{dbName}</h2>
+            <h2 className={`text-sm font-bold truncate transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{dbName}</h2>
             <div className="text-xs text-slate-400 space-y-1">
               <p>Host: <span className="font-semibold text-slate-300">{dbHost}</span></p>
               <p>Type: <span className="font-semibold text-slate-300">MySQL Replica</span></p>
@@ -235,17 +235,21 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
         <div className="glass-panel rounded-xl p-5 border border-white/5 flex flex-col justify-between">
           <div className="space-y-2">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Developer API Keys</span>
-            <h2 className="text-sm font-bold text-white">{companyName}</h2>
+            <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{companyName}</h2>
             <div className="text-xs text-slate-400 space-y-1">
-              <p>API Key: <code className="text-slate-300 bg-white/5 px-1 py-0.5 rounded text-[10px]">{apiKey.substring(0, 8)}...</code></p>
-              <p>Company ID: <code className="text-slate-300 bg-white/5 px-1 py-0.5 rounded text-[10px]">{companyId.substring(0, 8)}...</code></p>
+              <p>API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{apiKey.substring(0, 8)}...</code></p>
+              <p>Company ID: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{companyId.substring(0, 8)}...</code></p>
             </div>
           </div>
           
           <button
             onClick={handleSyncCodebase}
             disabled={syncing}
-            className="mt-4 w-full py-2 bg-white/5 hover:bg-white/10 text-slate-200 transition-colors text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5"
+            className={`mt-4 w-full py-2 transition-colors text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 ${
+              isLightMode 
+                ? "bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-350 shadow-sm" 
+                : "bg-white/5 hover:bg-white/10 text-slate-200"
+            }`}
           >
             {syncing ? "Syncing..." : "Sync Repository Code"}
             {!syncing && (
@@ -267,7 +271,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
           {/* Frontend Embedding code */}
           <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-3">
             <div>
-              <h3 className="text-xs font-bold text-white">1. Embed Iframe Widget</h3>
+              <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>1. Embed Iframe Widget</h3>
               <p className="text-[11px] text-slate-400">Embed this iframe in your website. Ensure you pass the signed JWT token in search parameters.</p>
             </div>
             
@@ -279,7 +283,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
           {/* Backend JWT sign code */}
           <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-3">
             <div>
-              <h3 className="text-xs font-bold text-white">2. Generate JWT Token on Client Backend</h3>
+              <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>2. Generate JWT Token on Client Backend</h3>
               <p className="text-[11px] text-slate-400">Sign user information using your ZeroTicket API key before rendering the support chat widget.</p>
             </div>
             
