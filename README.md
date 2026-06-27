@@ -35,6 +35,10 @@ zeroticket/
     └── globals.css          # Design system, CSS variables, and light/dark styling overrides
 ```
 
+💡 **Sub-project Documentation:**
+* 🔌 **Backend API Details:** See the [backend/README.md](file:///Users/jiayong/GitHub/zeroticket/backend/README.md) for endpoint breakdowns and local database/vector directory mappings.
+* 🎨 **Frontend Client Details:** See the [frontend/README.md](file:///Users/jiayong/GitHub/zeroticket/frontend/README.md) for theme swapping setups, page directories, and client routes.
+
 ---
 
 ## 🚀 How to Run the Applications
