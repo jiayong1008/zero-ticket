@@ -203,7 +203,7 @@ export default function SandboxPage() {
     
     // Clear last error bubble for clean flow
     setMessages((prev) => {
-      if (prev.length > 0 && prev[prev.length - 1].sender === "system") {
+      if (prev.length > 0 && (prev[prev.length - 1].sender === "system" || prev[prev.length - 1].content.startsWith("Error:"))) {
         return prev.slice(0, -1);
       }
       return prev;
@@ -431,7 +431,7 @@ export default function SandboxPage() {
                   </button>
                 )}
 
-                {msg.sender === "system" && i === messages.length - 1 && (
+                {(msg.sender === "system" || msg.content.startsWith("Error:")) && i === messages.length - 1 && (
                   <button
                     onClick={() => handleRetryMessage(lastQuery)}
                     disabled={loading}
