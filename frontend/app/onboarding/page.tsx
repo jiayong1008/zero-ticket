@@ -120,17 +120,45 @@ export default function OnboardingPage() {
     setError("");
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/repository/connect`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company_id: companyId,
-          repo_path: repoPath,
-          branch: branch,
-          project_name: projectName || undefined,
-        }),
-      });
-      
+      let activeCompanyId = companyId;
+
+      const attemptConnect = async (cid: string) => {
+        return fetch(`${BACKEND_URL}/api/repository/connect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company_id: cid,
+            repo_path: repoPath,
+            branch: branch,
+            project_name: projectName || undefined,
+          }),
+        });
+      };
+
+      let res = await attemptConnect(activeCompanyId);
+
+      // If company no longer exists in the DB (e.g. after a DB reset), auto re-register it.
+      if (res.status === 404) {
+        const errBody = await res.json().catch(() => ({}));
+        if ((errBody?.detail || "").includes("Company not found")) {
+          const savedName = companyName || localStorage.getItem("company_name") || "My Company";
+          const regRes = await fetch(`${BACKEND_URL}/api/company/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: savedName }),
+          });
+          if (!regRes.ok) throw new Error("Failed to re-register company. Please reload and try again.");
+          const regData = await regRes.json();
+          activeCompanyId = regData.company_id;
+          setCompanyId(activeCompanyId);
+          localStorage.setItem("company_id", activeCompanyId);
+          localStorage.setItem("api_key", regData.api_key);
+          localStorage.setItem("company_name", regData.name);
+          // Retry the repo connect with the new company id
+          res = await attemptConnect(activeCompanyId);
+        }
+      }
+
       if (!res.ok) throw new Error("Failed to connect repository folder.");
       const data = await res.json();
       
@@ -169,7 +197,10 @@ export default function OnboardingPage() {
         }),
       });
       
-      if (!res.ok) throw new Error(`Failed to connect target ${dbType === "postgres" ? "PostgreSQL" : "MySQL"} DB connection details.`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.detail || `Failed to connect target ${dbType === "postgres" ? "PostgreSQL" : "MySQL"} DB connection details.`);
+      }
       
       localStorage.setItem("db_host", dbHost);
       localStorage.setItem("db_name", dbName);
