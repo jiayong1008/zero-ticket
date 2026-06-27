@@ -1,6 +1,25 @@
 # ZeroTicket: AI-Powered Support-as-Code Platform
 
-ZeroTicket is an autonomous AI customer support platform that integrates directly with a tenant's git repository and a read-only database replica. It answers customer support inquiries using real-time database schema information and codebase logic, while enforcing strict tenant data isolation via a secure SQL Security Guard.
+ZeroTicket is an autonomous AI customer support platform that integrates directly with a tenant's git repository and a read-only database replica. It resolves the "Why can't User X see Y?" support loophole by answering customer support inquiries using real-time database schema information and codebase logic, while enforcing strict tenant data isolation via a secure SQL Security Guard.
+
+---
+
+## 💡 Runtime Walkthrough (How it Answers a Question)
+
+1. **User Input:** End-user asks a question, e.g., *"Why is my transfer payment pending?"* (Signed JWT contains user context like `user_id: 852`).
+2. **Context Retrieval:** ZeroTicket finds the relevant codebase chunks (payment logic) from ChromaDB and the replica database configurations.
+3. **Draft SQL Query:** The AI determines it needs to query the database and drafts a query: `SELECT status, amount, created_at, failure_reason FROM payments`
+4. **Security Wrapping:** The SQL Security Guard intercepts and reformulates the query with tenant constraints:
+   ```sql
+   SELECT status, amount, created_at, failure_reason 
+   FROM payments 
+   WHERE user_id = 852 
+   ORDER BY created_at DESC 
+   LIMIT 1;
+   ```
+5. **Database Execution:** The safe query runs on the read-only MySQL replica (constrained by a hard **500ms** timeout and driver-level read-only permissions).
+6. **Code Rules Consultation:** The AI consults the retrieved code logic (e.g., standard ACH transfers under $2,000 take 2 business days to clear).
+7. **Response Generation:** The AI explains the technical result in clean, human-readable English: *"Your $1,500 payment is pending because it was sent via bank transfer (ACH), which takes up to 2 business days to clear. It should clear by tomorrow morning."*
 
 ---
 

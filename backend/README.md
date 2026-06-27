@@ -2,6 +2,23 @@
 
 FastAPI-powered agent engine that scans repositories, extracts database schemas, generates embedding vectors, and securely maps natural language customer support queries to sandboxed SQL queries.
 
+## ⚙️ Core Modules & Features
+
+### 1. Codebase Parsing & AST Engine
+* The parsing system uses **Tree-sitter** / Abstract Syntax Tree (AST) scanning to map endpoints, routes, controllers, and permission checks.
+* For **Laravel codebases**, it detects the `artisan` entrypoint and scopes parsing strictly to `app/Models`, `app/Http/Controllers`, and `routes/`.
+* Code files are chunked as unified class/module structures to optimize embedding count and stay within the daily free tier limits of `gemini-embedding-001`.
+
+### 2. SQL Security Guard & Protection Layers
+To prevent data leaks and SQL injection vulnerabilities:
+* **Driver-Level Write Prohibition:** The database connection utilizes a strictly read-only user (e.g., `GRANT SELECT`). Additionally, the token-level SQL parser rejects query execution containing mutating commands (`UPDATE`, `INSERT`, `DELETE`, `DROP`, `ALTER`, etc.).
+* **Automatic Tenant Constraint Injector:** The security guard intercepts all generated queries and wraps them in a subquery enforcing context filters based on active JWT claims:
+  ```sql
+  -- Original: SELECT * FROM invoices;
+  -- Secured:  SELECT * FROM (SELECT * FROM invoices) AS sub WHERE sub.tenant_id = :tenant_id LIMIT 10;
+  ```
+* **Performance Timeout:** Queries are limited to a hard **500ms execution timeout** to prevent denial of service (DoS) from unindexed or highly nested queries. Every query is also appended with `LIMIT 10`.
+
 ---
 
 ## 🚀 Setup & Installation

@@ -2,6 +2,13 @@
 
 Next.js web application providing an onboarding wizard, connection metrics, copy-pasteable widget integration scripts, and a sandbox interface to test AI behaviors under different mock user contexts.
 
+## 🛠️ Technology Stack
+* **Framework:** Next.js 16.2.9 (App Router)
+* **Library:** React 19.2.4
+* **Language:** TypeScript 5
+* **CSS & Design System:** TailwindCSS 4 & Vanilla CSS Variables (in `app/globals.css` supporting light/dark themes)
+* **Package Manager:** npm
+
 ---
 
 ## 🚀 Setup & Installation
