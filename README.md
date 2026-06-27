@@ -103,6 +103,30 @@ zeroticket/
 
 ---
 
+## 🆕 Features Added (June 2026)
+
+### Multi-Project Support
+* A single ZeroTicket installation supports **multiple project repositories** under one company account.
+* During onboarding Step 2, you can give each project a friendly **Project Name** (e.g., "EduKids Web Portal") separate from the repo folder path.
+* A **Project Switcher** dropdown appears on the dashboard header (after the first project is registered). Switching projects instantly updates the active `repository_id` in `localStorage` — all future sandbox queries and sync operations target the selected project.
+* The backend endpoint `GET /api/company/projects?company_id=...` returns all registered repositories with their sync statuses and linked DB type.
+
+### Database Type Toggle (MySQL vs PostgreSQL)
+* Onboarding Step 3 now includes a **Database Type selector** (MySQL / PostgreSQL).
+* Switching DB type auto-fills the default port (3306 for MySQL, 5432 for PostgreSQL).
+* The `db_type` field is stored in `DBConnection` and used by `get_target_db_conn()` in `db.py` to create the correct driver connection (`pymysql` or `psycopg2`).
+
+### Multi-LLM Provider Support (Gemini / OpenAI / Claude / DeepSeek / Qwen)
+* Onboarding Step 4 now shows a **Provider Picker** grid instead of a plain Gemini API key field.
+* Supported providers: **Gemini** (Google), **GPT-4o** (OpenAI), **Claude** (Anthropic), **DeepSeek** (DeepSeek AI), **Qwen** (Alibaba).
+* You can also override the model name if you want a specific version (e.g., `claude-3-haiku` instead of the default).
+* The selected provider and optional API key are stored in `localStorage` as `llm_provider`, `llm_model`, and `llm_api_key`.
+* These are passed to `/api/ingest` and `/api/sandbox/simulate` so the backend's `AgentEngine` can use the correct LLM client.
+* The Dashboard's **Developer API Keys** card now shows the active AI Provider in use.
+
+---
+
 ## 📦 Current Active Connections
 * **Repository Path:** `/Users/jiayong/GitHub/edukids-web` (Branch: `dev`)
 * **Local Database:** MySQL replica `edukids` (Host: `127.0.0.1:3306`, User: `root`)
+
