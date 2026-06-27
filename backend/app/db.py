@@ -15,13 +15,14 @@ class Company(Base):
     created_at = Column(Integer, default=lambda: int(time.time()))
     
     repositories = relationship("Repository", back_populates="company", cascade="all, delete-orphan")
-    db_connection = relationship("DBConnection", back_populates="company", uselist=False, cascade="all, delete-orphan")
+    db_connections = relationship("DBConnection", back_populates="company", cascade="all, delete-orphan")
     chat_sessions = relationship("ChatSession", back_populates="company", cascade="all, delete-orphan")
 
 class Repository(Base):
     __tablename__ = 'repositories'
     id = Column(String(36), primary_key=True)
     company_id = Column(String(36), ForeignKey('companies.id', ondelete='CASCADE'), nullable=False)
+    project_name = Column(String(255), nullable=True)
     provider = Column(Enum('github', 'gitlab', 'bitbucket', name='provider_enum'), nullable=False, default='github')
     repo_name = Column(String(255), nullable=False)  # For local repos, this can be the folder path
     branch = Column(String(100), default='main')
@@ -29,11 +30,14 @@ class Repository(Base):
     last_synced_at = Column(Integer, nullable=True)
     
     company = relationship("Company", back_populates="repositories")
+    db_connection = relationship("DBConnection", back_populates="repository", uselist=False, cascade="all, delete-orphan")
 
 class DBConnection(Base):
     __tablename__ = 'db_connections'
     id = Column(String(36), primary_key=True)
-    company_id = Column(String(36), ForeignKey('companies.id', ondelete='CASCADE'), nullable=False, unique=True)
+    company_id = Column(String(36), ForeignKey('companies.id', ondelete='CASCADE'), nullable=False)
+    repository_id = Column(String(36), ForeignKey('repositories.id', ondelete='CASCADE'), nullable=True)
+    db_type = Column(String(20), default='mysql')  # 'mysql' or 'postgres'
     db_host = Column(String(255), nullable=False)
     db_port = Column(Integer, default=3306)
     db_user = Column(String(100), nullable=False)
@@ -42,7 +46,8 @@ class DBConnection(Base):
     ssl_required = Column(Boolean, default=False)
     created_at = Column(Integer, default=lambda: int(time.time()))
     
-    company = relationship("Company", back_populates="db_connection")
+    company = relationship("Company", back_populates="db_connections")
+    repository = relationship("Repository", back_populates="db_connection")
 
 class ChatSession(Base):
     __tablename__ = 'chat_sessions'
@@ -106,13 +111,29 @@ def decrypt_password(encrypted: str) -> str:
 # Target database connection creator
 def get_target_db_conn(conn_details: DBConnection):
     password = decrypt_password(conn_details.encrypted_db_pass)
-    conn = pymysql.connect(
-        host=conn_details.db_host,
-        port=conn_details.db_port,
-        user=conn_details.db_user,
-        password=password,
-        database=conn_details.db_name,
-        cursorclass=pymysql.cursors.DictCursor,
-        connect_timeout=5  # connection setup timeout
-    )
-    return conn
+    db_type = getattr(conn_details, "db_type", "mysql") or "mysql"
+    if db_type == "postgres" or db_type == "postgresql":
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(
+            host=conn_details.db_host,
+            port=conn_details.db_port or 5432,
+            user=conn_details.db_user,
+            password=password,
+            database=conn_details.db_name,
+            cursor_factory=psycopg2.extras.RealDictCursor,
+            connect_timeout=5
+        )
+        return conn
+    else:
+        import pymysql
+        conn = pymysql.connect(
+            host=conn_details.db_host,
+            port=conn_details.db_port or 3306,
+            user=conn_details.db_user,
+            password=password,
+            database=conn_details.db_name,
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=5
+        )
+        return conn

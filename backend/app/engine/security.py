@@ -24,12 +24,14 @@ def escape_sql_value(val) -> str:
     return f"'{val_str}'"
 
 class SQLSecurityGuard:
-    def __init__(self, db_schema: dict):
+    def __init__(self, db_schema: dict, dialect: str = "mysql"):
         """
         db_schema: The schema dictionary returned by SchemaExtractor.extract_schema.
                    Structure: { table_name: { 'columns': [ { 'name': ... } ] } }
+        dialect: 'mysql' or 'postgres'
         """
         self.schema = db_schema
+        self.dialect = "postgres" if dialect in ["postgres", "postgresql"] else "mysql"
 
     def validate_and_rewrite(self, sql_query: str, jwt_claims: dict) -> str:
         """
@@ -49,7 +51,7 @@ class SQLSecurityGuard:
 
         # 2. Parse query using sqlglot
         try:
-            expression = parse_one(sql_query, read="mysql")
+            expression = parse_one(sql_query, read=self.dialect)
         except Exception as e:
             raise HTTPException(
                 status_code=400, 
@@ -74,6 +76,8 @@ class SQLSecurityGuard:
 
         # 4. Inject Tenant Constraints
         # We walk all Table nodes in the AST and replace them with scoped subqueries
+        quote_char = '"' if self.dialect == 'postgres' else '`'
+
         def transform_table_node(node):
             if isinstance(node, exp.Table):
                 table_name = node.name
@@ -89,15 +93,15 @@ class SQLSecurityGuard:
                         if col_name in table_cols and claim_name in jwt_claims:
                             claim_val = jwt_claims[claim_name]
                             if claim_val is not None:
-                                filters.append(f"`{col_name}` = {escape_sql_value(claim_val)}")
+                                filters.append(f"{quote_char}{col_name}{quote_char} = {escape_sql_value(claim_val)}")
                     
                     # If we found security columns, rewrite table to a subquery
                     if filters:
                         where_clause = " AND ".join(filters)
-                        subquery_sql = f"(SELECT * FROM `{table_name}` WHERE {where_clause})"
+                        subquery_sql = f"(SELECT * FROM {quote_char}{table_name}{quote_char} WHERE {where_clause})"
                         
                         # Generate the new parsed node
-                        subquery_node = parse_one(subquery_sql, read="mysql")
+                        subquery_node = parse_one(subquery_sql, read=self.dialect)
                         
                         # Apply original alias to the subquery
                         if alias:
@@ -134,5 +138,5 @@ class SQLSecurityGuard:
             rewritten_expression = exp.select("*").from_(rewritten_expression.subquery("union_sub")).limit(10)
 
         # Convert back to SQL string
-        final_sql = rewritten_expression.sql(dialect="mysql")
+        final_sql = rewritten_expression.sql(dialect=self.dialect)
         return final_sql

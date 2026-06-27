@@ -39,14 +39,23 @@ class RepositoryConnect(BaseModel):
     company_id: str
     repo_path: str  # local folder path for this developer tool
     branch: Optional[str] = "main"
+    project_name: Optional[str] = None
 
 class DBConnectRequest(BaseModel):
     company_id: str
+    repository_id: Optional[str] = None  # Link DB to a specific Repository project!
+    db_type: Optional[str] = "mysql"     # 'mysql' or 'postgres'
     db_host: str
     db_port: int = 3306
     db_user: str
     db_pass: str
     db_name: str
+
+class IngestRequest(BaseModel):
+    company_id: str
+    repository_id: Optional[str] = None
+    llm_provider: Optional[str] = "gemini"
+    api_key: Optional[str] = ""
 
 class ChatMessageRequest(BaseModel):
     session_id: str
@@ -54,9 +63,12 @@ class ChatMessageRequest(BaseModel):
 
 class SandboxRequest(BaseModel):
     company_id: str
+    repository_id: Optional[str] = None
     query: str
     mock_claims: dict
-    gemini_api_key: Optional[str] = ""
+    llm_provider: Optional[str] = "gemini"
+    llm_model: Optional[str] = ""
+    api_key: Optional[str] = ""
 
 # API Endpoints
 
@@ -93,20 +105,30 @@ def connect_repository(data: RepositoryConnect, db: Session = Depends(get_db)):
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
         
-    repo_id = str(uuid.uuid4())
-    repo = Repository(
-        id=repo_id,
-        company_id=data.company_id,
-        provider="github",  # Local repo maps to github-like scanning
-        repo_name=data.repo_path,
-        branch=data.branch,
-        sync_status="pending"
-    )
+    repo = db.query(Repository).filter(
+        Repository.company_id == data.company_id,
+        Repository.repo_name == data.repo_path
+    ).first()
     
-    # Delete existing repository settings for the company
-    db.query(Repository).filter(Repository.company_id == data.company_id).delete()
+    name = data.project_name or data.repo_path.split("/")[-1] or data.repo_path.split("\\")[-1] or "New Project"
     
-    db.add(repo)
+    if not repo:
+        repo_id = str(uuid.uuid4())
+        repo = Repository(
+            id=repo_id,
+            company_id=data.company_id,
+            project_name=name,
+            provider="github",
+            repo_name=data.repo_path,
+            branch=data.branch,
+            sync_status="pending"
+        )
+        db.add(repo)
+    else:
+        repo.project_name = name
+        repo.branch = data.branch
+        repo.sync_status = "pending"
+        
     db.commit()
     db.refresh(repo)
     
@@ -120,33 +142,52 @@ def connect_db(data: DBConnectRequest, db: Session = Depends(get_db)):
         
     encrypted_pass = encrypt_password(data.db_pass)
     
-    conn = DBConnection(
-        id=str(uuid.uuid4()),
-        company_id=data.company_id,
-        db_host=data.db_host,
-        db_port=data.db_port,
-        db_user=data.db_user,
-        encrypted_db_pass=encrypted_pass,
-        db_name=data.db_name
-    )
-    
-    # Delete existing DB Connection for the company
-    db.query(DBConnection).filter(DBConnection.company_id == data.company_id).delete()
-    
-    db.add(conn)
+    # Check if there is an existing DB connection for this repository
+    conn = None
+    if data.repository_id:
+        conn = db.query(DBConnection).filter(DBConnection.repository_id == data.repository_id).first()
+        
+    if not conn:
+        conn = DBConnection(
+            id=str(uuid.uuid4()),
+            company_id=data.company_id,
+            repository_id=data.repository_id,
+            db_type=data.db_type or "mysql",
+            db_host=data.db_host,
+            db_port=data.db_port,
+            db_user=data.db_user,
+            encrypted_db_pass=encrypted_pass,
+            db_name=data.db_name
+        )
+        db.add(conn)
+    else:
+        conn.db_type = data.db_type or "mysql"
+        conn.db_host = data.db_host
+        conn.db_port = data.db_port
+        conn.db_user = data.db_user
+        conn.encrypted_db_pass = encrypted_pass
+        conn.db_name = data.db_name
+        
     db.commit()
     db.refresh(conn)
     
     return {"status": "connected", "connection_id": conn.id}
 
-def start_ingestion_task(company_id: str, gemini_api_key: str, db_session_factory):
+def start_ingestion_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session_factory):
     # We open a new database session in the background task to avoid session thread sharing issues
     from app.db import SessionLocal
     db = SessionLocal()
     try:
-        repo = db.query(Repository).filter(Repository.company_id == company_id).first()
-        conn_details = db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
-        if not repo or not conn_details:
+        repo = db.query(Repository).filter(Repository.id == repository_id).first()
+        if not repo:
+            repo = db.query(Repository).filter(Repository.company_id == company_id).first()
+        if not repo:
+            return
+            
+        conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
+        if not conn_details:
+            conn_details = db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
+        if not conn_details:
             return
             
         # Step 1: Scan and Parse Codebase
@@ -155,9 +196,9 @@ def start_ingestion_task(company_id: str, gemini_api_key: str, db_session_factor
         parser = CodeParser(repo.repo_name)
         chunks = parser.scan_repository()
         
-        # Step 2: Index Code Chunks in Vector DB
+        # Step 2: Index Code Chunks in Vector DB using selected provider
         chroma = ChromaStore(persist_dir="chroma_db")
-        chroma.add_code_chunks(chunks, api_key=gemini_api_key)
+        chroma.add_code_chunks(chunks, api_key=api_key, provider=provider)
         
         # Step 3: Verify target DB schema can be queried
         from app.db import get_target_db_conn
@@ -174,23 +215,27 @@ def start_ingestion_task(company_id: str, gemini_api_key: str, db_session_factor
         import traceback
         with open("ingestion_error.log", "w") as f:
             traceback.print_exc(file=f)
-        repo.sync_status = "failed"
-        db.commit()
+        if repo:
+            repo.sync_status = "failed"
+            db.commit()
     finally:
         db.close()
 
 @app.post("/api/ingest")
 def run_ingestion(
-    company_id: str, 
+    data: IngestRequest,
     background_tasks: BackgroundTasks, 
-    gemini_api_key: Optional[str] = "", 
     db: Session = Depends(get_db)
 ):
-    repo = db.query(Repository).filter(Repository.company_id == company_id).first()
-    conn_details = db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
-    
+    repo = db.query(Repository).filter(Repository.id == data.repository_id).first()
+    if not repo:
+        repo = db.query(Repository).filter(Repository.company_id == data.company_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="No repository configured.")
+        
+    conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
+    if not conn_details:
+        conn_details = db.query(DBConnection).filter(DBConnection.company_id == data.company_id).first()
     if not conn_details:
         raise HTTPException(status_code=404, detail="No target database configured.")
         
@@ -198,7 +243,14 @@ def run_ingestion(
     db.commit()
     
     # Start ingestion task in background
-    background_tasks.add_task(start_ingestion_task, company_id, gemini_api_key, None)
+    background_tasks.add_task(
+        start_ingestion_task, 
+        data.company_id, 
+        repo.id, 
+        data.api_key, 
+        data.llm_provider or "gemini", 
+        None
+    )
     
     return {
         "status": "success", 
@@ -206,12 +258,27 @@ def run_ingestion(
         "sync_status": "cloning"
     }
 
+@app.get("/api/company/projects")
+def get_company_projects(company_id: str, db: Session = Depends(get_db)):
+    projects = db.query(Repository).filter(Repository.company_id == company_id).all()
+    result = []
+    for proj in projects:
+        db_conn = db.query(DBConnection).filter(DBConnection.repository_id == proj.id).first()
+        result.append({
+            "repository_id": proj.id,
+            "project_name": proj.project_name or proj.repo_name.split("/")[-1],
+            "repo_path": proj.repo_name,
+            "branch": proj.branch,
+            "sync_status": proj.sync_status,
+            "last_synced_at": proj.last_synced_at,
+            "db_connected": db_conn is not None,
+            "db_type": db_conn.db_type if db_conn else None,
+            "db_name": db_conn.db_name if db_conn else None
+        })
+    return result
+
 @app.post("/api/chat/session")
 def create_chat_session(jwt_claims: dict = Depends(verify_jwt_token), db: Session = Depends(get_db)):
-    """
-    Creates an authenticated chat session.
-    The issuer/company ID is verified via JWT token signature.
-    """
     company_id = jwt_claims.get("company_id") or jwt_claims.get("iss")
     ext_user_id = jwt_claims.get("user_id")
     ext_tenant_id = jwt_claims.get("tenant_id")
@@ -235,9 +302,6 @@ def send_chat_message(
     jwt_claims: dict = Depends(verify_jwt_token), 
     db: Session = Depends(get_db)
 ):
-    """
-    Sends a message to the AI agent inside an authenticated chat session.
-    """
     session = db.query(ChatSession).filter(ChatSession.id == data.session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
@@ -246,7 +310,6 @@ def send_chat_message(
     if session.company_id != company_id:
         raise HTTPException(status_code=403, detail="Not authorized for this session")
         
-    # Save User message
     user_msg = ChatMessage(
         id=str(uuid.uuid4()),
         session_id=session.id,
@@ -256,16 +319,13 @@ def send_chat_message(
     db.add(user_msg)
     db.commit()
     
-    # Run Agent Engine execution
     engine = AgentEngine(db)
-    # Check if header contains API Key for Gemini bypass or use system setting
     result = engine.execute_inquiry(
         company_id=company_id,
         query=data.message,
         jwt_claims=jwt_claims
     )
     
-    # Save Assistant message
     assistant_msg = ChatMessage(
         id=str(uuid.uuid4()),
         session_id=session.id,
@@ -283,15 +343,14 @@ def send_chat_message(
 
 @app.post("/api/sandbox/simulate")
 def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
-    """
-    Developer playground endpoint to simulate queries and inspect thought logs.
-    No JWT signature verification needed, allowing quick local emulation.
-    """
     engine = AgentEngine(db)
     result = engine.execute_inquiry(
         company_id=data.company_id,
         query=data.query,
         jwt_claims=data.mock_claims,
-        api_key=data.gemini_api_key
+        api_key=data.api_key,
+        repository_id=data.repository_id,
+        provider=data.llm_provider or "gemini",
+        model_name=data.llm_model
     )
     return result

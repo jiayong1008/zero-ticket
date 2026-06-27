@@ -19,23 +19,32 @@ class ChromaStore:
             raise ValueError("GEMINI_API_KEY is not configured.")
         return genai.Client(api_key=key)
 
-    def _generate_embeddings(self, texts: list[str], api_key: str = "") -> list[list[float]]:
+    def _generate_embeddings(self, texts: list[str], api_key: str = "", provider: str = "gemini") -> list[list[float]]:
         """
-        Generates embeddings for a list of texts using Gemini's gemini-embedding-001 model.
+        Generates embeddings for a list of texts using Gemini or OpenAI models.
         """
-        client = self._get_gemini_client(api_key)
-        
-        # Google GenAI API supports batch embedding
-        response = client.models.embed_content(
-            model="gemini-embedding-001",
-            contents=texts
-        )
-        
-        # Extract embeddings
-        embeddings = [e.values for e in response.embeddings]
-        return embeddings
+        if provider == "openai":
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key)
+            response = client.embeddings.create(
+                model="text-embedding-3-small",
+                input=texts
+            )
+            return [data.embedding for data in response.data]
+        else:
+            client = self._get_gemini_client(api_key)
+            
+            # Google GenAI API supports batch embedding
+            response = client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=texts
+            )
+            
+            # Extract embeddings
+            embeddings = [e.values for e in response.embeddings]
+            return embeddings
 
-    def add_code_chunks(self, chunks: list[dict], api_key: str = ""):
+    def add_code_chunks(self, chunks: list[dict], api_key: str = "", provider: str = "gemini"):
         """
         Processes and inserts codebase chunks into ChromaDB incrementally.
         """
@@ -93,7 +102,7 @@ class ChromaStore:
             batch_embeddings = []
             while retries > 0:
                 try:
-                    batch_embeddings = self._generate_embeddings(batch_docs, api_key)
+                    batch_embeddings = self._generate_embeddings(batch_docs, api_key, provider)
                     break
                 except Exception as e:
                     if "429" in str(e) and retries > 1:
@@ -117,12 +126,12 @@ class ChromaStore:
             if i + batch_size < len(pending_chunks):
                 time.sleep(5)
 
-    def query_similar_code(self, query: str, limit: int = 5, api_key: str = "") -> list[dict]:
+    def query_similar_code(self, query: str, limit: int = 5, api_key: str = "", provider: str = "gemini") -> list[dict]:
         """
         Queries Chroma for codebase chunks similar to the query.
         """
         # 1. Embed query
-        query_embedding = self._generate_embeddings([query], api_key)[0]
+        query_embedding = self._generate_embeddings([query], api_key, provider)[0]
         
         # 2. Query Chroma
         results = self.collection.query(
