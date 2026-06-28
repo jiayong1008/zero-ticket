@@ -62,7 +62,18 @@ zeroticket/
 
 ## 🚀 How to Run the Applications
 
-### 1. Backend Setup
+### Option 1: Docker (Recommended for Production)
+ZeroTicket comes with a full `docker-compose` setup for one-click deployment.
+```bash
+docker compose up -d --build
+```
+This will launch the FastAPI backend on `http://localhost:8088` and the Next.js frontend on `http://localhost:3000`.
+
+---
+
+### Option 2: Local Development
+
+#### 1. Backend Setup
 1. Navigate to the backend directory:
    ```bash
    cd backend
@@ -72,7 +83,7 @@ zeroticket/
    .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8088 --reload
    ```
 
-### 2. Frontend Setup
+#### 2. Frontend Setup
 1. Navigate to the frontend directory:
    ```bash
    cd frontend

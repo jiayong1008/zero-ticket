@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+chroma_db/
+chroma_db_test/
+zeroticket.db
+ingestion_error.log

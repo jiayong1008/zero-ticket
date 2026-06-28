@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zeroticket-backend
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./backend/zeroticket.db:/app/zeroticket.db
+      - ./backend/chroma_db:/app/chroma_db
+      - ./backend/.env:/app/.env
+    restart: unless-stopped
+    networks:
+      - zeroticket-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: zeroticket-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8088
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - zeroticket-network
+
+networks:
+  zeroticket-network:
+    driver: bridge
