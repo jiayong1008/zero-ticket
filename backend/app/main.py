@@ -112,6 +112,18 @@ class SandboxRequest(BaseModel):
     llm_model: Optional[str] = ""
     api_key: Optional[str] = ""
     llm_base_url: Optional[str] = ""
+    chat_history: Optional[list] = None
+
+class LLMConfigRequest(BaseModel):
+    company_id: str
+    llm_provider: str
+    api_key: Optional[str] = ""
+    llm_model: Optional[str] = ""
+
+class GenerateJWTRequest(BaseModel):
+    company_id: str
+    user_id: str
+    tenant_id: str
 
 # API Endpoints
 
@@ -135,6 +147,45 @@ def admin_login(data: AdminLoginRequest):
 def admin_status():
     from app.config import settings
     return {"login_required": bool(settings.ADMIN_PASSWORD)}
+
+@app.post("/api/admin/generate_jwt", dependencies=[Depends(verify_admin_passphrase)])
+def generate_test_jwt(data: GenerateJWTRequest, db: Session = Depends(get_db)):
+    company = db.query(Company).filter(Company.id == data.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    # We encrypted the API key into the api_key_hash column during registration
+    try:
+        raw_api_key = decrypt_password(company.api_key_hash)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to decrypt company API key.")
+    import jwt as pyjwt
+    import time
+    
+    payload = {
+        "iss": data.company_id,
+        "company_id": data.company_id,
+        "user_id": data.user_id,
+        "tenant_id": data.tenant_id,
+        "exp": int(time.time()) + 3600
+    }
+    
+    token = pyjwt.encode(payload, raw_api_key, algorithm="HS256")
+    return {"token": token}
+
+@app.post("/api/company/save_llm_config", dependencies=[Depends(verify_admin_passphrase)])
+def save_llm_config(data: LLMConfigRequest, db: Session = Depends(get_db)):
+    company = db.query(Company).filter(Company.id == data.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+        
+    company.llm_provider = data.llm_provider
+    if data.api_key:
+        company.encrypted_llm_api_key = encrypt_password(data.api_key)
+    company.llm_model = data.llm_model
+    
+    db.commit()
+    return {"status": "success", "message": "LLM Configuration saved securely."}
 
 @app.post("/api/company/register", dependencies=[Depends(verify_admin_passphrase)])
 def register_company(data: CompanyCreate, db: Session = Depends(get_db)):
@@ -513,6 +564,11 @@ def send_chat_message(
     if session.company_id != company_id:
         raise HTTPException(status_code=403, detail="Not authorized for this session")
         
+    # Fetch history BEFORE adding the current message to DB, up to 10 previous messages
+    history_records = db.query(ChatMessage).filter(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.desc()).limit(10).all()
+    history_records = history_records[::-1] # Chronological order
+    chat_history = [{"role": r.sender, "content": r.content} for r in history_records]
+
     user_msg = ChatMessage(
         id=str(uuid.uuid4()),
         session_id=session.id,
@@ -526,7 +582,8 @@ def send_chat_message(
     result = engine.execute_inquiry(
         company_id=company_id,
         query=data.message,
-        jwt_claims=jwt_claims
+        jwt_claims=jwt_claims,
+        chat_history=chat_history if chat_history else None
     )
     
     assistant_msg = ChatMessage(
@@ -554,6 +611,7 @@ def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
         api_key=data.api_key,
         repository_id=data.repository_id,
         provider=data.llm_provider or "gemini",
-        model_name=data.llm_model
+        model_name=data.llm_model,
+        chat_history=data.chat_history
     )
     return result

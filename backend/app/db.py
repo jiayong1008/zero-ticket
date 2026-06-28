@@ -12,6 +12,9 @@ class Company(Base):
     id = Column(String(36), primary_key=True)
     name = Column(String(255), nullable=False)
     api_key_hash = Column(String(64), nullable=False, unique=True)
+    llm_provider = Column(String(50), nullable=True, default="gemini")
+    encrypted_llm_api_key = Column(Text, nullable=True)
+    llm_model = Column(String(100), nullable=True)
     created_at = Column(Integer, default=lambda: int(time.time()))
     
     repositories = relationship("Repository", back_populates="company", cascade="all, delete-orphan")

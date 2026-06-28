@@ -78,7 +78,7 @@ class AgentEngine:
             )
             return response.text or ""
 
-    def execute_inquiry(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "") -> dict:
+    def execute_inquiry(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "", chat_history: list = None) -> dict:
         """
         Coordinates the full execution loop:
         1. Retrieves relevant codebase context from Chroma.
@@ -90,6 +90,21 @@ class AgentEngine:
         """
         start_time = time.time()
         
+        # 0. Resolve LLM Configuration
+        if not api_key:
+            from app.db import Company, decrypt_password
+            company = self.db.query(Company).filter(Company.id == company_id).first()
+            if company and company.encrypted_llm_api_key:
+                api_key = decrypt_password(company.encrypted_llm_api_key)
+                provider = company.llm_provider or provider
+                model_name = company.llm_model or model_name
+        
+        if not api_key:
+            return {
+                "answer": "Error: Failed to generate SQL draft using LLM: LLM API Key is not configured. Please save your API key in the Developer Dashboard.",
+                "thought_log": "LLM API Key missing in request and database."
+            }
+            
         # 1. Fetch DB Connection details
         conn_details = None
         if repository_id:
@@ -151,7 +166,22 @@ class AgentEngine:
             print(f"Codebase search skipped/failed: {str(e)}")
             code_context = "No codebase context retrieved."
 
-        # 4. Draft SQL Query
+        # 4. Format chat history (Dynamic Token-Aware Sliding Window)
+        history_context = ""
+        if chat_history:
+            history_lines = []
+            char_count = 0
+            for msg in reversed(chat_history):
+                role_str = "ZeroTicket" if msg.get("role") == "assistant" else "User"
+                line = f"[{role_str}]: {msg.get('content', '')}"
+                if char_count + len(line) > 3000:
+                    break
+                history_lines.insert(0, line)
+                char_count += len(line)
+            if history_lines:
+                history_context = "RECENT CONVERSATION HISTORY:\n" + "\n".join(history_lines) + "\n"
+
+        # 5. Draft SQL Query
         draft_sql = ""
         
         sql_draft_prompt = f"""
@@ -161,6 +191,7 @@ Your job is to write a single read-only {db_type.upper()} SELECT query that will
 DATABASE SCHEMA:
 {schema_context}
 
+{history_context}
 RELEVANT CODE LOGIC:
 {code_context}
 
@@ -233,14 +264,18 @@ INSTRUCTIONS:
 You are ZeroTicket, the AI support assistant. 
 Your goal is to answer the customer's support inquiry in a helpful, non-technical way.
 
+DATABASE SCHEMA:
+{schema_context}
+
+{history_context}
+CODE LOGIC EXPLAINER:
+{code_context}
+
 USER INQUIRY:
 "{query}"
 
 JWT CLAIMS FOR LOGGED IN USER:
 {str(jwt_claims)}
-
-CODE LOGIC EXPLAINER:
-{code_context}
 
 SQL QUERY EXECUTED:
 {sanitized_sql or "No query executed"}

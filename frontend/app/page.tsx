@@ -182,6 +182,65 @@ export default function DashboardPage() {
     }
   };
 
+  const handleSaveLLMConfig = async () => {
+    try {
+      const token = localStorage.getItem("admin_token") || "";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["X-Admin-Token"] = token;
+      
+      const payload = {
+        company_id: companyId,
+        llm_provider: llmProvider,
+        api_key: llmApiKey,
+        llm_model: llmModel
+      };
+      
+      const res = await fetch(`${BACKEND_URL}/api/company/save_llm_config`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to save LLM config to server");
+      }
+      
+      setIsEditingLLM(false);
+      toast.success("LLM Configuration Saved to Database!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save config");
+    }
+  };
+
+  const handleTestWidget = async () => {
+    try {
+      const token = localStorage.getItem("admin_token") || "";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["X-Admin-Token"] = token;
+      
+      const payload = {
+        company_id: companyId,
+        user_id: "2",
+        tenant_id: "1"
+      };
+      
+      const res = await fetch(`${BACKEND_URL}/api/admin/generate_jwt`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to generate test token");
+      }
+      
+      const data = await res.json();
+      window.open(`/widget?token=${data.token}`, '_blank');
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate test token");
+    }
+  };
+
   const handleSyncCodebase = async () => {
     setSyncing(true);
     setError("");
@@ -898,10 +957,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                 )}
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsEditingLLM(false);
-                    toast.success("LLM Configuration Saved!");
-                  }}
+                  onClick={handleSaveLLMConfig}
                   className="w-full py-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded transition-all"
                 >
                   Save Config
@@ -969,18 +1025,44 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
 
       {/* Integration Code Blocks Section */}
       <div className="space-y-4">
-        <h2 className={`text-sm font-bold uppercase tracking-wider transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
-          Widget Embedding Guide
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className={`text-sm font-bold uppercase tracking-wider transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+            Widget Embedding Guide
+          </h2>
+          <button
+            onClick={handleTestWidget}
+            className="px-4 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-full transition-all shadow-md flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Test Live Widget
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Frontend Embedding code */}
           <div className={`p-5 rounded-xl border space-y-3 transition-all ${
             isLightMode ? "bg-white border-slate-200/80 shadow-sm shadow-slate-100" : "glass-panel border-white/5 shadow-md shadow-black/45"
           }`}>
-            <div>
-              <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>1. Embed Iframe Widget</h3>
-              <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Embed this iframe in your website. Ensure you pass the signed JWT token in search parameters.</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>1. Embed Iframe Widget</h3>
+                <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Embed this iframe in your website. Ensure you pass the signed JWT token in search parameters.</p>
+              </div>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(embedCode);
+                  toast.success("Copied to clipboard!");
+                }}
+                className={`p-1.5 rounded transition-colors ${isLightMode ? "bg-slate-100 hover:bg-slate-200 text-slate-500" : "bg-white/5 hover:bg-white/10 text-slate-400"}`}
+                title="Copy code"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
             </div>
             
             <div className={`border rounded-lg text-[10px] overflow-hidden transition-colors ${
@@ -1000,9 +1082,23 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
           <div className={`p-5 rounded-xl border space-y-3 transition-all ${
             isLightMode ? "bg-white border-slate-200/80 shadow-sm shadow-slate-100" : "glass-panel border-white/5 shadow-md shadow-black/45"
           }`}>
-            <div>
-              <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>2. Generate JWT Token on Client Backend</h3>
-              <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Sign user information using your ZeroTicket API key before rendering the support chat widget.</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className={`text-xs font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>2. Generate JWT Token on Client Backend</h3>
+                <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Sign user information using your ZeroTicket API key before rendering the support chat widget.</p>
+              </div>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(backendSignCode);
+                  toast.success("Copied to clipboard!");
+                }}
+                className={`p-1.5 rounded transition-colors ${isLightMode ? "bg-slate-100 hover:bg-slate-200 text-slate-500" : "bg-white/5 hover:bg-white/10 text-slate-400"}`}
+                title="Copy code"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
             </div>
             
             <div className={`border rounded-lg text-[10px] overflow-hidden transition-colors ${
