@@ -486,9 +486,11 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
               syncStatus === "linked" 
                 ? (isLightMode ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20") 
+                : syncStatus === "pending"
+                ? (isLightMode ? "bg-slate-100 text-slate-600 border border-slate-200" : "bg-slate-800/40 text-slate-400 border border-white/5")
                 : "bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse"
             }`}>
-              {syncStatus === "linked" ? "Synced" : syncStatus === "failed" ? "Failed" : "Syncing..."}
+              {syncStatus === "linked" ? "Synced" : syncStatus === "failed" ? "Failed" : syncStatus === "pending" ? "Pending" : "Syncing..."}
             </span>
           </div>
 
