@@ -1,7 +1,7 @@
 import uuid
 import secrets
 import hashlib
-from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks, Security
+from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks, Security, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session

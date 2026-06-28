@@ -4,7 +4,7 @@ import chromadb
 from google import genai
 from app.config import settings
 
-def interruptible_sleep(seconds: int, check_interval: float = 1.0, on_progress=None, current_idx=0):
+def interruptible_sleep(seconds: int, check_interval: float = 1.0, on_progress=None, current_idx=0, status_msg=None):
     start_time = time.time()
     while time.time() - start_time < seconds:
         try:
@@ -16,7 +16,7 @@ def interruptible_sleep(seconds: int, check_interval: float = 1.0, on_progress=N
             
         if on_progress:
             try:
-                on_progress(current_idx)
+                on_progress(current_idx, status_msg)
             except Exception as ex:
                 if "Sync cancelled by user" in str(ex):
                     raise ex
@@ -45,7 +45,10 @@ class ChromaStore:
         key = api_key or settings.GEMINI_API_KEY
         if not key:
             raise ValueError("GEMINI_API_KEY is not configured.")
-        return genai.Client(api_key=key)
+        return genai.Client(
+            api_key=key, 
+            http_options={'retryOptions': {'attempts': 1}}
+        )
 
     def _generate_embeddings(self, texts: list[str], api_key: str = "", provider: str = "gemini") -> list[list[float]]:
         """
@@ -117,7 +120,9 @@ class ChromaStore:
             return
             
         # 2. Batch generate embeddings and add incrementally
-        batch_size = 50
+        # Gemini Free Tier limits embeddings to 15 Requests Per Minute.
+        # Since each string in the batch counts as 1 request, we must use a batch_size < 15.
+        batch_size = 10 if (provider or "gemini").lower() == "gemini" else 50
         import time
         
         for i in range(0, len(pending_chunks), batch_size):
@@ -149,16 +154,19 @@ class ChromaStore:
                 except Exception as e:
                     if "429" in str(e) and retries > 1:
                         print(f"Rate limited (429) during embedding. Sleeping for {backoff} seconds...")
+                        status_msg = f"Rate limit hit. Retrying in {backoff}s..."
                         if on_progress:
                             try:
-                                on_progress(i, f"Rate limit hit. Retrying in {backoff}s...")
+                                on_progress(i, status_msg)
                             except Exception as ex:
                                 if "Sync cancelled by user" in str(ex):
                                     raise ex
-                        interruptible_sleep(backoff, on_progress=on_progress, current_idx=i)
+                        interruptible_sleep(backoff, on_progress=on_progress, current_idx=i, status_msg=status_msg)
                         backoff *= 2
                         retries -= 1
                     else:
+                        if "429" in str(e):
+                            raise Exception("Quota exceeded or persistent rate limit. Please check your API key limits or try again later.")
                         raise e
             
             if batch_embeddings:

@@ -332,9 +332,9 @@ export default function SandboxPage() {
       </header>
 
       {/* Main Sandbox Workspace */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Side: Mock JWT / Claims Controls (1/4 space) */}
-        <aside className={`w-80 border-r p-5 overflow-y-auto space-y-6 flex flex-col transition-colors duration-300 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/30 border-white/10"}`}>
+        <aside className={`w-80 border-r p-5 overflow-y-auto space-y-6 flex flex-col transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/30 border-white/10"}`}>
           <div>
             <h2 className={`text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
               <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -392,7 +392,7 @@ export default function SandboxPage() {
         </aside>
 
         {/* Center: Live Chat Sandbox Widget (2/5 space) */}
-        <section className={`flex-1 flex flex-col border-r relative transition-colors duration-300 ${isLightMode ? "bg-white border-slate-200" : "bg-[#0b0f19] border-white/10"}`}>
+        <section className={`flex-1 flex flex-col border-r relative transition-colors duration-300 min-h-0 ${isLightMode ? "bg-white border-slate-200" : "bg-[#0b0f19] border-white/10"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-50/50" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>Widget Chat Simulator</span>
             {loading && (
@@ -490,7 +490,7 @@ export default function SandboxPage() {
         </section>
 
         {/* Right Side: Developer Console / Thought logs (2/5 space) */}
-        <section className={`w-1/2 flex flex-col overflow-hidden transition-colors duration-300 ${isLightMode ? "bg-slate-50" : "bg-[#0b1329]"}`}>
+        <section className={`w-1/2 flex flex-col overflow-hidden transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50" : "bg-[#0b1329]"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-100" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold flex items-center gap-1.5 ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
               <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
