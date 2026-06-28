@@ -25,37 +25,37 @@ ZeroTicket is an autonomous AI customer support platform that integrates directl
 
 ## 🛠️ Project Structure
 
-The project consists of a Python FastAPI backend and a Next.js (React) frontend.
+The project consists of a Python FastAPI backend and a Next.js (React) frontend, designed to be deployed as a secure, self-hosted commercial SaaS.
 
 ```
 zeroticket/
 ├── backend/                  # FastAPI Backend Server
 │   ├── app/
-│   │   ├── main.py          # API Endpoints (Ingestion, Sandbox, Chat Session)
+│   │   ├── main.py          # API Endpoints (Ingestion, Sandbox, Chat Session, Admin Security)
 │   │   ├── parser/
 │   │   │   ├── code_parser.py       # Scans repo and chunks Laravel models & controllers
 │   │   │   └── schema_extractor.py  # Connects to MySQL replica and extracts tables/schemas
 │   │   ├── vector/
-│   │   │   └── chroma_store.py      # Embeds chunks incrementally using Gemini and caches in ChromaDB
+│   │   │   └── chroma_store.py      # Embeds chunks incrementally using Multi-LLM providers
 │   │   ├── engine/
 │   │   │   ├── agent.py             # Generates SQL queries and answers support tickets
 │   │   │   └── security.py          # SQL Security Guard to wrap/intercept queries for safety
 │   │   └── db.py            # Local SQLite database configurations
 │   ├── zeroticket.db        # Backend SQLite metadata DB (ignored by git)
-│   └── chroma_db/           # Local Vector database (ignored by git)
+│   ├── chroma_db/           # Local Vector database (ignored by git)
+│   └── .env                 # Environment variables (ADMIN_PASSWORD, LICENSE_KEY, etc.)
 │
 └── frontend/                 # Next.js Web Client
     ├── app/
     │   ├── layout.tsx       # Root Next.js layout (theme transition listener)
-    │   ├── page.tsx         # Dashboard / Connection details and Widget Integration Guides
-    │   ├── onboarding/      # 4-Step Onboarding flow (Company info, Git repo, DB credentials, Gemini API key)
-    │   ├── sandbox/         # AI Sandbox Emulator (JWT Mock Claims, Chat simulator, and thoughts/SQL trace log)
+    │   ├── page.tsx         # Dashboard / Connection details, Sandbox Emulator, and Widget Integration
+    │   ├── onboarding/      # Onboarding flow (Git repo, DB credentials, Multi-LLM setup)
     │   └── widget/          # Customer-facing embedded chat widget (renders in iframe)
     └── globals.css          # Design system, CSS variables, and light/dark styling overrides
 ```
 
 💡 **Sub-project Documentation:**
-* 🔌 **Backend API Details:** See the [backend/README.md](file:///Users/jiayong/GitHub/zeroticket/backend/README.md) for endpoint breakdowns and local database/vector directory mappings.
+* 🔌 **Backend API Details:** See the [backend/README.md](file:///Users/jiayong/GitHub/zeroticket/backend/README.md) for endpoint breakdowns, environment variables, and local database/vector directory mappings.
 * 🎨 **Frontend Client Details:** See the [frontend/README.md](file:///Users/jiayong/GitHub/zeroticket/frontend/README.md) for theme swapping setups, page directories, and client routes.
 
 ---

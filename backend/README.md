@@ -35,7 +35,27 @@ pip install -r requirements.txt
 ```
 *(Note: If requirements.txt is not yet generated, standard packages are: `fastapi uvicorn sqlalchemy pymysql google-genai chromadb pyjwt`)*
 
-### 3. Launching Server
+### 3. Environment Variables
+Create a `.env` file in the `backend/` directory with the following minimum required configuration for a self-hosted instance:
+
+```env
+# Database configuration (SQLite for local metadata)
+DATABASE_URL=sqlite:///./zeroticket.db
+
+# Encryption key for securing replica DB credentials at rest
+ENCRYPTION_KEY=your-32-byte-base64-string-here
+
+# Enterprise License Key
+LICENSE_KEY=zt_license_trial_key
+
+# Admin Passphrase to access the dashboard and configuration endpoints
+ADMIN_PASSWORD=your_secure_password
+
+# (Optional) Custom LLM base URL (e.g., for local Ollama/vLLM)
+CUSTOM_LLM_BASE_URL=http://localhost:11434/v1
+```
+
+### 4. Launching Server
 Start the development server using uvicorn on port `8088`:
 ```bash
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8088 --reload
