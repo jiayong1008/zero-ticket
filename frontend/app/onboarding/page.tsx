@@ -36,6 +36,8 @@ function OnboardingPageContent() {
   // Ingestion status state
   const [syncStatus, setSyncStatus] = useState("idle");
   const [indexedChunks, setIndexedChunks] = useState(0);
+  const [chunksTotal, setChunksTotal] = useState(0);
+  const [syncMessage, setSyncMessage] = useState("");
   const [isLightMode, setIsLightMode] = useState(false);
 
   const BACKEND_URL = "http://localhost:8088";
@@ -262,6 +264,9 @@ function OnboardingPageContent() {
               const active = projects.find((p) => p.repository_id === repositoryId);
               if (active) {
                 setSyncStatus(active.sync_status);
+                setChunksTotal(active.chunks_total || 0);
+                setIndexedChunks(active.chunks_indexed || 0);
+                setSyncMessage(active.sync_message || "");
                 if (active.sync_status === "linked") {
                   clearInterval(pollInterval);
                   localStorage.setItem("repo_linked", "true");
@@ -272,7 +277,7 @@ function OnboardingPageContent() {
                 } else if (active.sync_status === "failed") {
                   clearInterval(pollInterval);
                   setLoading(false);
-                  setError("Ingestion process failed. Verify repository path or check backend logs.");
+                  setError(active.sync_message || "Ingestion process failed. Verify repository path or check backend logs.");
                 }
               }
             }
@@ -818,9 +823,9 @@ function OnboardingPageContent() {
                 {/* Scan Status */}
                 <div className="flex items-center justify-between text-xs">
                   <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
-                    {syncStatus === "cloning" || syncStatus === "parsing" ? (
+                    {syncStatus === "cloning" || (syncStatus === "parsing" && chunksTotal === 0) ? (
                       <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
-                    ) : syncStatus === "linked" ? (
+                    ) : syncStatus === "linked" || chunksTotal > 0 ? (
                       <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
@@ -829,42 +834,81 @@ function OnboardingPageContent() {
                     )}
                     1. Code Parsing & AST Mapping
                   </span>
-                  <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{syncStatus === "idle" ? "Pending" : syncStatus === "linked" ? "Success" : syncStatus === "failed" ? "Failed" : "Running..."}</span>
+                  <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
+                    {syncStatus === "idle" 
+                      ? "Pending" 
+                      : syncStatus === "linked" || chunksTotal > 0 
+                      ? "Success" 
+                      : syncStatus === "failed" 
+                      ? "Failed" 
+                      : "Running..."}
+                  </span>
                 </div>
 
                 {/* Vector DB Status */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
-                    {syncStatus === "parsing" ? (
-                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
-                    ) : syncStatus === "linked" ? (
-                      <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <div className={`w-2.5 h-2.5 rounded-full ${isLightMode ? "bg-slate-300" : "bg-slate-700"}`} />
-                    )}
-                    2. Vectorizing Codebase (ChromaDB)
-                  </span>
-                  <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
-                    {syncStatus === "linked" ? `${indexedChunks} chunks` : syncStatus === "parsing" ? "Generating..." : "Pending"}
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+                      {syncStatus === "parsing" ? (
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
+                      ) : syncStatus === "linked" ? (
+                        <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <div className={`w-2.5 h-2.5 rounded-full ${isLightMode ? "bg-slate-300" : "bg-slate-700"}`} />
+                      )}
+                      2. Vectorizing Codebase (ChromaDB)
+                    </span>
+                    <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
+                      {syncStatus === "linked" 
+                        ? `${indexedChunks} chunks` 
+                        : syncStatus === "parsing" 
+                        ? chunksTotal > 0 
+                          ? `Embedding (${indexedChunks}/${chunksTotal})` 
+                          : "Embedding..."
+                        : syncStatus === "failed" && chunksTotal > 0
+                        ? "Failed"
+                        : "Pending"}
+                    </span>
+                  </div>
+                  {syncStatus === "parsing" && chunksTotal > 0 && (
+                    <div className="space-y-1 w-full">
+                      <div className={`w-full rounded-full h-1 overflow-hidden transition-colors ${
+                        isLightMode ? "bg-slate-100" : "bg-white/5"
+                      }`}>
+                        <div 
+                          className="bg-blue-500 h-full rounded-full transition-all duration-300" 
+                          style={{ width: `${Math.min(100, Math.round((indexedChunks / chunksTotal) * 100))}%` }}
+                        />
+                      </div>
+                      {syncMessage && (
+                        <p className="text-[10px] text-amber-500 font-semibold animate-pulse">
+                          {syncMessage}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* DB Schema Extraction */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
-                    {syncStatus === "linked" ? (
-                      <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <div className={`w-2.5 h-2.5 rounded-full ${isLightMode ? "bg-slate-300" : "bg-slate-700"}`} />
-                    )}
-                    3. Target DB Schema & Relationships Linked
-                  </span>
-                  <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{syncStatus === "linked" ? "Synced" : "Pending"}</span>
-                </div>
+                {!skipDb && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={`flex items-center gap-2 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+                      {syncStatus === "linked" ? (
+                        <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <div className={`w-2.5 h-2.5 rounded-full ${isLightMode ? "bg-slate-300" : "bg-slate-700"}`} />
+                      )}
+                      3. Target DB Schema & Relationships Linked
+                    </span>
+                    <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
+                      {syncStatus === "linked" ? "Synced" : "Pending"}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
