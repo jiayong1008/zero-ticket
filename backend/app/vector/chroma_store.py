@@ -1,12 +1,34 @@
 import os
+import time
 import chromadb
 from google import genai
 from app.config import settings
 
+def interruptible_sleep(seconds: int, check_interval: float = 1.0, on_progress=None, current_idx=0):
+    start_time = time.time()
+    while time.time() - start_time < seconds:
+        try:
+            from app.main import SHUTDOWN_SIGNAL
+            if SHUTDOWN_SIGNAL:
+                raise ValueError("Server shutting down")
+        except ImportError:
+            pass
+            
+        if on_progress:
+            try:
+                on_progress(current_idx)
+            except Exception as ex:
+                if "Sync cancelled by user" in str(ex):
+                    raise ex
+                pass
+                
+        time.sleep(min(check_interval, seconds - (time.time() - start_time)))
+
 class ChromaStore:
-    def __init__(self, persist_dir: str = "chroma_db", repository_id: str = ""):
+    def __init__(self, persist_dir: str = "chroma_db", repository_id: str = "", llm_base_url: str = ""):
         self.persist_dir = os.path.abspath(persist_dir)
         self.client = chromadb.PersistentClient(path=self.persist_dir)
+        self._llm_base_url = llm_base_url
         # Use per-repository collection so projects don't share/pollute each other's index.
         # ChromaDB collection names: 3-63 chars, alphanumeric + underscores/hyphens only.
         if repository_id:
@@ -45,6 +67,15 @@ class ChromaStore:
                 contents=texts
             )
             return [e.values for e in response.embeddings]
+        elif prov == "custom":
+            from openai import OpenAI
+            base_url = self._llm_base_url or settings.CUSTOM_LLM_BASE_URL
+            client = OpenAI(api_key=api_key or "noop", base_url=base_url)
+            response = client.embeddings.create(
+                model="nomic-embed-text",
+                input=texts
+            )
+            return [data.embedding for data in response.data]
         else:
             # Fall back to Gemini using the backend's environment key for embeddings,
             # since Claude/DeepSeek/Qwen keys cannot be used for Google GenAI embedding.
@@ -121,9 +152,10 @@ class ChromaStore:
                         if on_progress:
                             try:
                                 on_progress(i, f"Rate limit hit. Retrying in {backoff}s...")
-                            except Exception:
-                                pass
-                        time.sleep(backoff)
+                            except Exception as ex:
+                                if "Sync cancelled by user" in str(ex):
+                                    raise ex
+                        interruptible_sleep(backoff, on_progress=on_progress, current_idx=i)
                         backoff *= 2
                         retries -= 1
                     else:
@@ -140,8 +172,9 @@ class ChromaStore:
                 if on_progress:
                     try:
                         on_progress(i + len(batch))
-                    except Exception:
-                        pass
+                    except Exception as ex:
+                        if "Sync cancelled by user" in str(ex):
+                            raise ex
                 
             # Simple throttling sleep to respect free tier rate limit
             if i + batch_size < len(pending_chunks):

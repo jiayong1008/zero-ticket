@@ -8,10 +8,11 @@ from app.vector.chroma_store import ChromaStore
 from app.engine.security import SQLSecurityGuard
 
 class AgentEngine:
-    def __init__(self, db_session, repository_id: str = ""):
+    def __init__(self, db_session, repository_id: str = "", llm_base_url: str = ""):
         self.db = db_session
         self._repository_id = repository_id
-        self.chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id)
+        self._llm_base_url = llm_base_url
+        self.chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id, llm_base_url=llm_base_url)
 
     def _get_gemini_client(self, api_key: str = ""):
         key = api_key or settings.GEMINI_API_KEY
@@ -52,6 +53,17 @@ class AgentEngine:
             model_name = model or ("deepseek-chat" if prov == "deepseek" else "qwen-plus")
             response = client.chat.completions.create(
                 model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0
+            )
+            return response.choices[0].message.content or ""
+            
+        elif prov == "custom":
+            from openai import OpenAI
+            base_url = self._llm_base_url or settings.CUSTOM_LLM_BASE_URL
+            client = OpenAI(api_key=api_key or "noop", base_url=base_url)
+            response = client.chat.completions.create(
+                model=model or "llama3",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0
             )

@@ -40,17 +40,59 @@ export default function DashboardPage() {
   const [chunksIndexed, setChunksIndexed] = useState(0);
   const [syncMessage, setSyncMessage] = useState("");
   const [llmApiKey, setLlmApiKey] = useState("");
+  const [llmModel, setLlmModel] = useState("llama3");
+  const [llmBaseUrl, setLlmBaseUrl] = useState("http://localhost:11434/v1");
   const [isEditingLLM, setIsEditingLLM] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLightMode, setIsLightMode] = useState(false);
 
+  // Admin lock states
+  const [loginRequired, setLoginRequired] = useState(false);
+  const [adminToken, setAdminToken] = useState("");
+  const [loginPassphrase, setLoginPassphrase] = useState("");
+  const [loginError, setLoginError] = useState("");
+
   const BACKEND_URL = "http://localhost:8088";
+
+  const loadProjects = (targetCompanyId: string, token: string) => {
+    const headers: Record<string, string> = {};
+    const actToken = token || localStorage.getItem("admin_token") || "";
+    if (actToken) {
+      headers["X-Admin-Token"] = actToken;
+    }
+    fetch(`http://localhost:8088/api/company/projects?company_id=${targetCompanyId}`, { headers })
+      .then((r) => {
+        if (!r.ok) {
+          if (r.status === 401) {
+            setAdminToken("");
+            setLoginRequired(true);
+          }
+          throw new Error("Failed to load projects");
+        }
+        return r.json();
+      })
+      .then((data: any[]) => {
+        if (Array.isArray(data)) {
+          const mapped = data.map((p) => ({
+            id: p.repository_id,
+            name: p.project_name || p.repo_path?.split("/").pop() || "Unnamed",
+            repo_path: p.repo_path,
+            branch: p.branch,
+            sync_status: p.sync_status,
+            db_type: p.db_type,
+            chunks_total: p.chunks_total,
+            chunks_indexed: p.chunks_indexed,
+            sync_message: p.sync_message,
+          }));
+          setProjects(mapped);
+        }
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     setMounted(true);
-    const savedCompanyId = localStorage.getItem("company_id");
-    const repoLinked = localStorage.getItem("repo_linked");
     const savedTheme = localStorage.getItem("theme");
 
     if (savedTheme === "light") {
@@ -61,43 +103,48 @@ export default function DashboardPage() {
       document.body.classList.remove("light");
     }
 
+    const savedCompanyId = localStorage.getItem("company_id");
+    const repoLinked = localStorage.getItem("repo_linked");
+
     if (!savedCompanyId || repoLinked !== "true") {
       router.push("/onboarding");
-    } else {
-      setCompanyId(savedCompanyId);
-      setCompanyName(localStorage.getItem("company_name") || "Developer Account");
-      setApiKey(localStorage.getItem("api_key") || "zt_secret_key");
-      setRepoPath(localStorage.getItem("repo_path") || "");
-      setRepoBranch(localStorage.getItem("repo_branch") || "main");
-      setDbHost(localStorage.getItem("db_host") || "");
-      setDbName(localStorage.getItem("db_name") || "");
-      setDbType(localStorage.getItem("db_type") || "mysql");
-      setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
-      setLlmApiKey(localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "");
-      const savedRepoId = localStorage.getItem("repository_id") || "";
-      setActiveRepoId(savedRepoId);
-
-      // Fetch all projects for this company
-      fetch(`http://localhost:8088/api/company/projects?company_id=${savedCompanyId}`)
-        .then((r) => r.json())
-        .then((data: any[]) => {
-          if (Array.isArray(data)) {
-            const mapped = data.map((p) => ({
-              id: p.repository_id,
-              name: p.project_name || p.repo_path?.split("/").pop() || "Unnamed",
-              repo_path: p.repo_path,
-              branch: p.branch,
-              sync_status: p.sync_status,
-              db_type: p.db_type,
-              chunks_total: p.chunks_total,
-              chunks_indexed: p.chunks_indexed,
-              sync_message: p.sync_message,
-            }));
-            setProjects(mapped);
-          }
-        })
-        .catch(() => {});
+      return;
     }
+
+    setCompanyId(savedCompanyId);
+    setCompanyName(localStorage.getItem("company_name") || "Developer Account");
+    setApiKey(localStorage.getItem("api_key") || "zt_secret_key");
+    setRepoPath(localStorage.getItem("repo_path") || "");
+    setRepoBranch(localStorage.getItem("repo_branch") || "main");
+    setDbHost(localStorage.getItem("db_host") || "");
+    setDbName(localStorage.getItem("db_name") || "");
+    setDbType(localStorage.getItem("db_type") || "mysql");
+    setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
+    setLlmApiKey(localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "");
+    setLlmModel(localStorage.getItem("llm_model") || "llama3");
+    setLlmBaseUrl(localStorage.getItem("llm_base_url") || "http://localhost:11434/v1");
+    const savedRepoId = localStorage.getItem("repository_id") || "";
+    setActiveRepoId(savedRepoId);
+
+    // Check admin status first
+    fetch("http://localhost:8088/api/admin/status")
+      .then((r) => r.json())
+      .then((statusData) => {
+        if (statusData.login_required) {
+          const savedToken = localStorage.getItem("admin_token");
+          if (!savedToken) {
+            setLoginRequired(true);
+          } else {
+            setAdminToken(savedToken);
+            loadProjects(savedCompanyId, savedToken);
+          }
+        } else {
+          loadProjects(savedCompanyId, "");
+        }
+      })
+      .catch(() => {
+        loadProjects(savedCompanyId, "");
+      });
   }, [router]);
 
   // Update active repository details when activeRepoId or projects list changes
@@ -134,15 +181,22 @@ export default function DashboardPage() {
     setSuccess("");
     setSyncStatus("cloning");
 
+    const token = localStorage.getItem("admin_token") || "";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) {
+      headers["X-Admin-Token"] = token;
+    }
+
     try {
       const res = await fetch(`${BACKEND_URL}/api/ingest`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           company_id: companyId,
           repository_id: activeRepoId || undefined,
           llm_provider: llmProvider,
           api_key: llmApiKey,
+          llm_base_url: llmBaseUrl,
         }),
       });
 
@@ -157,11 +211,73 @@ export default function DashboardPage() {
     }
   };
 
+  const handleCancelSync = async () => {
+    const token = localStorage.getItem("admin_token") || "";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) {
+      headers["X-Admin-Token"] = token;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/ingest/cancel`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          company_id: companyId,
+          repository_id: activeRepoId,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.detail || "Failed to cancel synchronization.");
+      }
+
+      setSyncing(false);
+      setSyncStatus("failed");
+      setSyncMessage("Cancelled");
+      setSuccess("Synchronization cancelled successfully.");
+    } catch (err: any) {
+      setError(err.message || "An error occurred while cancelling sync.");
+    }
+  };
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    try {
+      const res = await fetch(`http://localhost:8088/api/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: loginPassphrase }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Invalid admin passphrase.");
+      }
+      const data = await res.json();
+      localStorage.setItem("admin_token", data.token);
+      setAdminToken(data.token);
+      setLoginError("");
+      setLoginRequired(false);
+      
+      const savedCompanyId = localStorage.getItem("company_id") || "";
+      loadProjects(savedCompanyId, data.token);
+    } catch (err: any) {
+      setLoginError(err.message || "Failed to login.");
+    }
+  };
+
   useEffect(() => {
     if (!syncing || !companyId || !activeRepoId) return;
 
     const interval = setInterval(() => {
-      fetch(`${BACKEND_URL}/api/company/projects?company_id=${companyId}`)
+      const token = localStorage.getItem("admin_token") || "";
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["X-Admin-Token"] = token;
+      }
+      fetch(`${BACKEND_URL}/api/company/projects?company_id=${companyId}`, { headers })
         .then((r) => r.json())
         .then((data: any[]) => {
           if (Array.isArray(data)) {
@@ -231,6 +347,65 @@ $payload = [
 
 // Sign using your raw API Key
 $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
+
+  if (mounted && loginRequired && !adminToken) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center font-sans transition-colors duration-300 ${
+        isLightMode ? "bg-slate-50" : "bg-[#0b0f19]"
+      }`}>
+        <div className={`w-full max-w-md p-8 rounded-2xl border transition-all duration-300 ${
+          isLightMode 
+            ? "bg-white border-slate-200/80 shadow-lg shadow-slate-100" 
+            : "bg-[#0f172a]/40 border-white/5 shadow-2xl shadow-black/60 backdrop-blur-xl"
+        }`}>
+          <div className="flex flex-col items-center gap-4 text-center mb-6">
+            <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center border border-blue-500/20 text-blue-500">
+              <svg className="w-6 h-6 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className={`text-lg font-bold tracking-tight ${isLightMode ? "text-slate-900" : "text-white"}`}>
+                ZeroTicket Admin Panel
+              </h1>
+              <p className={`text-xs mt-1 leading-relaxed ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                Please enter the self-hosted admin passphrase to configure or manage ZeroTicket.
+              </p>
+            </div>
+          </div>
+          
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            {loginError && (
+              <div className="p-3 rounded-lg bg-red-950/40 border border-red-500/25 text-red-300 text-xs text-center leading-relaxed">
+                {loginError}
+              </div>
+            )}
+            <div>
+              <input
+                type="password"
+                value={loginPassphrase}
+                onChange={(e) => setLoginPassphrase(e.target.value)}
+                placeholder="Admin Passphrase..."
+                required
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm transition-all focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 ${
+                  isLightMode
+                    ? "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                    : "bg-slate-950/60 border-white/5 text-white placeholder-slate-500"
+                }`}
+              />
+            </div>
+            
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_8px_25px_-4px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 active:translate-y-0"
+            >
+              Access Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full space-y-8 relative">
@@ -561,26 +736,69 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   >
                     <option value="gemini">Gemini</option>
                     <option value="openai">OpenAI</option>
+                    <option value="custom">Custom / Ollama</option>
                   </select>
                 </div>
-                <div>
-                  <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>LLM API Key</label>
-                  <input
-                    type="password"
-                    value={llmApiKey}
-                    onChange={(e) => {
-                      setLlmApiKey(e.target.value);
-                      localStorage.setItem("llm_api_key", e.target.value);
-                      localStorage.setItem("gemini_api_key", e.target.value);
-                    }}
-                    placeholder={llmProvider === "gemini" ? "AIzaSy..." : "sk-..."}
-                    className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
-                      isLightMode 
-                        ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
-                        : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
-                    }`}
-                  />
-                </div>
+                {llmProvider === "custom" ? (
+                  <div className="space-y-2">
+                    <div>
+                      <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Custom Model Name</label>
+                      <input
+                        type="text"
+                        value={llmModel}
+                        onChange={(e) => {
+                          setLlmModel(e.target.value);
+                          localStorage.setItem("llm_model", e.target.value);
+                        }}
+                        placeholder="llama3"
+                        className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                          isLightMode 
+                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
+                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Custom Base URL</label>
+                      <input
+                        type="text"
+                        value={llmBaseUrl}
+                        onChange={(e) => {
+                          setLlmBaseUrl(e.target.value);
+                          localStorage.setItem("llm_base_url", e.target.value);
+                        }}
+                        placeholder="http://localhost:11434/v1"
+                        className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                          isLightMode 
+                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
+                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                        }`}
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-500 italic mt-0.5">
+                      Routes requests to your custom local LLM server endpoint.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>LLM API Key</label>
+                    <input
+                      type="password"
+                      value={llmApiKey}
+                      onChange={(e) => {
+                        setLlmApiKey(e.target.value);
+                        localStorage.setItem("llm_api_key", e.target.value);
+                        localStorage.setItem("gemini_api_key", e.target.value);
+                      }}
+                      placeholder={llmProvider === "gemini" ? "AIzaSy..." : "sk-..."}
+                      className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                        isLightMode 
+                          ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
+                          : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                      }`}
+                    />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsEditingLLM(false)}
@@ -594,28 +812,42 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                 <p>API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{apiKey.substring(0, 8)}...</code></p>
                 <p>Company ID: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{companyId.substring(0, 8)}...</code></p>
                 <p>AI Provider: <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{llmProvider}</span></p>
-                <p>LLM API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmApiKey ? `${llmApiKey.substring(0, 6)}...` : "None"}</code></p>
+                {llmProvider === "custom" ? (
+                  <p>Custom Model: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmModel || "llama3"}</code></p>
+                ) : (
+                  <p>LLM API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmApiKey ? `${llmApiKey.substring(0, 6)}...` : "None"}</code></p>
+                )}
               </div>
             )}
           </div>
           
           <div className="mt-4 flex flex-col gap-2">
-            <button
-              onClick={handleSyncCodebase}
-              disabled={syncing}
-              className={`w-full py-2 transition-colors text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 ${
-                isLightMode 
-                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-250 shadow-sm" 
-                  : "bg-white/5 hover:bg-white/10 text-slate-200"
-              }`}
-            >
-              {syncing ? "Syncing..." : "Sync Repository Code"}
-              {!syncing && (
+            {syncing ? (
+              <button
+                type="button"
+                onClick={handleCancelSync}
+                className="w-full py-2 bg-red-600 hover:bg-red-500 transition-colors text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 shadow-sm"
+              >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.28 15H18" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              )}
-            </button>
+                Cancel Synchronization
+              </button>
+            ) : (
+              <button
+                onClick={handleSyncCodebase}
+                className={`w-full py-2 transition-colors text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 ${
+                  isLightMode 
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-250 shadow-sm" 
+                    : "bg-white/5 hover:bg-white/10 text-slate-200"
+                }`}
+              >
+                Sync Codebase
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              </button>
+            )}
             {projects.length === 0 && (
               <button
                 onClick={() => router.push("/onboarding?step=2")}

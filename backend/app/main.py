@@ -1,10 +1,26 @@
 import uuid
 import secrets
-from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks
+import hashlib
+from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
+
+admin_token_header = APIKeyHeader(name="X-Admin-Token", auto_error=False)
+
+def verify_admin_passphrase(token: Optional[str] = Security(admin_token_header)):
+    from app.config import settings
+    if not settings.ADMIN_PASSWORD:
+        return
+        
+    expected_token = hashlib.sha256(settings.ADMIN_PASSWORD.encode('utf-8')).hexdigest()
+    if not token or token != expected_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized: Invalid admin passphrase token."
+        )
 
 from app.db import (
     init_db, get_db, Company, Repository, DBConnection, 
@@ -26,6 +42,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SHUTDOWN_SIGNAL = False
+
+@app.on_event("shutdown")
+def shutdown_event():
+    global SHUTDOWN_SIGNAL
+    SHUTDOWN_SIGNAL = True
+    print("[shutdown] FastAPI is shutting down. Signalling background tasks...")
 
 @app.on_event("startup")
 def startup_event():
@@ -49,6 +73,9 @@ def startup_event():
 class CompanyCreate(BaseModel):
     name: str
 
+class AdminLoginRequest(BaseModel):
+    password: str
+
 class RepositoryConnect(BaseModel):
     company_id: str
     repo_path: str  # local folder path for this developer tool
@@ -70,6 +97,7 @@ class IngestRequest(BaseModel):
     repository_id: Optional[str] = None
     llm_provider: Optional[str] = "gemini"
     api_key: Optional[str] = ""
+    llm_base_url: Optional[str] = ""
 
 class ChatMessageRequest(BaseModel):
     session_id: str
@@ -83,6 +111,7 @@ class SandboxRequest(BaseModel):
     llm_provider: Optional[str] = "gemini"
     llm_model: Optional[str] = ""
     api_key: Optional[str] = ""
+    llm_base_url: Optional[str] = ""
 
 # API Endpoints
 
@@ -90,7 +119,24 @@ class SandboxRequest(BaseModel):
 def health_check():
     return {"status": "healthy", "service": "ZeroTicket Engine"}
 
-@app.post("/api/company/register")
+@app.post("/api/admin/login")
+def admin_login(data: AdminLoginRequest):
+    from app.config import settings
+    if not settings.ADMIN_PASSWORD:
+        return {"status": "success", "token": "disabled"}
+        
+    if data.password != settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid admin passphrase.")
+        
+    token = hashlib.sha256(settings.ADMIN_PASSWORD.encode('utf-8')).hexdigest()
+    return {"status": "success", "token": token}
+
+@app.get("/api/admin/status")
+def admin_status():
+    from app.config import settings
+    return {"login_required": bool(settings.ADMIN_PASSWORD)}
+
+@app.post("/api/company/register", dependencies=[Depends(verify_admin_passphrase)])
 def register_company(data: CompanyCreate, db: Session = Depends(get_db)):
     company_id = str(uuid.uuid4())
     # Generate API key
@@ -113,7 +159,7 @@ def register_company(data: CompanyCreate, db: Session = Depends(get_db)):
         "api_key": raw_api_key
     }
 
-@app.post("/api/repository/connect")
+@app.post("/api/repository/connect", dependencies=[Depends(verify_admin_passphrase)])
 def connect_repository(data: RepositoryConnect, db: Session = Depends(get_db)):
     company = db.query(Company).filter(Company.id == data.company_id).first()
     if not company:
@@ -148,7 +194,7 @@ def connect_repository(data: RepositoryConnect, db: Session = Depends(get_db)):
     
     return {"status": "connected", "repository_id": repo.id, "sync_status": repo.sync_status}
 
-@app.post("/api/db/connect")
+@app.post("/api/db/connect", dependencies=[Depends(verify_admin_passphrase)])
 def connect_db(data: DBConnectRequest, db: Session = Depends(get_db)):
     company = db.query(Company).filter(Company.id == data.company_id).first()
     if not company:
@@ -198,6 +244,11 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         if not repo:
             return
             
+        # Verify License Key before starting ingestion
+        from app.config import settings
+        if not settings.LICENSE_KEY or not settings.LICENSE_KEY.startswith("zt_license_"):
+            raise ValueError("License verification failed. A valid LICENSE_KEY starting with 'zt_license_' must be configured in your self-hosted instance environment settings.")
+            
         conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
         if not conn_details:
             conn_details = db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
@@ -206,8 +257,16 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         # Step 1: Scan and Parse Codebase
         repo.sync_status = "parsing"
         db.commit()
+        
+        import os
+        if not os.path.exists(repo.repo_name):
+            raise ValueError(f"Repository directory does not exist: '{repo.repo_name}'")
+            
         parser = CodeParser(repo.repo_name)
         chunks = parser.scan_repository()
+        
+        if not chunks:
+            raise ValueError(f"No scanable code files (PHP, Python, JS, TS) found in directory: '{repo.repo_name}'")
         
         repo.chunks_total = len(chunks)
         repo.chunks_indexed = 0
@@ -217,16 +276,15 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id)
         
         def update_progress(indexed_count, status_msg=None):
-            try:
-                # Refresh session and update repo columns
-                db.expire_all()
-                r = db.query(Repository).filter(Repository.id == repo.id).first()
-                if r:
-                    r.chunks_indexed = min(indexed_count, len(chunks))
-                    r.sync_message = status_msg
-                    db.commit()
-            except Exception:
-                pass
+            # Refresh session and check if user requested cancellation
+            db.expire_all()
+            r = db.query(Repository).filter(Repository.id == repo.id).first()
+            if r:
+                if r.sync_status == "failed" and r.sync_message == "Cancelled":
+                    raise ValueError("Sync cancelled by user")
+                r.chunks_indexed = min(indexed_count, len(chunks))
+                r.sync_message = status_msg
+                db.commit()
 
         chroma.add_code_chunks(chunks, api_key=api_key, provider=provider, on_progress=update_progress)
         
@@ -259,7 +317,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
 # Track which repos are currently being ingested to prevent duplicate background tasks
 _ingestion_in_progress: set = set()
 
-@app.post("/api/ingest")
+@app.post("/api/ingest", dependencies=[Depends(verify_admin_passphrase)])
 def run_ingestion(
     data: IngestRequest,
     background_tasks: BackgroundTasks, 
@@ -281,6 +339,7 @@ def run_ingestion(
         raise HTTPException(status_code=409, detail="Sync already in progress for this project. Please wait for it to complete.")
 
     repo.sync_status = "cloning"
+    repo.sync_message = "Starting..."
     db.commit()
     _ingestion_in_progress.add(repo.id)
     
@@ -300,7 +359,27 @@ def run_ingestion(
         "sync_status": "cloning"
     }
 
-@app.get("/api/company/projects")
+class IngestCancelRequest(BaseModel):
+    company_id: str
+    repository_id: str
+
+@app.post("/api/ingest/cancel", dependencies=[Depends(verify_admin_passphrase)])
+def cancel_ingestion(data: IngestCancelRequest, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == data.repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found.")
+        
+    if repo.sync_status not in ["cloning", "parsing"]:
+        raise HTTPException(status_code=400, detail="No active synchronization to cancel.")
+        
+    repo.sync_status = "failed"
+    repo.sync_message = "Cancelled"
+    db.commit()
+    
+    _ingestion_in_progress.discard(repo.id)
+    return {"status": "success", "message": "Sync cancellation requested."}
+
+@app.get("/api/company/projects", dependencies=[Depends(verify_admin_passphrase)])
 def get_company_projects(company_id: str, db: Session = Depends(get_db)):
     projects = db.query(Repository).filter(Repository.company_id == company_id).all()
     result = []
@@ -386,7 +465,7 @@ def send_chat_message(
         "thought_log": result["thought_log"]
     }
 
-@app.post("/api/sandbox/simulate")
+@app.post("/api/sandbox/simulate", dependencies=[Depends(verify_admin_passphrase)])
 def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
     engine = AgentEngine(db, repository_id=data.repository_id or "")
     result = engine.execute_inquiry(

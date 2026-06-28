@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function OnboardingPageContent() {
@@ -31,9 +31,12 @@ function OnboardingPageContent() {
   // LLM Provider
   const [llmProvider, setLlmProvider] = useState("gemini");
   const [llmModel, setLlmModel] = useState("");
+  const [llmBaseUrl, setLlmBaseUrl] = useState("http://localhost:11434/v1");
   const [llmApiKey, setLlmApiKey] = useState("");
   const [companyApiKey, setCompanyApiKey] = useState("");
   
+  const pollRef = useRef<any>(null);
+
   // Ingestion status state
   const [syncStatus, setSyncStatus] = useState("idle");
   const [indexedChunks, setIndexedChunks] = useState(0);
@@ -43,8 +46,47 @@ function OnboardingPageContent() {
 
   const BACKEND_URL = "http://localhost:8088";
 
-  // Check if already onboarded and load theme
+  // Admin lock states
+  const [mounted, setMounted] = useState(false);
+  const [loginRequired, setLoginRequired] = useState(false);
+  const [adminToken, setAdminToken] = useState("");
+  const [loginPassphrase, setLoginPassphrase] = useState("");
+  const [loginError, setLoginError] = useState("");
+
+  const getAdminHeaders = (extraHeaders: Record<string, string> = {}) => {
+    const token = adminToken || localStorage.getItem("admin_token") || "";
+    const headers: Record<string, string> = { ...extraHeaders };
+    if (token) {
+      headers["X-Admin-Token"] = token;
+    }
+    return headers;
+  };
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    try {
+      const res = await fetch(`http://localhost:8088/api/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: loginPassphrase }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Invalid admin passphrase.");
+      }
+      const data = await res.json();
+      localStorage.setItem("admin_token", data.token);
+      setAdminToken(data.token);
+      setLoginError("");
+      setLoginRequired(false);
+    } catch (err: any) {
+      setLoginError(err.message || "Failed to login.");
+    }
+  };
+
   useEffect(() => {
+    setMounted(true);
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "light") {
       setIsLightMode(true);
@@ -63,6 +105,8 @@ function OnboardingPageContent() {
     if (savedLlmProvider) setLlmProvider(savedLlmProvider);
     const savedLlmModel = localStorage.getItem("llm_model");
     if (savedLlmModel) setLlmModel(savedLlmModel);
+    const savedLlmBaseUrl = localStorage.getItem("llm_base_url");
+    if (savedLlmBaseUrl) setLlmBaseUrl(savedLlmBaseUrl);
     const savedLlmApiKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key");
     if (savedLlmApiKey) setLlmApiKey(savedLlmApiKey);
 
@@ -73,14 +117,31 @@ function OnboardingPageContent() {
     }
 
     if (targetStep) {
-      // User was intentionally redirected here to add a new project.
-      // Restore existing company context and jump to the requested step.
       setStep(Number(targetStep));
     } else if (savedCompanyId && savedLinked === "true") {
-      // Fully onboarded with no explicit step override → go to dashboard.
       router.push("/");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Check admin status
+    fetch("http://localhost:8088/api/admin/status")
+      .then((r) => r.json())
+      .then((statusData) => {
+        if (statusData.login_required) {
+          const savedToken = localStorage.getItem("admin_token");
+          if (!savedToken) {
+            setLoginRequired(true);
+          } else {
+            setAdminToken(savedToken);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+      }
+    };
   }, [router, searchParams]);
 
   const toggleTheme = () => {
@@ -103,7 +164,7 @@ function OnboardingPageContent() {
     try {
       const res = await fetch(`${BACKEND_URL}/api/company/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAdminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ name: companyName }),
       });
       
@@ -136,7 +197,7 @@ function OnboardingPageContent() {
       const attemptConnect = async (cid: string) => {
         return fetch(`${BACKEND_URL}/api/repository/connect`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAdminHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             company_id: cid,
             repo_path: repoPath,
@@ -155,7 +216,7 @@ function OnboardingPageContent() {
           const savedName = companyName || localStorage.getItem("company_name") || "My Company";
           const regRes = await fetch(`${BACKEND_URL}/api/company/register`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAdminHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ name: savedName }),
           });
           if (!regRes.ok) throw new Error("Failed to re-register company. Please reload and try again.");
@@ -195,7 +256,7 @@ function OnboardingPageContent() {
     try {
       const res = await fetch(`${BACKEND_URL}/api/db/connect`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAdminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           company_id: companyId,
           repository_id: repositoryId || undefined,
@@ -252,12 +313,13 @@ function OnboardingPageContent() {
       
       const res = await fetch(`${BACKEND_URL}/api/ingest`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAdminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           company_id: companyId,
           repository_id: repositoryId || undefined,
           llm_provider: llmProvider,
           api_key: llmApiKey,
+          llm_base_url: llmBaseUrl,
         }),
       });
       
@@ -268,7 +330,7 @@ function OnboardingPageContent() {
       
       // Start polling project status from backend
       const pollInterval = setInterval(() => {
-        fetch(`${BACKEND_URL}/api/company/projects?company_id=${companyId}`)
+        fetch(`${BACKEND_URL}/api/company/projects?company_id=${companyId}`, { headers: getAdminHeaders() })
           .then((r) => r.json())
           .then((projects: any[]) => {
             if (Array.isArray(projects)) {
@@ -295,6 +357,7 @@ function OnboardingPageContent() {
           })
           .catch(() => {});
       }, 2000);
+      pollRef.current = pollInterval;
 
     } catch (err: any) {
       setSyncStatus("failed");
@@ -303,6 +366,65 @@ function OnboardingPageContent() {
     }
   };
 
+
+  if (mounted && loginRequired && !adminToken) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center font-sans transition-colors duration-300 ${
+        isLightMode ? "bg-slate-50" : "bg-[#0b0f19]"
+      }`}>
+        <div className={`w-full max-w-md p-8 rounded-2xl border transition-all duration-300 ${
+          isLightMode 
+            ? "bg-white border-slate-200/80 shadow-lg shadow-slate-100" 
+            : "bg-[#0f172a]/40 border-white/5 shadow-2xl shadow-black/60 backdrop-blur-xl"
+        }`}>
+          <div className="flex flex-col items-center gap-4 text-center mb-6">
+            <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center border border-blue-500/20 text-blue-500">
+              <svg className="w-6 h-6 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className={`text-lg font-bold tracking-tight ${isLightMode ? "text-slate-900" : "text-white"}`}>
+                ZeroTicket Admin Panel
+              </h1>
+              <p className={`text-xs mt-1 leading-relaxed ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                Please enter the self-hosted admin passphrase to configure or manage ZeroTicket.
+              </p>
+            </div>
+          </div>
+          
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            {loginError && (
+              <div className="p-3 rounded-lg bg-red-950/40 border border-red-500/25 text-red-300 text-xs text-center leading-relaxed">
+                {loginError}
+              </div>
+            )}
+            <div>
+              <input
+                type="password"
+                value={loginPassphrase}
+                onChange={(e) => setLoginPassphrase(e.target.value)}
+                placeholder="Admin Passphrase..."
+                required
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm transition-all focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 ${
+                  isLightMode
+                    ? "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                    : "bg-slate-950/60 border-white/5 text-white placeholder-slate-500"
+                }`}
+              />
+            </div>
+            
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_8px_25px_-4px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 active:translate-y-0"
+            >
+              Access Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
@@ -761,6 +883,7 @@ function OnboardingPageContent() {
                   { id: "anthropic", label: "Claude", sub: "Anthropic" },
                   { id: "deepseek", label: "DeepSeek", sub: "DeepSeek AI" },
                   { id: "qwen", label: "Qwen", sub: "Alibaba" },
+                  { id: "custom", label: "Custom", sub: "Ollama / vLLM" },
                 ] as const).map((p) => (
                   <button
                     key={p.id}
@@ -788,20 +911,47 @@ function OnboardingPageContent() {
               }`}>
                 Model Name <span className={`normal-case font-normal ${
                   isLightMode ? "text-slate-400" : "text-slate-600"
-                }`}>(optional override)</span>
+                }`}>({llmProvider === "custom" ? "required" : "optional override"})</span>
               </label>
               <input
                 id="llmModel"
                 type="text"
                 value={llmModel}
                 onChange={(e) => setLlmModel(e.target.value)}
-                placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : "gemini-2.5-flash"}
-                className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : llmProvider === "custom" ? "llama3" : "gemini-2.5-flash"}
+                className={`w-full px-4 py-3 rounded-lg text-sm transition-colors ${
+                  isLightMode 
+                    ? "bg-white border-slate-300 text-slate-700" 
+                    : "glass-input"
+                }`}
               />
               <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
-                Leave blank to use the recommended default model for the selected provider.
+                {llmProvider === "custom" ? "Routes requests to your custom local LLM server endpoint." : "Leave blank to use the recommended default model for the selected provider."}
               </p>
             </div>
+
+            {llmProvider === "custom" && (
+              <div>
+                <label htmlFor="llmBaseUrl" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
+                  Custom Base URL
+                </label>
+                <input
+                  id="llmBaseUrl"
+                  type="text"
+                  value={llmBaseUrl}
+                  onChange={(e) => setLlmBaseUrl(e.target.value)}
+                  placeholder="http://localhost:11434/v1"
+                  className={`w-full px-4 py-3 rounded-lg text-sm transition-colors ${
+                    isLightMode 
+                      ? "bg-white border-slate-300 text-slate-700" 
+                      : "glass-input"
+                  }`}
+                />
+              </div>
+            )}
+
 
             <div>
               <label htmlFor="apiKeyInput" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
@@ -935,35 +1085,83 @@ function OnboardingPageContent() {
                 ZeroTicket is armed and ready! Redirecting...
               </div>
             ) : (
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep(3);
-                    setSyncStatus("idle");
-                    setError("");
-                  }}
-                  disabled={loading}
-                  className={`px-6 py-3 rounded-lg border font-semibold text-sm transition-all disabled:opacity-50 ${
-                    isLightMode
-                      ? "border-slate-300 hover:bg-slate-50 text-slate-600"
-                      : "border-white/10 hover:bg-white/5 text-slate-300"
-                  }`}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleRunIngestion}
-                  disabled={loading}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(16,185,129,0.25)] hover:shadow-[0_4px_25px_rgba(16,185,129,0.4)] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? "Arming agent (parsing & mapping)..." : "Arm ZeroTicket Agent"}
-                  {!loading && (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  )}
-                </button>
+              <div className="flex flex-col gap-3 w-full animate-fade-in">
+                {loading && (syncStatus === "parsing" || syncStatus === "cloning") ? (
+                  <div className="flex flex-col gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (pollRef.current) clearInterval(pollRef.current);
+                        localStorage.setItem("repo_linked", "true");
+                        router.push("/");
+                      }}
+                      className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-[0_8px_25px_-4px_rgba(37,99,235,0.4)]"
+                    >
+                      <svg className="w-5 h-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Proceed to Dashboard (Sync in Background)
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (pollRef.current) clearInterval(pollRef.current);
+                        try {
+                          await fetch(`${BACKEND_URL}/api/ingest/cancel`, {
+                            method: "POST",
+                            headers: getAdminHeaders({ "Content-Type": "application/json" }),
+                            body: JSON.stringify({
+                              company_id: companyId,
+                              repository_id: repositoryId,
+                            }),
+                          });
+                        } catch (e) {}
+                        setSyncStatus("idle");
+                        setLoading(false);
+                        setStep(3);
+                      }}
+                      className={`w-full py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
+                        isLightMode
+                          ? "border-red-200 hover:bg-red-50 text-red-600"
+                          : "border-red-500/20 hover:bg-red-950/20 text-red-400"
+                      }`}
+                    >
+                      Cancel Synchronization & Go Back
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep(3);
+                        setSyncStatus("idle");
+                        setError("");
+                      }}
+                      disabled={loading}
+                      className={`px-6 py-3 rounded-lg border font-semibold text-sm transition-all disabled:opacity-50 ${
+                        isLightMode
+                          ? "border-slate-300 hover:bg-slate-50 text-slate-600"
+                          : "border-white/10 hover:bg-white/5 text-slate-300"
+                      }`}
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleRunIngestion}
+                      disabled={loading}
+                      className="flex-1 py-3 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(16,185,129,0.25)] hover:shadow-[0_4px_25px_rgba(16,185,129,0.4)] disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loading ? "Arming agent (parsing & mapping)..." : "Arm ZeroTicket Agent"}
+                      {!loading && (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

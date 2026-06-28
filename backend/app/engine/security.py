@@ -32,6 +32,8 @@ class SQLSecurityGuard:
         """
         self.schema = db_schema
         self.dialect = "postgres" if dialect in ["postgres", "postgresql"] else "mysql"
+        # Case-insensitive mapping of lowercase table names to their actual database casing
+        self.schema_lower = {k.lower(): k for k in db_schema.keys()}
 
     def validate_and_rewrite(self, sql_query: str, jwt_claims: dict) -> str:
         """
@@ -83,22 +85,26 @@ class SQLSecurityGuard:
                 table_name = node.name
                 alias = node.alias
                 
-                # Check if this table exists in our schema
-                if table_name in self.schema:
-                    table_cols = [col['name'] for col in self.schema[table_name]['columns']]
+                table_name_lower = table_name.lower()
+                # Check case-insensitively if this table exists in our schema
+                if table_name_lower in self.schema_lower:
+                    actual_table = self.schema_lower[table_name_lower]
+                    # Map lowercase column name to its actual database casing
+                    table_cols_map = {col['name'].lower(): col['name'] for col in self.schema[actual_table]['columns']}
                     
                     # Find all applicable security columns and claims
                     filters = []
-                    for col_name, claim_name in CLAIM_COLUMN_MAPPING.items():
-                        if col_name in table_cols and claim_name in jwt_claims:
+                    for claim_col_name, claim_name in CLAIM_COLUMN_MAPPING.items():
+                        if claim_col_name in table_cols_map and claim_name in jwt_claims:
+                            actual_col_name = table_cols_map[claim_col_name]
                             claim_val = jwt_claims[claim_name]
                             if claim_val is not None:
-                                filters.append(f"{quote_char}{col_name}{quote_char} = {escape_sql_value(claim_val)}")
+                                filters.append(f"{quote_char}{actual_col_name}{quote_char} = {escape_sql_value(claim_val)}")
                     
                     # If we found security columns, rewrite table to a subquery
                     if filters:
                         where_clause = " AND ".join(filters)
-                        subquery_sql = f"(SELECT * FROM {quote_char}{table_name}{quote_char} WHERE {where_clause})"
+                        subquery_sql = f"(SELECT * FROM {quote_char}{actual_table}{quote_char} WHERE {where_clause})"
                         
                         # Generate the new parsed node
                         subquery_node = parse_one(subquery_sql, read=self.dialect)
