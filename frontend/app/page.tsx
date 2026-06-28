@@ -19,13 +19,24 @@ export default function DashboardPage() {
   const [llmProvider, setLlmProvider] = useState("gemini");
 
   // Multi-project state
-  type Project = { id: string; name: string; repo_path: string; branch: string; sync_status: string; db_type?: string; };
+  type Project = { 
+    id: string; 
+    name: string; 
+    repo_path: string; 
+    branch: string; 
+    sync_status: string; 
+    db_type?: string; 
+    chunks_total?: number;
+    chunks_indexed?: number;
+  };
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeRepoId, setActiveRepoId] = useState("");
   const [projectDropOpen, setProjectDropOpen] = useState(false);
   
   const [syncStatus, setSyncStatus] = useState("linked");
   const [syncing, setSyncing] = useState(false);
+  const [chunksTotal, setChunksTotal] = useState(0);
+  const [chunksIndexed, setChunksIndexed] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLightMode, setIsLightMode] = useState(false);
@@ -73,6 +84,8 @@ export default function DashboardPage() {
               branch: p.branch,
               sync_status: p.sync_status,
               db_type: p.db_type,
+              chunks_total: p.chunks_total,
+              chunks_indexed: p.chunks_indexed,
             }));
             setProjects(mapped);
             
@@ -80,6 +93,8 @@ export default function DashboardPage() {
             const active = mapped.find((p) => p.id === savedRepoId);
             if (active) {
               setSyncStatus(active.sync_status);
+              setChunksTotal(active.chunks_total || 0);
+              setChunksIndexed(active.chunks_indexed || 0);
               if (active.sync_status === "cloning" || active.sync_status === "parsing" || active.sync_status === "pending") {
                 setSyncing(true);
               }
@@ -147,11 +162,15 @@ export default function DashboardPage() {
               branch: p.branch,
               sync_status: p.sync_status,
               db_type: p.db_type,
+              chunks_total: p.chunks_total,
+              chunks_indexed: p.chunks_indexed,
             })));
 
             const active = data.find((p) => p.repository_id === activeRepoId);
             if (active) {
               setSyncStatus(active.sync_status);
+              setChunksTotal(active.chunks_total || 0);
+              setChunksIndexed(active.chunks_indexed || 0);
               if (active.sync_status === "linked") {
                 setSyncing(false);
                 setSuccess("Success! Codebase is fully synchronized and ready.");
@@ -406,9 +425,25 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                     2. Vectorizing Codebase (ChromaDB)
                   </span>
                   <span className={`font-semibold ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
-                    {syncStatus === "parsing" ? "Embedding..." : syncStatus === "linked" ? "Done" : "Pending"}
+                    {syncStatus === "parsing" 
+                      ? chunksTotal > 0 
+                        ? `Embedding (${chunksIndexed}/${chunksTotal})` 
+                        : "Embedding..."
+                      : syncStatus === "linked" 
+                      ? "Done" 
+                      : "Pending"}
                   </span>
                 </div>
+                {syncStatus === "parsing" && chunksTotal > 0 && (
+                  <div className={`w-full rounded-full h-1 overflow-hidden transition-colors ${
+                    isLightMode ? "bg-slate-100" : "bg-white/5"
+                  }`}>
+                    <div 
+                      className="bg-blue-500 h-full rounded-full transition-all duration-300" 
+                      style={{ width: `${Math.min(100, Math.round((chunksIndexed / chunksTotal) * 100))}%` }}
+                    />
+                  </div>
+                )}
                 {dbName && (
                   <div className="flex items-center justify-between">
                     <span className={`flex items-center gap-1.5 ${
