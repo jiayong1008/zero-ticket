@@ -95,7 +95,7 @@ export default function DashboardPage() {
               setSyncStatus(active.sync_status);
               setChunksTotal(active.chunks_total || 0);
               setChunksIndexed(active.chunks_indexed || 0);
-              if (active.sync_status === "cloning" || active.sync_status === "parsing" || active.sync_status === "pending") {
+              if (active.sync_status === "cloning" || active.sync_status === "parsing") {
                 setSyncing(true);
               }
             }
