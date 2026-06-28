@@ -39,6 +39,8 @@ export default function DashboardPage() {
   const [chunksTotal, setChunksTotal] = useState(0);
   const [chunksIndexed, setChunksIndexed] = useState(0);
   const [syncMessage, setSyncMessage] = useState("");
+  const [llmApiKey, setLlmApiKey] = useState("");
+  const [isEditingLLM, setIsEditingLLM] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLightMode, setIsLightMode] = useState(false);
@@ -71,6 +73,7 @@ export default function DashboardPage() {
       setDbName(localStorage.getItem("db_name") || "");
       setDbType(localStorage.getItem("db_type") || "mysql");
       setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
+      setLlmApiKey(localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "");
       const savedRepoId = localStorage.getItem("repository_id") || "";
       setActiveRepoId(savedRepoId);
 
@@ -132,16 +135,14 @@ export default function DashboardPage() {
     setSyncStatus("cloning");
 
     try {
-      const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
-      const provider = localStorage.getItem("llm_provider") || "gemini";
       const res = await fetch(`${BACKEND_URL}/api/ingest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company_id: companyId,
           repository_id: activeRepoId || undefined,
-          llm_provider: provider,
-          api_key: savedKey,
+          llm_provider: llmProvider,
+          api_key: llmApiKey,
         }),
       });
 
@@ -526,14 +527,76 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
         <div className={`rounded-xl p-5 border flex flex-col justify-between transition-all shadow-sm ${
           isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
         }`}>
-          <div className="space-y-2">
-            <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Developer API Keys</span>
-            <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{companyName}</h2>
-            <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
-              <p>API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{apiKey.substring(0, 8)}...</code></p>
-              <p>Company ID: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{companyId.substring(0, 8)}...</code></p>
-              <p>AI Provider: <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{llmProvider}</span></p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Developer API Keys</span>
+              <button
+                type="button"
+                onClick={() => setIsEditingLLM(!isEditingLLM)}
+                className={`text-[10px] font-semibold underline transition-colors ${
+                  isLightMode ? "text-blue-600 hover:text-blue-700" : "text-blue-400 hover:text-blue-300"
+                }`}
+              >
+                {isEditingLLM ? "Cancel" : "Edit LLM Config"}
+              </button>
             </div>
+            
+            <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{companyName}</h2>
+            
+            {isEditingLLM ? (
+              <div className="space-y-2.5">
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>AI Provider</label>
+                  <select
+                    value={llmProvider}
+                    onChange={(e) => {
+                      setLlmProvider(e.target.value);
+                      localStorage.setItem("llm_provider", e.target.value);
+                    }}
+                    className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                      isLightMode 
+                        ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
+                        : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                    }`}
+                  >
+                    <option value="gemini">Gemini</option>
+                    <option value="openai">OpenAI</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>LLM API Key</label>
+                  <input
+                    type="password"
+                    value={llmApiKey}
+                    onChange={(e) => {
+                      setLlmApiKey(e.target.value);
+                      localStorage.setItem("llm_api_key", e.target.value);
+                      localStorage.setItem("gemini_api_key", e.target.value);
+                    }}
+                    placeholder={llmProvider === "gemini" ? "AIzaSy..." : "sk-..."}
+                    className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                      isLightMode 
+                        ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
+                        : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                    }`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingLLM(false)}
+                  className="w-full py-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
+                >
+                  Save Config
+                </button>
+              </div>
+            ) : (
+              <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+                <p>API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{apiKey.substring(0, 8)}...</code></p>
+                <p>Company ID: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{companyId.substring(0, 8)}...</code></p>
+                <p>AI Provider: <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{llmProvider}</span></p>
+                <p>LLM API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmApiKey ? `${llmApiKey.substring(0, 6)}...` : "None"}</code></p>
+              </div>
+            )}
           </div>
           
           <div className="mt-4 flex flex-col gap-2">
