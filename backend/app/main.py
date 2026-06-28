@@ -216,13 +216,14 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         # Step 2: Index Code Chunks in Vector DB using selected provider
         chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id)
         
-        def update_progress(indexed_count):
+        def update_progress(indexed_count, status_msg=None):
             try:
                 # Refresh session and update repo columns
                 db.expire_all()
                 r = db.query(Repository).filter(Repository.id == repo.id).first()
                 if r:
                     r.chunks_indexed = min(indexed_count, len(chunks))
+                    r.sync_message = status_msg
                     db.commit()
             except Exception:
                 pass
@@ -237,7 +238,9 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             _ = schema_extractor.extract_schema(conn_details.db_name)
             target_conn.close()
         
+        # Ingestion complete - clear sync message
         repo.sync_status = "linked"
+        repo.sync_message = None
         import time
         repo.last_synced_at = int(time.time())
         db.commit()
@@ -247,6 +250,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             traceback.print_exc(file=f)
         if repo:
             repo.sync_status = "failed"
+            repo.sync_message = str(e)
             db.commit()
     finally:
         _ingestion_in_progress.discard(repository_id)

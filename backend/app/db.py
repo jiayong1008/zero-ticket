@@ -28,6 +28,9 @@ class Repository(Base):
     branch = Column(String(100), default='main')
     sync_status = Column(Enum('pending', 'cloning', 'parsing', 'linked', 'failed', name='sync_status_enum'), nullable=False, default='pending')
     last_synced_at = Column(Integer, nullable=True)
+    chunks_total = Column(Integer, nullable=True, default=0)
+    chunks_indexed = Column(Integer, nullable=True, default=0)
+    sync_message = Column(Text, nullable=True)
     
     company = relationship("Company", back_populates="repositories")
     db_connection = relationship("DBConnection", back_populates="repository", uselist=False, cascade="all, delete-orphan")

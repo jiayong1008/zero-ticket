@@ -50,7 +50,7 @@ class ChromaStore:
             embeddings = [e.values for e in response.embeddings]
             return embeddings
 
-    def add_code_chunks(self, chunks: list[dict], api_key: str = "", provider: str = "gemini"):
+    def add_code_chunks(self, chunks: list[dict], api_key: str = "", provider: str = "gemini", on_progress=None):
         """
         Processes and inserts codebase chunks into ChromaDB incrementally.
         """
@@ -113,6 +113,11 @@ class ChromaStore:
                 except Exception as e:
                     if "429" in str(e) and retries > 1:
                         print(f"Rate limited (429) during embedding. Sleeping for {backoff} seconds...")
+                        if on_progress:
+                            try:
+                                on_progress(i, f"Rate limit hit. Retrying in {backoff}s...")
+                            except Exception:
+                                pass
                         time.sleep(backoff)
                         backoff *= 2
                         retries -= 1
@@ -127,10 +132,15 @@ class ChromaStore:
                     documents=batch_docs,
                     metadatas=batch_metadatas
                 )
+                if on_progress:
+                    try:
+                        on_progress(i + len(batch))
+                    except Exception:
+                        pass
                 
             # Simple throttling sleep to respect free tier rate limit
             if i + batch_size < len(pending_chunks):
-                time.sleep(5)
+                time.sleep(6)
 
     def query_similar_code(self, query: str, limit: int = 5, api_key: str = "", provider: str = "gemini") -> list[dict]:
         """
