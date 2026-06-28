@@ -219,7 +219,11 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             repo.sync_status = "failed"
             db.commit()
     finally:
+        _ingestion_in_progress.discard(repository_id)
         db.close()
+
+# Track which repos are currently being ingested to prevent duplicate background tasks
+_ingestion_in_progress: set = set()
 
 @app.post("/api/ingest")
 def run_ingestion(
@@ -238,8 +242,13 @@ def run_ingestion(
     if not conn_details:
         conn_details = db.query(DBConnection).filter(DBConnection.company_id == data.company_id).first()
 
+    # Guard: reject if already syncing this repo
+    if repo.id in _ingestion_in_progress:
+        raise HTTPException(status_code=409, detail="Sync already in progress for this project. Please wait for it to complete.")
+
     repo.sync_status = "cloning"
     db.commit()
+    _ingestion_in_progress.add(repo.id)
     
     # Start ingestion task in background
     background_tasks.add_task(
