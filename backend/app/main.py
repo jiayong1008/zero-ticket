@@ -187,8 +187,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
         if not conn_details:
             conn_details = db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
-        if not conn_details:
-            return
+        # conn_details may be None for code-only projects — that's fine, we skip DB schema verification.
             
         # Step 1: Scan and Parse Codebase
         repo.sync_status = "parsing"
@@ -200,12 +199,13 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         chroma = ChromaStore(persist_dir="chroma_db")
         chroma.add_code_chunks(chunks, api_key=api_key, provider=provider)
         
-        # Step 3: Verify target DB schema can be queried
-        from app.db import get_target_db_conn
-        target_conn = get_target_db_conn(conn_details)
-        schema_extractor = SchemaExtractor(target_conn)
-        _ = schema_extractor.extract_schema(conn_details.db_name)
-        target_conn.close()
+        # Step 3: Verify target DB schema (skip if no DB is connected for this project)
+        if conn_details:
+            from app.db import get_target_db_conn
+            target_conn = get_target_db_conn(conn_details)
+            schema_extractor = SchemaExtractor(target_conn)
+            _ = schema_extractor.extract_schema(conn_details.db_name)
+            target_conn.close()
         
         repo.sync_status = "linked"
         import time

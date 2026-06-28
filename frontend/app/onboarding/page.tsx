@@ -26,6 +26,7 @@ export default function OnboardingPage() {
   const [dbUser, setDbUser] = useState("root");
   const [dbPass, setDbPass] = useState("");
   const [dbName, setDbName] = useState("");
+  const [skipDb, setSkipDb] = useState(false);
 
   // LLM Provider
   const [llmProvider, setLlmProvider] = useState("gemini");
@@ -213,6 +214,14 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkipDB = () => {
+    localStorage.removeItem("db_host");
+    localStorage.removeItem("db_name");
+    localStorage.removeItem("db_user");
+    localStorage.removeItem("db_type");
+    setStep(4);
   };
 
   const handleRunIngestion = async () => {
@@ -506,122 +515,159 @@ export default function OnboardingPage() {
 
         {/* Step 3: Connect DB */}
         {step === 3 && (
-          <form onSubmit={handleConnectDB} className="space-y-6">
-            {/* DB Type Selector */}
-            <div>
-              <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                isLightMode ? "text-slate-600" : "text-slate-400"
+          <form onSubmit={skipDb ? (e) => { e.preventDefault(); handleSkipDB(); } : handleConnectDB} className="space-y-6">
+
+            {/* Skip toggle */}
+            <button
+              type="button"
+              onClick={() => setSkipDb(!skipDb)}
+              className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-sm font-semibold transition-all ${
+                skipDb
+                  ? "bg-amber-500/10 border-amber-500/40 text-amber-400"
+                  : isLightMode
+                  ? "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                  : "border-white/10 text-slate-400 hover:border-white/20 hover:bg-white/5"
+              }`}
+            >
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                skipDb
+                  ? "bg-amber-500 border-amber-500"
+                  : isLightMode ? "border-slate-300" : "border-slate-600"
               }`}>
-                Database Type
-              </label>
-              <div className="flex gap-2">
-                {(["mysql", "postgres"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setDbType(t);
-                      setDbPort(t === "postgres" ? 5432 : 3306);
-                    }}
-                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold border transition-all ${
-                      dbType === t
-                        ? "bg-blue-600/20 border-blue-500/60 text-blue-400"
-                        : isLightMode
-                        ? "border-slate-300 text-slate-500 hover:border-slate-400"
-                        : "border-white/10 text-slate-400 hover:border-white/20"
-                    }`}
-                  >
-                    {t === "mysql" ? "MySQL" : "PostgreSQL"}
-                  </button>
-                ))}
+                {skipDb && (
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </div>
-            </div>
+              <div className="text-left">
+                <div>No database for this project</div>
+                <div className={`text-xs font-normal mt-0.5 ${
+                  skipDb ? "text-amber-400/70" : isLightMode ? "text-slate-400" : "text-slate-500"
+                }`}>Code-only projects — AI answers from codebase logic alone, no SQL queries</div>
+              </div>
+            </button>
 
-            <div className="grid grid-cols-6 gap-4">
-              <div className="col-span-4">
-                <label htmlFor="dbHost" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                  isLightMode ? "text-slate-600" : "text-slate-400"
-                }`}>
-                  {dbType === "postgres" ? "PostgreSQL" : "MySQL"} Host
-                </label>
-                <input
-                  id="dbHost"
-                  type="text"
-                  value={dbHost}
-                  onChange={(e) => setDbHost(e.target.value)}
-                  placeholder="127.0.0.1"
-                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
-                  required
-                />
-              </div>
+            {/* DB fields — hidden when skipping */}
+            {!skipDb && (
+              <>
+                {/* DB Type Selector */}
+                <div>
+                  <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                    isLightMode ? "text-slate-600" : "text-slate-400"
+                  }`}>
+                    Database Type
+                  </label>
+                  <div className="flex gap-2">
+                    {(["mysql", "postgres"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          setDbType(t);
+                          setDbPort(t === "postgres" ? 5432 : 3306);
+                        }}
+                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold border transition-all ${
+                          dbType === t
+                            ? "bg-blue-600/20 border-blue-500/60 text-blue-400"
+                            : isLightMode
+                            ? "border-slate-300 text-slate-500 hover:border-slate-400"
+                            : "border-white/10 text-slate-400 hover:border-white/20"
+                        }`}
+                      >
+                        {t === "mysql" ? "MySQL" : "PostgreSQL"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <div className="col-span-2">
-                <label htmlFor="dbPort" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                  isLightMode ? "text-slate-600" : "text-slate-400"
-                }`}>
-                  Port
-                </label>
-                <input
-                  id="dbPort"
-                  type="number"
-                  value={dbPort}
-                  onChange={(e) => setDbPort(Number(e.target.value))}
-                  placeholder="3306"
-                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
-                  required
-                />
-              </div>
+                <div className="grid grid-cols-6 gap-4">
+                  <div className="col-span-4">
+                    <label htmlFor="dbHost" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                      isLightMode ? "text-slate-600" : "text-slate-400"
+                    }`}>
+                      {dbType === "postgres" ? "PostgreSQL" : "MySQL"} Host
+                    </label>
+                    <input
+                      id="dbHost"
+                      type="text"
+                      value={dbHost}
+                      onChange={(e) => setDbHost(e.target.value)}
+                      placeholder="127.0.0.1"
+                      className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                      required
+                    />
+                  </div>
 
-              <div className="col-span-3">
-                <label htmlFor="dbUser" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                  isLightMode ? "text-slate-600" : "text-slate-400"
-                }`}>
-                  User (Read-Only Recommended)
-                </label>
-                <input
-                  id="dbUser"
-                  type="text"
-                  value={dbUser}
-                  onChange={(e) => setDbUser(e.target.value)}
-                  placeholder="root"
-                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
-                  required
-                />
-              </div>
+                  <div className="col-span-2">
+                    <label htmlFor="dbPort" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                      isLightMode ? "text-slate-600" : "text-slate-400"
+                    }`}>
+                      Port
+                    </label>
+                    <input
+                      id="dbPort"
+                      type="number"
+                      value={dbPort}
+                      onChange={(e) => setDbPort(Number(e.target.value))}
+                      placeholder="3306"
+                      className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                      required
+                    />
+                  </div>
 
-              <div className="col-span-3">
-                <label htmlFor="dbPass" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                  isLightMode ? "text-slate-600" : "text-slate-400"
-                }`}>
-                  Password
-                </label>
-                <input
-                  id="dbPass"
-                  type="password"
-                  value={dbPass}
-                  onChange={(e) => setDbPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
-                />
-              </div>
+                  <div className="col-span-3">
+                    <label htmlFor="dbUser" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                      isLightMode ? "text-slate-600" : "text-slate-400"
+                    }`}>
+                      User (Read-Only Recommended)
+                    </label>
+                    <input
+                      id="dbUser"
+                      type="text"
+                      value={dbUser}
+                      onChange={(e) => setDbUser(e.target.value)}
+                      placeholder="root"
+                      className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                      required
+                    />
+                  </div>
 
-              <div className="col-span-6">
-                <label htmlFor="dbName" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                  isLightMode ? "text-slate-600" : "text-slate-400"
-                }`}>
-                  Database Name
-                </label>
-                <input
-                  id="dbName"
-                  type="text"
-                  value={dbName}
-                  onChange={(e) => setDbName(e.target.value)}
-                  placeholder="e.g. edukids_db"
-                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
-                  required
-                />
-              </div>
-            </div>
+                  <div className="col-span-3">
+                    <label htmlFor="dbPass" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                      isLightMode ? "text-slate-600" : "text-slate-400"
+                    }`}>
+                      Password
+                    </label>
+                    <input
+                      id="dbPass"
+                      type="password"
+                      value={dbPass}
+                      onChange={(e) => setDbPass(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                    />
+                  </div>
+
+                  <div className="col-span-6">
+                    <label htmlFor="dbName" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                      isLightMode ? "text-slate-600" : "text-slate-400"
+                    }`}>
+                      Database Name
+                    </label>
+                    <input
+                      id="dbName"
+                      type="text"
+                      value={dbName}
+                      onChange={(e) => setDbName(e.target.value)}
+                      placeholder="e.g. edukids_db"
+                      className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="flex gap-4">
               <button
@@ -639,9 +685,17 @@ export default function OnboardingPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(59,130,246,0.25)] hover:shadow-[0_4px_25px_rgba(59,130,246,0.4)] disabled:opacity-50 flex items-center justify-center gap-2"
+                className={`flex-1 py-3 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  skipDb
+                    ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-[0_4px_20px_rgba(245,158,11,0.25)]"
+                    : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_4px_20px_rgba(59,130,246,0.25)] hover:shadow-[0_4px_25px_rgba(59,130,246,0.4)]"
+                }`}
               >
-                {loading ? `Testing ${dbType === "postgres" ? "PostgreSQL" : "MySQL"} connection...` : "Connect Target Database"}
+                {skipDb
+                  ? "Continue without database"
+                  : loading
+                  ? `Testing ${dbType === "postgres" ? "PostgreSQL" : "MySQL"} connection...`
+                  : "Connect Target Database"}
                 {!loading && (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
