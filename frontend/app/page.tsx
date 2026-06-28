@@ -91,23 +91,28 @@ export default function DashboardPage() {
               sync_message: p.sync_message,
             }));
             setProjects(mapped);
-            
-            // Check active repository status to see if it is currently syncing
-            const active = mapped.find((p) => p.id === savedRepoId);
-            if (active) {
-              setSyncStatus(active.sync_status);
-              setChunksTotal(active.chunks_total || 0);
-              setChunksIndexed(active.chunks_indexed || 0);
-              setSyncMessage(active.sync_message || "");
-              if (active.sync_status === "cloning" || active.sync_status === "parsing") {
-                setSyncing(true);
-              }
-            }
           }
         })
         .catch(() => {});
     }
   }, [router]);
+
+  // Update active repository details when activeRepoId or projects list changes
+  useEffect(() => {
+    if (!activeRepoId || projects.length === 0) return;
+    const active = projects.find((p) => p.id === activeRepoId);
+    if (active) {
+      setSyncStatus(active.sync_status);
+      setChunksTotal(active.chunks_total || 0);
+      setChunksIndexed(active.chunks_indexed || 0);
+      setSyncMessage(active.sync_message || "");
+      if (active.sync_status === "cloning" || active.sync_status === "parsing") {
+        setSyncing(true);
+      } else {
+        setSyncing(false);
+      }
+    }
+  }, [activeRepoId, projects]);
 
   const toggleTheme = () => {
     const nextTheme = !isLightMode;
