@@ -66,14 +66,24 @@ export default function DashboardPage() {
         .then((r) => r.json())
         .then((data: any[]) => {
           if (Array.isArray(data)) {
-            setProjects(data.map((p) => ({
+            const mapped = data.map((p) => ({
               id: p.repository_id,
               name: p.project_name || p.repo_path?.split("/").pop() || "Unnamed",
               repo_path: p.repo_path,
               branch: p.branch,
               sync_status: p.sync_status,
               db_type: p.db_type,
-            })));
+            }));
+            setProjects(mapped);
+            
+            // Check active repository status to see if it is currently syncing
+            const active = mapped.find((p) => p.id === savedRepoId);
+            if (active) {
+              setSyncStatus(active.sync_status);
+              if (active.sync_status === "cloning" || active.sync_status === "parsing" || active.sync_status === "pending") {
+                setSyncing(true);
+              }
+            }
           }
         })
         .catch(() => {});
@@ -95,7 +105,7 @@ export default function DashboardPage() {
     setSyncing(true);
     setError("");
     setSuccess("");
-    setSyncStatus("parsing");
+    setSyncStatus("cloning");
 
     try {
       const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
@@ -111,18 +121,52 @@ export default function DashboardPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to re-sync codebase and schema.");
-      const data = await res.json();
-      
-      setSuccess(`Success! Re-indexed ${data.code_chunks_indexed} codebase chunks and database relationships.`);
-      setSyncStatus("linked");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.detail || "Failed to initiate codebase synchronization.");
+      }
     } catch (err: any) {
       setSyncStatus("failed");
       setError(err.message || "An error occurred during synchronization.");
-    } finally {
       setSyncing(false);
     }
   };
+
+  useEffect(() => {
+    if (!syncing || !companyId || !activeRepoId) return;
+
+    const interval = setInterval(() => {
+      fetch(`${BACKEND_URL}/api/company/projects?company_id=${companyId}`)
+        .then((r) => r.json())
+        .then((data: any[]) => {
+          if (Array.isArray(data)) {
+            setProjects(data.map((p) => ({
+              id: p.repository_id,
+              name: p.project_name || p.repo_path?.split("/").pop() || "Unnamed",
+              repo_path: p.repo_path,
+              branch: p.branch,
+              sync_status: p.sync_status,
+              db_type: p.db_type,
+            })));
+
+            const active = data.find((p) => p.repository_id === activeRepoId);
+            if (active) {
+              setSyncStatus(active.sync_status);
+              if (active.sync_status === "linked") {
+                setSyncing(false);
+                setSuccess("Success! Codebase is fully synchronized and ready.");
+              } else if (active.sync_status === "failed") {
+                setSyncing(false);
+                setError("Ingestion process failed. Verify repository path or check backend logs.");
+              }
+            }
+          }
+        })
+        .catch(() => {});
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [syncing, companyId, activeRepoId]);
 
   const handleResetSettings = () => {
     if (confirm("Are you sure you want to reset ZeroTicket onboarding details? This will clear local configurations.")) {
@@ -322,6 +366,70 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               <p>Path: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{repoPath}</code></p>
               <p>Branch: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{repoBranch}</span></p>
             </div>
+
+            {syncing && (
+              <div className={`mt-3 pt-3 border-t border-dashed space-y-1.5 text-[11px] ${
+                isLightMode ? "border-slate-200" : "border-white/10"
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`flex items-center gap-1.5 ${
+                    syncStatus === "cloning" ? (isLightMode ? "text-blue-600 font-semibold" : "text-blue-400 font-semibold") : (isLightMode ? "text-slate-600" : "text-slate-400")
+                  }`}>
+                    {syncStatus === "cloning" ? (
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                    ) : syncStatus === "parsing" || syncStatus === "linked" ? (
+                      <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                    )}
+                    1. Code Parsing & AST Mapping
+                  </span>
+                  <span className={`font-semibold ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                    {syncStatus === "cloning" ? "Running..." : syncStatus === "parsing" || syncStatus === "linked" ? "Done" : "Pending"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`flex items-center gap-1.5 ${
+                    syncStatus === "parsing" ? (isLightMode ? "text-blue-600 font-semibold" : "text-blue-400 font-semibold") : (isLightMode ? "text-slate-600" : "text-slate-400")
+                  }`}>
+                    {syncStatus === "parsing" ? (
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                    ) : syncStatus === "linked" ? (
+                      <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                    )}
+                    2. Vectorizing Codebase (ChromaDB)
+                  </span>
+                  <span className={`font-semibold ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                    {syncStatus === "parsing" ? "Embedding..." : syncStatus === "linked" ? "Done" : "Pending"}
+                  </span>
+                </div>
+                {dbName && (
+                  <div className="flex items-center justify-between">
+                    <span className={`flex items-center gap-1.5 ${
+                      syncStatus === "linked" ? (isLightMode ? "text-slate-600" : "text-slate-400") : (isLightMode ? "text-slate-600" : "text-slate-400")
+                    }`}>
+                      {syncStatus === "linked" ? (
+                        <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                      )}
+                      3. DB Schema Extraction
+                    </span>
+                    <span className={`font-semibold ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                      {syncStatus === "linked" ? "Done" : "Pending"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className={`mt-4 pt-4 border-t flex items-center justify-between text-xs transition-colors ${isLightMode ? "border-slate-100" : "border-white/5"}`}>
             <span className={isLightMode ? "text-slate-500" : "text-slate-400"}>Status</span>
@@ -330,9 +438,10 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                 ? (isLightMode ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20") 
                 : "bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse"
             }`}>
-              {syncStatus === "linked" ? "Synced" : "Syncing..."}
+              {syncStatus === "linked" ? "Synced" : syncStatus === "failed" ? "Failed" : "Syncing..."}
             </span>
           </div>
+
         </div>
 
         {/* Database Card */}

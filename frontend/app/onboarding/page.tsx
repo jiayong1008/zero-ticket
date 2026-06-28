@@ -253,21 +253,40 @@ export default function OnboardingPage() {
         throw new Error(body?.detail || "Ingestion process failed. Verify repository path and try again.");
       }
       
-      const data = await res.json();
-      setIndexedChunks(data.code_chunks_indexed);
-      setSyncStatus("linked");
-      localStorage.setItem("repo_linked", "true");
-      
-      setTimeout(() => {
-        router.push("/");
+      // Start polling project status from backend
+      const pollInterval = setInterval(() => {
+        fetch(`${BACKEND_URL}/api/company/projects?company_id=${companyId}`)
+          .then((r) => r.json())
+          .then((projects: any[]) => {
+            if (Array.isArray(projects)) {
+              const active = projects.find((p) => p.repository_id === repositoryId);
+              if (active) {
+                setSyncStatus(active.sync_status);
+                if (active.sync_status === "linked") {
+                  clearInterval(pollInterval);
+                  localStorage.setItem("repo_linked", "true");
+                  setLoading(false);
+                  setTimeout(() => {
+                    router.push("/");
+                  }, 2000);
+                } else if (active.sync_status === "failed") {
+                  clearInterval(pollInterval);
+                  setLoading(false);
+                  setError("Ingestion process failed. Verify repository path or check backend logs.");
+                }
+              }
+            }
+          })
+          .catch(() => {});
       }, 2000);
+
     } catch (err: any) {
       setSyncStatus("failed");
       setError(err.message || "An error occurred during ingestion");
-    } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
