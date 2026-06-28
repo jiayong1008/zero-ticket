@@ -183,6 +183,8 @@ export default function DashboardPage() {
               } else if (active.sync_status === "failed") {
                 setSyncing(false);
                 setError("Ingestion process failed. Verify repository path or check backend logs.");
+              } else if (active.sync_status === "pending") {
+                setSyncing(false);
               }
             }
           }
