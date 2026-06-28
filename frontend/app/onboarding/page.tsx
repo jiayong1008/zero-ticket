@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAddingProject = Boolean(searchParams.get("step"));
@@ -915,5 +915,13 @@ export default function OnboardingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-xs text-slate-400">Loading onboarding...</div>}>
+      <OnboardingPageContent />
+    </Suspense>
   );
 }
