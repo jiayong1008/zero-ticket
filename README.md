@@ -111,18 +111,26 @@ zeroticket/
 * A **Project Switcher** dropdown appears on the dashboard header (after the first project is registered). Switching projects instantly updates the active `repository_id` in `localStorage` — all future sandbox queries and sync operations target the selected project.
 * The backend endpoint `GET /api/company/projects?company_id=...` returns all registered repositories with their sync statuses and linked DB type.
 
-### Database Type Toggle (MySQL vs PostgreSQL)
-* Onboarding Step 3 now includes a **Database Type selector** (MySQL / PostgreSQL).
-* Switching DB type auto-fills the default port (3306 for MySQL, 5432 for PostgreSQL).
-* The `db_type` field is stored in `DBConnection` and used by `get_target_db_conn()` in `db.py` to create the correct driver connection (`pymysql` or `psycopg2`).
+### Per-Project Vector Collection Isolation
+* Switched ChromaDB indexing from a single global `codebase_chunks` collection to isolated, repository-scoped collections: `repo_<repository_id>`.
+* This prevents search context pollution and cross-project leakage.
+* Includes an automatic fallback to the global legacy collection if a repository has no per-project vector data yet, ensuring backward compatibility.
 
-### Multi-LLM Provider Support (Gemini / OpenAI / Claude / DeepSeek / Qwen)
-* Onboarding Step 4 now shows a **Provider Picker** grid instead of a plain Gemini API key field.
-* Supported providers: **Gemini** (Google), **GPT-4o** (OpenAI), **Claude** (Anthropic), **DeepSeek** (DeepSeek AI), **Qwen** (Alibaba).
-* You can also override the model name if you want a specific version (e.g., `claude-3-haiku` instead of the default).
-* The selected provider and optional API key are stored in `localStorage` as `llm_provider`, `llm_model`, and `llm_api_key`.
-* These are passed to `/api/ingest` and `/api/sandbox/simulate` so the backend's `AgentEngine` can use the correct LLM client.
-* The Dashboard's **Developer API Keys** card now shows the active AI Provider in use.
+### Database Type Toggle (MySQL & PostgreSQL Support)
+* Onboarding Step 3 includes a **Database Type selector** (MySQL / PostgreSQL).
+* Schema extraction has been upgraded to natively support PostgreSQL:
+  - Correctly handles PostgreSQL schema tables and relationship metadata query joins.
+  - Appropriately wraps PostgreSQL identifiers in double quotes `"` instead of MySQL backticks `` ` ``.
+  - Automatically loads the `psycopg2` driver for PostgreSQL connections.
+
+### Granular Sync Progress & Error Reporting
+* Both onboarding Step 4 and the Dashboard codebase card now pull real-time numerical ingestion progress (e.g., `Embedding (120/649)`) and render a sleek animated progress bar.
+* Specific backend-level failures (like invalid API keys or quota exhaustion errors) are cached in `Repository.sync_message` and rendered directly as active warning labels instead of generic error alerts.
+* Includes auto-recovery on backend startup: any stuck indexing jobs (e.g., due to a crash or reload during parsing/cloning) are safely reset to a `pending` state.
+
+### Inline LLM Configuration Editor
+* The Dashboard's **Developer API Keys** card features an inline **"Edit LLM Config"** editor.
+* Allows updating the LLM API Key (or switching LLM providers between Gemini and OpenAI) on the fly without wiping existing project connections or resetting the dashboard.
 
 ---
 
