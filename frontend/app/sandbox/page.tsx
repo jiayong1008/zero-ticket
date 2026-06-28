@@ -28,12 +28,29 @@ export default function SandboxPage() {
   // Chat state
   const [query, setQuery] = useState("");
   const [lastQuery, setLastQuery] = useState("");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      sender: "assistant",
-      content: "Hello! I am ZeroTicket, connected to your codebase and database replica. Ask me any support question to test my logic retrieval and SQL security guard.",
+  const [messages, setMessages] = useState<Message[]>([]);
+  
+  // Load messages from sessionStorage on mount
+  useEffect(() => {
+    const savedMessages = sessionStorage.getItem("sandbox_messages");
+    if (savedMessages) {
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (e) {
+        // Fallback
+        setMessages([{ sender: "assistant", content: "Hello! I am ZeroTicket, connected to your codebase and database replica. Ask me any support question to test my logic retrieval and SQL security guard." }]);
+      }
+    } else {
+      setMessages([{ sender: "assistant", content: "Hello! I am ZeroTicket, connected to your codebase and database replica. Ask me any support question to test my logic retrieval and SQL security guard." }]);
     }
-  ]);
+  }, []);
+
+  // Save messages to sessionStorage when they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem("sandbox_messages", JSON.stringify(messages));
+    }
+  }, [messages]);
 
   // Markdown format helper
   const renderFormattedContent = (content: string) => {
@@ -162,6 +179,10 @@ export default function SandboxPage() {
     try {
       const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
       
+      const historyPayload = messages
+        .filter(m => m.sender === "user" || m.sender === "assistant")
+        .map(m => ({ role: m.sender, content: m.content }));
+
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,6 +194,7 @@ export default function SandboxPage() {
           llm_provider: llmProvider || "gemini",
           llm_model: llmModel || undefined,
           api_key: savedKey,
+          chat_history: historyPayload.length > 0 ? historyPayload : undefined,
         }),
       });
 
@@ -237,6 +259,14 @@ export default function SandboxPage() {
     try {
       const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
       
+      let historyPayload = messages
+        .filter(m => m.sender === "user" || m.sender === "assistant")
+        .map(m => ({ role: m.sender, content: m.content }));
+        
+      if (historyPayload.length > 0 && historyPayload[historyPayload.length - 1].role === "user" && historyPayload[historyPayload.length - 1].content === queryToRetry) {
+        historyPayload = historyPayload.slice(0, -1);
+      }
+
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -248,6 +278,7 @@ export default function SandboxPage() {
           llm_provider: llmProvider || "gemini",
           llm_model: llmModel || undefined,
           api_key: savedKey,
+          chat_history: historyPayload.length > 0 ? historyPayload : undefined,
         }),
       });
 
@@ -279,7 +310,7 @@ export default function SandboxPage() {
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-screen transition-colors duration-300 ${isLightMode ? "bg-slate-100" : "bg-[#0b0f19]"}`}>
+    <div className={`flex-1 flex flex-col h-screen min-h-0 overflow-hidden transition-colors duration-300 ${isLightMode ? "bg-slate-100" : "bg-[#0b0f19]"}`}>
       {/* Navigation Top bar */}
       <header className={`h-16 border-b px-6 flex items-center justify-between transition-colors duration-300 backdrop-blur-md ${isLightMode ? "bg-white/80 border-slate-200" : "bg-[#0f172a]/50 border-white/10"}`}>
         <div className="flex items-center gap-3">
@@ -404,7 +435,7 @@ export default function SandboxPage() {
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -500,7 +531,7 @@ export default function SandboxPage() {
             </span>
           </div>
 
-          <div className={`flex-1 overflow-y-auto p-5 font-mono text-xs leading-relaxed select-text whitespace-pre-wrap transition-colors ${isLightMode ? "text-slate-700 bg-white" : "text-slate-300"}`}>
+          <div className={`flex-1 overflow-y-auto min-h-0 p-5 font-mono text-xs leading-relaxed select-text whitespace-pre-wrap break-all transition-colors ${isLightMode ? "text-slate-700 bg-white" : "text-slate-300"}`}>
             {activeThoughtLog ? (
               // Format thought logs nicely
               activeThoughtLog.split("\n").map((line, idx) => {

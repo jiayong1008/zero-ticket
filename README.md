@@ -143,6 +143,11 @@ This will launch the FastAPI backend on `http://localhost:8088` and the Next.js 
 * The Dashboard's **Developer API Keys** card features an inline **"Edit LLM Config"** editor.
 * Allows updating the LLM API Key (or switching LLM providers between Gemini and OpenAI) on the fly without wiping existing project connections or resetting the dashboard.
 
+### Stateful Conversational Memory & Prompt Caching
+* The AI engine now inherently supports chat history, seamlessly handling conversational follow-ups and pronoun resolutions (e.g., *"What about my user ID?"*).
+* Features a **Dynamic Token-Aware Sliding Window** that truncates history safely to a 3000-character budget to protect LLM token limits and API costs.
+* Restructured prompts strictly place static contexts (Database Schema and Chat History) at the absolute top of the request, and volatile contexts (RAG Code Chunks and SQL Execution Results) at the bottom, maximizing **Prompt Caching** discounts for modern LLMs (like Gemini 1.5 and Claude 3.5).
+
 ---
 
 ## 📦 Current Active Connections
