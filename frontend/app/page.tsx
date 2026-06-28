@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus, prism } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -52,6 +55,8 @@ export default function DashboardPage() {
   const [adminToken, setAdminToken] = useState("");
   const [loginPassphrase, setLoginPassphrase] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   const BACKEND_URL = "http://localhost:8088";
 
@@ -88,7 +93,8 @@ export default function DashboardPage() {
           setProjects(mapped);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setIsLoadingProjects(false));
   };
 
   useEffect(() => {
@@ -563,11 +569,42 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
 
       {/* Grid of Connections Info */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Repo Card */}
-        <div className={`rounded-xl p-5 border flex flex-col justify-between transition-all shadow-sm ${
-          isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
-        }`}>
-          <div className="space-y-2">
+        {isLoadingProjects ? (
+          <>
+            <div className={`rounded-xl p-5 border min-h-[250px] animate-pulse flex flex-col justify-between ${
+              isLightMode ? "bg-slate-100 border-slate-200" : "bg-white/5 border-white/5"
+            }`}>
+              <div className="space-y-3">
+                <div className={`h-2 w-16 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                <div className={`h-4 w-32 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                <div className="space-y-2 mt-4">
+                  <div className={`h-3 w-3/4 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                  <div className={`h-3 w-1/2 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                </div>
+              </div>
+              <div className={`h-8 w-full rounded mt-6 ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+            </div>
+            
+            <div className={`rounded-xl p-5 border min-h-[250px] animate-pulse flex flex-col justify-between ${
+              isLightMode ? "bg-slate-100 border-slate-200" : "bg-white/5 border-white/5"
+            }`}>
+              <div className="space-y-3">
+                <div className={`h-2 w-24 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                <div className={`h-4 w-28 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                <div className="space-y-2 mt-4">
+                  <div className={`h-3 w-1/3 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                  <div className={`h-3 w-1/4 rounded ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}></div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Repo Card */}
+            <div className={`rounded-xl p-5 border flex flex-col justify-between transition-all shadow-sm ${
+              isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
+            }`}>
+              <div className="space-y-2">
             <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Codebase</span>
             <h2 className={`text-sm font-bold truncate transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>{repoPath.split("/").pop()}</h2>
             <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
@@ -584,16 +621,31 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                     onClick={() => {
                       const url = `${window.location.origin}/api/webhooks/github?repository_id=${activeRepoId}`;
                       navigator.clipboard.writeText(url);
-                      alert("Webhook URL copied to clipboard!\n\nUse your Repository ID as the Webhook Secret:\n" + activeRepoId);
+                      toast.success("Webhook URL copied to clipboard!");
+                      setCopiedWebhook(true);
+                      setTimeout(() => setCopiedWebhook(false), 2000);
                     }}
-                    className={`p-1 rounded hover:bg-white/10 transition-colors ${isLightMode ? "text-slate-500 hover:text-slate-700" : "text-slate-400 hover:text-white"}`}
-                    title="Copy Webhook URL"
+                    className={`p-1 rounded hover:bg-white/10 transition-colors flex items-center justify-center ${
+                      copiedWebhook 
+                        ? "text-emerald-500 hover:text-emerald-600" 
+                        : isLightMode ? "text-slate-500 hover:text-slate-700" : "text-slate-400 hover:text-white"
+                    }`}
+                    title={copiedWebhook ? "Copied!" : "Copy Webhook URL"}
                   >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                    </svg>
+                    {copiedWebhook ? (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                    )}
                   </button>
                 </div>
+                <p className={`text-[9px] mt-1.5 opacity-80 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                  Webhook Secret: <code className="font-mono bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded">{activeRepoId}</code>
+                </p>
               </div>
             </div>
 
@@ -719,6 +771,8 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
             </span>
           </div>
         </div>
+        </>
+        )}
 
         {/* Platform API Details */}
         <div className={`rounded-xl p-5 border flex flex-col justify-between transition-all shadow-sm ${
@@ -752,8 +806,8 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                     }}
                     className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
                       isLightMode 
-                        ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
-                        : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                        ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
+                        : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
                     }`}
                   >
                     <option value="gemini">Gemini</option>
@@ -775,8 +829,8 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                         placeholder="llama3"
                         className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
                           isLightMode 
-                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
-                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
+                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
                         }`}
                       />
                     </div>
@@ -792,8 +846,8 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                         placeholder="http://localhost:11434/v1"
                         className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
                           isLightMode 
-                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
-                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
+                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
                         }`}
                       />
                     </div>
@@ -815,16 +869,19 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                       placeholder={llmProvider === "gemini" ? "AIzaSy..." : "sk-..."}
                       className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
                         isLightMode 
-                          ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500" 
-                          : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50"
+                          ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
+                          : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
                       }`}
                     />
                   </div>
                 )}
                 <button
                   type="button"
-                  onClick={() => setIsEditingLLM(false)}
-                  className="w-full py-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
+                  onClick={() => {
+                    setIsEditingLLM(false);
+                    toast.success("LLM Configuration Saved!");
+                  }}
+                  className="w-full py-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded transition-all"
                 >
                   Save Config
                 </button>
@@ -848,7 +905,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               <button
                 type="button"
                 onClick={handleCancelSync}
-                className="w-full py-2 bg-red-600 hover:bg-red-500 transition-colors text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 shadow-sm"
+                className="w-full py-2 bg-red-600 hover:bg-red-500 active:scale-95 transition-all text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -858,7 +915,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
             ) : (
               <button
                 onClick={handleSyncCodebase}
-                className={`w-full py-2 transition-colors text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 ${
+                className={`w-full py-2 transition-all active:scale-95 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 ${
                   isLightMode 
                     ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-250 shadow-sm" 
                     : "bg-white/5 hover:bg-white/10 text-slate-200"
@@ -870,10 +927,10 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                 </svg>
               </button>
             )}
-            {projects.length === 0 && (
+            {!isLoadingProjects && projects.length === 0 && (
               <button
                 onClick={() => router.push("/onboarding?step=2")}
-                className={`w-full py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 border transition-all ${
+                className={`w-full py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 border transition-all active:scale-95 ${
                   isLightMode ? "border-slate-200 text-slate-500 hover:bg-slate-50" : "border-white/10 text-slate-400 hover:bg-white/5"
                 }`}
               >
@@ -903,11 +960,17 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Embed this iframe in your website. Ensure you pass the signed JWT token in search parameters.</p>
             </div>
             
-            <pre className={`p-3 border rounded-lg text-[10px] font-mono overflow-x-auto whitespace-pre transition-colors ${
-              isLightMode ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-slate-950/80 border-white/5 text-slate-300"
+            <div className={`border rounded-lg text-[10px] overflow-hidden transition-colors ${
+              isLightMode ? "border-slate-200" : "border-white/5"
             }`}>
-              {embedCode}
-            </pre>
+              <SyntaxHighlighter 
+                language="html" 
+                style={isLightMode ? prism : vscDarkPlus}
+                customStyle={{ margin: 0, padding: '12px', background: 'transparent' }}
+              >
+                {embedCode}
+              </SyntaxHighlighter>
+            </div>
           </div>
 
           {/* Backend JWT sign code */}
@@ -919,11 +982,17 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               <p className={`text-[11px] transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Sign user information using your ZeroTicket API key before rendering the support chat widget.</p>
             </div>
             
-            <pre className={`p-3 border rounded-lg text-[10px] font-mono overflow-x-auto whitespace-pre transition-colors ${
-              isLightMode ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-slate-950/80 border-white/5 text-slate-300"
+            <div className={`border rounded-lg text-[10px] overflow-hidden transition-colors ${
+              isLightMode ? "border-slate-200" : "border-white/5"
             }`}>
-              {backendSignCode}
-            </pre>
+              <SyntaxHighlighter 
+                language="php" 
+                style={isLightMode ? prism : vscDarkPlus}
+                customStyle={{ margin: 0, padding: '12px', background: 'transparent' }}
+              >
+                {backendSignCode}
+              </SyntaxHighlighter>
+            </div>
           </div>
         </div>
       </div>

@@ -448,7 +448,7 @@ def cancel_ingestion(data: IngestCancelRequest, db: Session = Depends(get_db)):
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found.")
         
-    if repo.sync_status not in ["cloning", "parsing"]:
+    if repo.sync_status not in ["cloning", "parsing", "pending"]:
         raise HTTPException(status_code=400, detail="No active synchronization to cancel.")
         
     repo.sync_status = "failed"
