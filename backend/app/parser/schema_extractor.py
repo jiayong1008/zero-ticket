@@ -18,71 +18,155 @@ class SchemaExtractor:
         """
         schema = {}
         
+        # Detect if this is PostgreSQL or MySQL
+        is_postgres = "psycopg2" in self.conn.__class__.__module__
+        
         with self.conn.cursor() as cursor:
-            # 1. Get all tables in the database
-            cursor.execute("""
-                SELECT table_name 
-                FROM information_schema.tables 
-                WHERE table_schema = %s AND table_type = 'BASE TABLE'
-            """, (db_name,))
-            tables = [row['table_name'] for row in [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]]
-            
-            for table in tables:
-                schema[table] = {
-                    'columns': [],
-                    'primary_keys': [],
-                    'foreign_keys': [],
-                    'samples': []
-                }
-                
-                # 2. Get column information
+            if is_postgres:
+                # 1. Get all tables in public schema
                 cursor.execute("""
-                    SELECT column_name, data_type, is_nullable, column_key, column_default
-                    FROM information_schema.columns 
-                    WHERE table_schema = %s AND table_name = %s
-                """, (db_name, table))
-                cols = [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+                """)
+                tables = [row['table_name'] for row in [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]]
                 
-                for col in cols:
-                    col_info = {
-                        'name': col['column_name'],
-                        'type': col['data_type'],
-                        'nullable': col['is_nullable'] == 'YES',
-                        'default': col['column_default']
+                for table in tables:
+                    schema[table] = {
+                        'columns': [],
+                        'primary_keys': [],
+                        'foreign_keys': [],
+                        'samples': []
                     }
-                    schema[table]['columns'].append(col_info)
                     
-                    if col['column_key'] == 'PRI':
-                        schema[table]['primary_keys'].append(col['column_name'])
+                    # 2. Get column information
+                    cursor.execute("""
+                        SELECT column_name, data_type, is_nullable, column_default
+                        FROM information_schema.columns 
+                        WHERE table_schema = 'public' AND table_name = %s
+                    """, (table,))
+                    cols = [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]
+                    
+                    for col in cols:
+                        col_info = {
+                            'name': col['column_name'],
+                            'type': col['data_type'],
+                            'nullable': col['is_nullable'] == 'YES',
+                            'default': col['column_default']
+                        }
+                        schema[table]['columns'].append(col_info)
                         
-                # 3. Get foreign keys
-                cursor.execute("""
-                    SELECT column_name, referenced_table_name, referenced_column_name 
-                    FROM information_schema.key_column_usage 
-                    WHERE table_schema = %s AND table_name = %s AND referenced_table_name IS NOT NULL
-                """, (db_name, table))
-                fks = [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]
-                for fk in fks:
-                    schema[table]['foreign_keys'].append({
-                        'column': fk['column_name'],
-                        'referenced_table': fk['referenced_table_name'],
-                        'referenced_column': fk['referenced_column_name']
-                    })
+                    # 3. Get primary keys in PostgreSQL
+                    cursor.execute("""
+                        SELECT kcu.column_name
+                        FROM information_schema.table_constraints tc
+                        JOIN information_schema.key_column_usage kcu
+                          ON tc.constraint_name = kcu.constraint_name
+                         AND tc.table_schema = kcu.table_schema
+                        WHERE tc.constraint_type = 'PRIMARY KEY'
+                          AND tc.table_schema = 'public'
+                          AND tc.table_name = %s
+                    """, (table,))
+                    pks = cursor.fetchall()
+                    schema[table]['primary_keys'] = [row['column_name'] for row in [{k.lower(): v for k, v in r.items()} for row in pks]]
                     
-                # 4. Get sample data (excluding sensitive columns)
-                non_sensitive_cols = [c['name'] for c in schema[table]['columns'] if not self.is_sensitive(c['name'])]
+                    # 4. Get foreign keys in PostgreSQL
+                    cursor.execute("""
+                        SELECT 
+                            kcu.column_name AS column_name,
+                            ccu.table_name AS referenced_table_name,
+                            ccu.column_name AS referenced_column_name
+                        FROM information_schema.table_constraints tc
+                        JOIN information_schema.key_column_usage kcu
+                          ON tc.constraint_name = kcu.constraint_name
+                         AND tc.table_schema = kcu.table_schema
+                        JOIN information_schema.constraint_column_usage ccu
+                          ON ccu.constraint_name = tc.constraint_name
+                        WHERE tc.constraint_type = 'FOREIGN KEY'
+                          AND tc.table_schema = 'public'
+                          AND tc.table_name = %s
+                    """, (table,))
+                    fks = [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]
+                    for fk in fks:
+                        schema[table]['foreign_keys'].append({
+                            'column': fk['column_name'],
+                            'referenced_table': fk['referenced_table_name'],
+                            'referenced_column': fk['referenced_column_name']
+                        })
+                        
+                    # 5. Get sample data (excluding sensitive columns)
+                    non_sensitive_cols = [c['name'] for c in schema[table]['columns'] if not self.is_sensitive(c['name'])]
+                    
+                    if non_sensitive_cols:
+                        # Select only non-sensitive columns (PostgreSQL does not use backticks)
+                        col_selection = ", ".join([f'"{c}"' for c in non_sensitive_cols])
+                        try:
+                            cursor.execute(f'SELECT {col_selection} FROM "{table}" LIMIT 3')
+                            samples = cursor.fetchall()
+                            schema[table]['samples'] = samples
+                        except Exception as e:
+                            print(f"Skipping sample extraction for table {table}: {str(e)}")
+                            schema[table]['samples'] = []
+            else:
+                # MySQL branch
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = %s AND table_type = 'BASE TABLE'
+                """, (db_name,))
+                tables = [row['table_name'] for row in [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]]
                 
-                if non_sensitive_cols:
-                    # Select only non-sensitive columns
-                    col_selection = ", ".join([f"`{c}`" for c in non_sensitive_cols])
-                    try:
-                        cursor.execute(f"SELECT {col_selection} FROM `{table}` LIMIT 3")
-                        samples = cursor.fetchall()
-                        schema[table]['samples'] = samples
-                    except Exception as e:
-                        # Log error and skip sample extraction for this table
-                        print(f"Skipping sample extraction for table {table}: {str(e)}")
-                        schema[table]['samples'] = []
+                for table in tables:
+                    schema[table] = {
+                        'columns': [],
+                        'primary_keys': [],
+                        'foreign_keys': [],
+                        'samples': []
+                    }
+                    
+                    cursor.execute("""
+                        SELECT column_name, data_type, is_nullable, column_key, column_default
+                        FROM information_schema.columns 
+                        WHERE table_schema = %s AND table_name = %s
+                    """, (db_name, table))
+                    cols = [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]
+                    
+                    for col in cols:
+                        col_info = {
+                            'name': col['column_name'],
+                            'type': col['data_type'],
+                            'nullable': col['is_nullable'] == 'YES',
+                            'default': col['column_default']
+                        }
+                        schema[table]['columns'].append(col_info)
+                        
+                        if col['column_key'] == 'PRI':
+                            schema[table]['primary_keys'].append(col['column_name'])
+                            
+                    cursor.execute("""
+                        SELECT column_name, referenced_table_name, referenced_column_name 
+                        FROM information_schema.key_column_usage 
+                        WHERE table_schema = %s AND table_name = %s AND referenced_table_name IS NOT NULL
+                    """, (db_name, table))
+                    fks = [{k.lower(): v for k, v in r.items()} for r in cursor.fetchall()]
+                    for fk in fks:
+                        schema[table]['foreign_keys'].append({
+                            'column': fk['column_name'],
+                            'referenced_table': fk['referenced_table_name'],
+                            'referenced_column': fk['referenced_column_name']
+                        })
+                        
+                    non_sensitive_cols = [c['name'] for c in schema[table]['columns'] if not self.is_sensitive(c['name'])]
+                    
+                    if non_sensitive_cols:
+                        col_selection = ", ".join([f"`{c}`" for c in non_sensitive_cols])
+                        try:
+                            cursor.execute(f"SELECT {col_selection} FROM `{table}` LIMIT 3")
+                            samples = cursor.fetchall()
+                            schema[table]['samples'] = samples
+                        except Exception as e:
+                            print(f"Skipping sample extraction for table {table}: {str(e)}")
+                            schema[table]['samples'] = []
                         
         return schema
 
