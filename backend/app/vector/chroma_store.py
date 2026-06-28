@@ -135,16 +135,37 @@ class ChromaStore:
     def query_similar_code(self, query: str, limit: int = 5, api_key: str = "", provider: str = "gemini") -> list[dict]:
         """
         Queries Chroma for codebase chunks similar to the query.
+        If the per-repository collection is empty (e.g. not yet migrated to the new
+        per-repo isolation), automatically falls back to the legacy global collection.
         """
         # 1. Embed query
         query_embedding = self._generate_embeddings([query], api_key, provider)[0]
-        
-        # 2. Query Chroma
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=limit
-        )
-        
+
+        # 2. Determine which collection to query.
+        # If this is a per-repo collection but it has no data yet, fall back to the
+        # legacy global collection so queries keep working without a forced resync.
+        collection = self.collection
+        if self.collection_name != "codebase_chunks":
+            try:
+                count = self.collection.count()
+            except Exception:
+                count = 0
+            if count == 0:
+                # Fall back to global legacy collection
+                try:
+                    collection = self.client.get_collection("codebase_chunks")
+                except Exception:
+                    pass  # Global collection doesn't exist either — return empty
+
+        # 3. Query Chroma
+        try:
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=limit
+            )
+        except Exception:
+            return []
+
         formatted_results = []
         if results and results["documents"]:
             docs = results["documents"][0]
