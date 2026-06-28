@@ -29,7 +29,8 @@ class ChromaStore:
         """
         Generates embeddings for a list of texts using Gemini or OpenAI models.
         """
-        if provider == "openai":
+        prov = (provider or "gemini").lower()
+        if prov == "openai":
             from openai import OpenAI
             client = OpenAI(api_key=api_key)
             response = client.embeddings.create(
@@ -37,18 +38,22 @@ class ChromaStore:
                 input=texts
             )
             return [data.embedding for data in response.data]
-        else:
+        elif prov == "gemini":
             client = self._get_gemini_client(api_key)
-            
-            # Google GenAI API supports batch embedding
             response = client.models.embed_content(
                 model="gemini-embedding-001",
                 contents=texts
             )
-            
-            # Extract embeddings
-            embeddings = [e.values for e in response.embeddings]
-            return embeddings
+            return [e.values for e in response.embeddings]
+        else:
+            # Fall back to Gemini using the backend's environment key for embeddings,
+            # since Claude/DeepSeek/Qwen keys cannot be used for Google GenAI embedding.
+            client = self._get_gemini_client("")
+            response = client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=texts
+            )
+            return [e.values for e in response.embeddings]
 
     def add_code_chunks(self, chunks: list[dict], api_key: str = "", provider: str = "gemini", on_progress=None):
         """

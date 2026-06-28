@@ -31,7 +31,8 @@ function OnboardingPageContent() {
   // LLM Provider
   const [llmProvider, setLlmProvider] = useState("gemini");
   const [llmModel, setLlmModel] = useState("");
-  const [apiKey, setApiKey] = useState("");
+  const [llmApiKey, setLlmApiKey] = useState("");
+  const [companyApiKey, setCompanyApiKey] = useState("");
   
   // Ingestion status state
   const [syncStatus, setSyncStatus] = useState("idle");
@@ -57,23 +58,30 @@ function OnboardingPageContent() {
     const savedLinked = localStorage.getItem("repo_linked");
     const targetStep = searchParams.get("step");
 
+    // Always try to load saved LLM settings if they exist
+    const savedLlmProvider = localStorage.getItem("llm_provider");
+    if (savedLlmProvider) setLlmProvider(savedLlmProvider);
+    const savedLlmModel = localStorage.getItem("llm_model");
+    if (savedLlmModel) setLlmModel(savedLlmModel);
+    const savedLlmApiKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key");
+    if (savedLlmApiKey) setLlmApiKey(savedLlmApiKey);
+
+    if (savedCompanyId) {
+      setCompanyId(savedCompanyId);
+      setCompanyName(localStorage.getItem("company_name") || "");
+      setCompanyApiKey(localStorage.getItem("api_key") || "");
+    }
+
     if (targetStep) {
       // User was intentionally redirected here to add a new project.
       // Restore existing company context and jump to the requested step.
-      if (savedCompanyId) {
-        setCompanyId(savedCompanyId);
-        setCompanyName(localStorage.getItem("company_name") || "");
-        // Restore existing llm settings so step 4 looks right
-        setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
-        setLlmModel(localStorage.getItem("llm_model") || "");
-      }
       setStep(Number(targetStep));
     } else if (savedCompanyId && savedLinked === "true") {
       // Fully onboarded with no explicit step override → go to dashboard.
       router.push("/");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [router, searchParams]);
 
   const toggleTheme = () => {
     const nextTheme = !isLightMode;
@@ -103,7 +111,7 @@ function OnboardingPageContent() {
       const data = await res.json();
       
       setCompanyId(data.company_id);
-      setApiKey(data.api_key);
+      setCompanyApiKey(data.api_key);
       localStorage.setItem("company_id", data.company_id);
       localStorage.setItem("api_key", data.api_key);
       localStorage.setItem("company_name", data.name);
@@ -232,9 +240,12 @@ function OnboardingPageContent() {
     setSyncStatus("cloning");
 
     try {
-      if (apiKey.trim()) {
-        localStorage.setItem("gemini_api_key", apiKey);
-        localStorage.setItem("llm_api_key", apiKey);
+      if (llmApiKey.trim()) {
+        localStorage.setItem("gemini_api_key", llmApiKey);
+        localStorage.setItem("llm_api_key", llmApiKey);
+      } else {
+        localStorage.removeItem("gemini_api_key");
+        localStorage.removeItem("llm_api_key");
       }
       localStorage.setItem("llm_provider", llmProvider);
       localStorage.setItem("llm_model", llmModel);
@@ -246,7 +257,7 @@ function OnboardingPageContent() {
           company_id: companyId,
           repository_id: repositoryId || undefined,
           llm_provider: llmProvider,
-          api_key: apiKey,
+          api_key: llmApiKey,
         }),
       });
       
@@ -804,8 +815,8 @@ function OnboardingPageContent() {
               <input
                 id="apiKeyInput"
                 type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                value={llmApiKey}
+                onChange={(e) => setLlmApiKey(e.target.value)}
                 placeholder={llmProvider === "gemini" ? "AIzaSy..." : llmProvider === "openai" ? "sk-..." : llmProvider === "anthropic" ? "sk-ant-..." : "Enter API key"}
                 className="w-full px-4 py-3 rounded-lg glass-input text-sm"
               />

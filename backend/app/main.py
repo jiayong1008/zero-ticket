@@ -317,7 +317,8 @@ def get_company_projects(company_id: str, db: Session = Depends(get_db)):
             "db_type": db_conn.db_type if db_conn else None,
             "db_name": db_conn.db_name if db_conn else None,
             "chunks_total": proj.chunks_total or 0,
-            "chunks_indexed": proj.chunks_indexed or 0
+            "chunks_indexed": proj.chunks_indexed or 0,
+            "sync_message": proj.sync_message
         })
     return result
 
