@@ -47,7 +47,7 @@ class CodeParser:
                             continue
                             
                         file_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(file_path, self.repo_path)
+                        rel_path = file_path  # store absolute path so chunks are identifiable per-repo
                         
                         try:
                             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -68,7 +68,7 @@ class CodeParser:
                         continue
                         
                     file_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(file_path, self.repo_path)
+                    rel_path = file_path  # store absolute path so chunks are identifiable per-repo
                     
                     try:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
