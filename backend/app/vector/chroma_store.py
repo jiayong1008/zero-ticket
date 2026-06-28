@@ -4,10 +4,16 @@ from google import genai
 from app.config import settings
 
 class ChromaStore:
-    def __init__(self, persist_dir: str = "chroma_db"):
+    def __init__(self, persist_dir: str = "chroma_db", repository_id: str = ""):
         self.persist_dir = os.path.abspath(persist_dir)
         self.client = chromadb.PersistentClient(path=self.persist_dir)
-        self.collection_name = "codebase_chunks"
+        # Use per-repository collection so projects don't share/pollute each other's index.
+        # ChromaDB collection names: 3-63 chars, alphanumeric + underscores/hyphens only.
+        if repository_id:
+            safe_id = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in repository_id)
+            self.collection_name = f"repo_{safe_id[:50]}"
+        else:
+            self.collection_name = "codebase_chunks"  # legacy global collection
         self.collection = self.client.get_or_create_collection(
             name=self.collection_name,
             metadata={"hnsw:space": "cosine"}

@@ -196,7 +196,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         chunks = parser.scan_repository()
         
         # Step 2: Index Code Chunks in Vector DB using selected provider
-        chroma = ChromaStore(persist_dir="chroma_db")
+        chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id)
         chroma.add_code_chunks(chunks, api_key=api_key, provider=provider)
         
         # Step 3: Verify target DB schema (skip if no DB is connected for this project)
@@ -342,7 +342,7 @@ def send_chat_message(
 
 @app.post("/api/sandbox/simulate")
 def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
-    engine = AgentEngine(db)
+    engine = AgentEngine(db, repository_id=data.repository_id or "")
     result = engine.execute_inquiry(
         company_id=data.company_id,
         query=data.query,

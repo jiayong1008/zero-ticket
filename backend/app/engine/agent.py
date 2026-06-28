@@ -8,9 +8,10 @@ from app.vector.chroma_store import ChromaStore
 from app.engine.security import SQLSecurityGuard
 
 class AgentEngine:
-    def __init__(self, db_session):
+    def __init__(self, db_session, repository_id: str = ""):
         self.db = db_session
-        self.chroma = ChromaStore(persist_dir="chroma_db")
+        self._repository_id = repository_id
+        self.chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id)
 
     def _get_gemini_client(self, api_key: str = ""):
         key = api_key or settings.GEMINI_API_KEY
@@ -109,12 +110,18 @@ class AgentEngine:
             if target_conn:
                 target_conn.close()
 
-        # 3. Retrieve relevant codebase chunks from Chroma
+        # 3. Retrieve relevant codebase chunks from Chroma (per-repository collection)
+        # Re-init chroma with the resolved repository_id if it wasn't set at construction time.
+        if repository_id and repository_id != self._repository_id:
+            from app.vector.chroma_store import ChromaStore as _CS
+            chroma = _CS(persist_dir="chroma_db", repository_id=repository_id)
+        else:
+            chroma = self.chroma
         code_snippets = []
         code_context = ""
         try:
             # Route embedding extraction based on active provider
-            results = self.chroma.query_similar_code(query, limit=5, api_key=api_key, provider=provider)
+            results = chroma.query_similar_code(query, limit=5, api_key=api_key, provider=provider)
             for res in results:
                 meta = res['metadata']
                 code_snippets.append({
