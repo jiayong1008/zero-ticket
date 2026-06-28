@@ -30,6 +30,20 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     init_db()
+    # Reset stuck repositories to pending on startup
+    from app.db import SessionLocal, Repository
+    db = SessionLocal()
+    try:
+        stuck_repos = db.query(Repository).filter(Repository.sync_status.in_(["cloning", "parsing"])).all()
+        if stuck_repos:
+            print(f"[startup] Resetting {len(stuck_repos)} stuck repositories from cloning/parsing to pending...")
+            for r in stuck_repos:
+                r.sync_status = "pending"
+            db.commit()
+    except Exception as e:
+        print(f"[startup] Failed to reset stuck repos: {e}")
+    finally:
+        db.close()
 
 # Pydantic Schemas for Requests/Responses
 class CompanyCreate(BaseModel):
@@ -195,9 +209,25 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         parser = CodeParser(repo.repo_name)
         chunks = parser.scan_repository()
         
+        repo.chunks_total = len(chunks)
+        repo.chunks_indexed = 0
+        db.commit()
+        
         # Step 2: Index Code Chunks in Vector DB using selected provider
         chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id)
-        chroma.add_code_chunks(chunks, api_key=api_key, provider=provider)
+        
+        def update_progress(indexed_count):
+            try:
+                # Refresh session and update repo columns
+                db.expire_all()
+                r = db.query(Repository).filter(Repository.id == repo.id).first()
+                if r:
+                    r.chunks_indexed = min(indexed_count, len(chunks))
+                    db.commit()
+            except Exception:
+                pass
+
+        chroma.add_code_chunks(chunks, api_key=api_key, provider=provider, on_progress=update_progress)
         
         # Step 3: Verify target DB schema (skip if no DB is connected for this project)
         if conn_details:
@@ -281,7 +311,9 @@ def get_company_projects(company_id: str, db: Session = Depends(get_db)):
             "last_synced_at": proj.last_synced_at,
             "db_connected": db_conn is not None,
             "db_type": db_conn.db_type if db_conn else None,
-            "db_name": db_conn.db_name if db_conn else None
+            "db_name": db_conn.db_name if db_conn else None,
+            "chunks_total": proj.chunks_total or 0,
+            "chunks_indexed": proj.chunks_indexed or 0
         })
     return result
 
