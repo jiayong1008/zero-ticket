@@ -573,6 +573,28 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
             <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
               <p>Path: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{repoPath}</code></p>
               <p>Branch: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{repoBranch}</span></p>
+              
+              <div className={`mt-2 pt-2 border-t ${isLightMode ? "border-slate-200" : "border-white/10"}`}>
+                <p className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"} mb-1`}>GitHub Webhook:</p>
+                <div className={`flex items-center gap-2 p-1.5 rounded border ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-black/30 border-white/5"}`}>
+                  <code className={`text-[9px] truncate flex-1 ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+                    /api/webhooks/github?repository_id={activeRepoId}
+                  </code>
+                  <button 
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/webhooks/github?repository_id=${activeRepoId}`;
+                      navigator.clipboard.writeText(url);
+                      alert("Webhook URL copied to clipboard!\n\nUse your Repository ID as the Webhook Secret:\n" + activeRepoId);
+                    }}
+                    className={`p-1 rounded hover:bg-white/10 transition-colors ${isLightMode ? "text-slate-500 hover:text-slate-700" : "text-slate-400 hover:text-white"}`}
+                    title="Copy Webhook URL"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {syncing && (

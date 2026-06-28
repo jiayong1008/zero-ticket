@@ -359,6 +359,85 @@ def run_ingestion(
         "sync_status": "cloning"
     }
 
+@app.post("/api/webhooks/github")
+async def github_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Automated webhook ingestion triggered by GitHub push events.
+    Requires X-Hub-Signature-256 header matching the repository ID or company API key.
+    """
+    import hmac
+    import hashlib
+    
+    # 1. Get the payload and signature
+    payload = await request.body()
+    signature_header = request.headers.get("X-Hub-Signature-256")
+    
+    if not signature_header:
+        raise HTTPException(status_code=401, detail="Missing X-Hub-Signature-256 header")
+        
+    try:
+        import json
+        data = json.loads(payload)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+        
+    repo_name_from_payload = data.get("repository", {}).get("full_name") or data.get("repository", {}).get("name")
+    
+    # 2. Find matching repository in database
+    # GitHub payloads usually contain the repo name, but it might not perfectly match our local folder name.
+    # We will search by matching substring, or fallback to taking the repository_id from a query param if needed.
+    repository_id = request.query_params.get("repository_id")
+    if repository_id:
+        repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    else:
+        # Fallback to finding by name
+        if not repo_name_from_payload:
+            raise HTTPException(status_code=400, detail="Could not determine repository name from payload. Pass ?repository_id= in the webhook URL.")
+            
+        repo = db.query(Repository).filter(
+            Repository.repo_name.like(f"%{repo_name_from_payload}%")
+        ).first()
+        
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found or configured in ZeroTicket.")
+
+    # 3. Verify Signature
+    # We use the repo.id as the webhook secret for simplicity and security.
+    secret = repo.id.encode()
+    hash_object = hmac.new(secret, msg=payload, digestmod=hashlib.sha256)
+    expected_signature = "sha256=" + hash_object.hexdigest()
+    
+    if not hmac.compare_digest(expected_signature, signature_header):
+        raise HTTPException(status_code=403, detail="Invalid webhook signature. Ensure the Webhook Secret is set to your Repository ID.")
+
+    # Guard: reject if already syncing this repo
+    if repo.id in _ingestion_in_progress:
+        return {"status": "ignored", "message": "Sync already in progress."}
+
+    # 4. Trigger Ingestion
+    repo.sync_status = "cloning"
+    repo.sync_message = "Triggered via Webhook..."
+    db.commit()
+    _ingestion_in_progress.add(repo.id)
+    
+    # We use the company's first valid LLM config. For simplicity, we use Gemini or whatever is saved.
+    # In a full implementation, we might store llm_provider on the Repository or Company table.
+    # For now, default to gemini since this is an automated background task.
+    background_tasks.add_task(
+        start_ingestion_task, 
+        repo.company_id, 
+        repo.id, 
+        "", # We don't have the API key in the webhook, so ChromaStore will fallback to backend env keys or default models
+        "gemini", 
+        None
+    )
+    
+    return {"status": "success", "message": "Ingestion triggered."}
+
 class IngestCancelRequest(BaseModel):
     company_id: str
     repository_id: str
