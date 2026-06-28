@@ -248,7 +248,10 @@ export default function OnboardingPage() {
         }),
       });
       
-      if (!res.ok) throw new Error("Ingestion process failed. Verify repository path and target database replica are reachable.");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.detail || "Ingestion process failed. Verify repository path and try again.");
+      }
       
       const data = await res.json();
       setIndexedChunks(data.code_chunks_indexed);

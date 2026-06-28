@@ -233,12 +233,11 @@ def run_ingestion(
     if not repo:
         raise HTTPException(status_code=404, detail="No repository configured.")
         
+    # conn_details may be None for code-only projects — ingest proceeds without DB schema verification
     conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
     if not conn_details:
         conn_details = db.query(DBConnection).filter(DBConnection.company_id == data.company_id).first()
-    if not conn_details:
-        raise HTTPException(status_code=404, detail="No target database configured.")
-        
+
     repo.sync_status = "cloning"
     db.commit()
     
