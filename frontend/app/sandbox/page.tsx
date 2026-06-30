@@ -209,6 +209,7 @@ export default function SandboxPage() {
       
       const historyPayload = messages
         .filter(m => m.sender === "user" || m.sender === "assistant")
+        .slice(-10) // Optimization: Only send the last 10 messages to reduce network payload
         .map(m => ({ role: m.sender, content: m.content }));
 
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
@@ -339,7 +340,7 @@ export default function SandboxPage() {
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-screen min-h-0 overflow-hidden transition-colors duration-300 ${isLightMode ? "bg-slate-100" : "bg-[#0b0f19]"}`}>
+    <div className={`w-full flex flex-col h-[100dvh] min-h-0 overflow-hidden transition-colors duration-300 ${isLightMode ? "bg-slate-100" : "bg-[#0b0f19]"}`}>
       {/* Navigation Top bar */}
       <header className={`h-16 border-b px-6 flex items-center justify-between transition-colors duration-300 backdrop-blur-md ${isLightMode ? "bg-white/80 border-slate-200" : "bg-[#0f172a]/50 border-white/10"}`}>
         <div className="flex items-center gap-3">
@@ -392,10 +393,9 @@ export default function SandboxPage() {
       </header>
 
       {/* Main Sandbox Workspace */}
-      <PanelGroup orientation="horizontal" className="flex-1 overflow-hidden min-h-0">
-        {/* Left Side: Mock JWT / Claims Controls (1/4 space) */}
-        <Panel defaultSize={25} minSize={15} maxSize={40}>
-          <aside className={`h-full border-r p-5 overflow-y-auto space-y-6 flex flex-col transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/30 border-white/10"}`}>
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Left Side: Mock JWT / Claims Controls (Fixed Width) */}
+        <aside className={`w-[25%] min-w-[250px] max-w-[320px] border-r h-full p-5 overflow-y-auto space-y-6 flex flex-col transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/30 border-white/10"}`}>
           <div>
             <h2 className={`text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
               <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -451,13 +451,12 @@ export default function SandboxPage() {
             <strong>Security Rule:</strong> The guard will automatically wrap all SQL queries with subqueries based on the claims set above if corresponding columns exist (e.g. <code className={isLightMode ? "bg-amber-100/80 text-amber-950 px-1 py-0.5 rounded" : ""}>user_id</code> or <code className={isLightMode ? "bg-amber-100/80 text-amber-950 px-1 py-0.5 rounded" : ""}>tenant_id</code>).
           </div>
         </aside>
-        </Panel>
-        
-        <PanelResizeHandle className={`w-1 transition-colors hover:bg-blue-500/50 active:bg-blue-500 cursor-col-resize ${isLightMode ? "bg-slate-200" : "bg-white/10"}`} />
 
-        {/* Center: Live Chat Sandbox Widget (2/5 space) */}
-        <Panel defaultSize={35} minSize={20}>
-          <section className={`h-full flex flex-col border-r relative transition-colors duration-300 min-h-0 ${isLightMode ? "bg-white border-slate-200" : "bg-[#0b0f19] border-white/10"}`}>
+        {/* Resizable Center and Right */}
+        <PanelGroup id="sandbox-layout" orientation="horizontal" className="flex-1 overflow-hidden min-h-0">
+          {/* Center: Live Chat Sandbox Widget */}
+          <Panel id="panel-chat" defaultSize={45} minSize={30}>
+            <section className={`h-full flex flex-col relative min-w-0 transition-colors duration-300 min-h-0 ${isLightMode ? "bg-white" : "bg-[#0b0f19]"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-50/50" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>Widget Chat Simulator</span>
             {loading && (
@@ -604,11 +603,13 @@ export default function SandboxPage() {
         </section>
         </Panel>
         
-        <PanelResizeHandle className={`w-1 transition-colors hover:bg-blue-500/50 active:bg-blue-500 cursor-col-resize ${isLightMode ? "bg-slate-200" : "bg-white/10"}`} />
+        <PanelResizeHandle id="handle-2" className={`z-10 relative w-2 transition-colors hover:bg-blue-500/50 active:bg-blue-500 cursor-col-resize flex items-center justify-center ${isLightMode ? "bg-slate-200" : "bg-white/10"}`}>
+          <div className={`h-8 w-0.5 rounded-full ${isLightMode ? "bg-slate-400" : "bg-slate-600"}`} />
+        </PanelResizeHandle>
 
         {/* Right Side: Developer Console / Thought logs (2/5 space) */}
-        <Panel defaultSize={40} minSize={25}>
-          <section className={`h-full flex flex-col overflow-hidden transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50" : "bg-[#0b1329]"}`}>
+        <Panel id="panel-inspector" defaultSize={40} minSize={25}>
+          <section className={`h-full flex flex-col min-w-0 overflow-hidden transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50" : "bg-[#0b1329]"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-100" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold flex items-center gap-1.5 ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
               <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -657,6 +658,7 @@ export default function SandboxPage() {
         </section>
         </Panel>
       </PanelGroup>
+      </div>
     </div>
   );
 }
