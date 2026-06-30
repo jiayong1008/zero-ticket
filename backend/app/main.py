@@ -99,6 +99,7 @@ class IngestRequest(BaseModel):
     llm_provider: Optional[str] = "gemini"
     api_key: Optional[str] = ""
     llm_base_url: Optional[str] = ""
+    force_resync: Optional[bool] = False
 
 class ChatMessageRequest(BaseModel):
     session_id: str
@@ -287,7 +288,7 @@ def connect_db(data: DBConnectRequest, db: Session = Depends(get_db)):
     
     return {"status": "connected", "connection_id": conn.id}
 
-def start_ingestion_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session_factory):
+def start_ingestion_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session_factory, force_resync: bool = False):
     # We open a new database session in the background task to avoid session thread sharing issues
     from app.db import SessionLocal
     db = SessionLocal()
@@ -328,6 +329,15 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         
         # Step 2: Index Code Chunks in Vector DB using selected provider
         chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id)
+        
+        if force_resync:
+            repo.sync_status = "parsing"
+            repo.sync_message = "Clearing old index..."
+            db.commit()
+            try:
+                chroma.clear_database()
+            except Exception as e:
+                print(f"Failed to clear old index: {e}")
         
         def update_progress(indexed_count, status_msg=None):
             # Refresh session and check if user requested cancellation
@@ -404,7 +414,8 @@ def run_ingestion(
         repo.id, 
         data.api_key, 
         data.llm_provider or "gemini", 
-        None
+        None,
+        data.force_resync or False
     )
     
     return {
@@ -487,7 +498,8 @@ async def github_webhook(
         repo.id, 
         "", # We don't have the API key in the webhook, so ChromaStore will fallback to backend env keys or default models
         "gemini", 
-        None
+        None,
+        False
     )
     
     return {"status": "success", "message": "Ingestion triggered."}
