@@ -43,11 +43,11 @@ class AgentEngine:
                 stream=stream
             )
             if stream:
-                def stream_gen():
-                    for chunk in response:
+                def stream_gen(c, resp):
+                    for chunk in resp:
                         if chunk.choices and chunk.choices[0].delta.content:
                             yield chunk.choices[0].delta.content
-                return stream_gen()
+                return stream_gen(client, response)
             return response.choices[0].message.content or ""
             
         elif prov == "anthropic":
@@ -70,8 +70,8 @@ class AgentEngine:
                 })
             
             if stream:
-                def stream_gen():
-                    with client.messages.stream(
+                def stream_gen(c):
+                    with c.messages.stream(
                         model=model or "claude-3-5-sonnet-20241022",
                         max_tokens=2000,
                         messages=[{"role": "user", "content": content_list}],
@@ -79,7 +79,7 @@ class AgentEngine:
                     ) as stream_response:
                         for text in stream_response.text_stream:
                             yield text
-                return stream_gen()
+                return stream_gen(client)
                 
             response = client.messages.create(
                 model=model or "claude-3-5-sonnet-20241022",
@@ -113,11 +113,11 @@ class AgentEngine:
                 stream=stream
             )
             if stream:
-                def stream_gen():
-                    for chunk in response:
+                def stream_gen(c, resp):
+                    for chunk in resp:
                         if chunk.choices and chunk.choices[0].delta.content:
                             yield chunk.choices[0].delta.content
-                return stream_gen()
+                return stream_gen(client, response)
             
             return response.choices[0].message.content or ""
             
@@ -140,10 +140,10 @@ class AgentEngine:
                     model=target_model,
                     contents=contents
                 )
-                def stream_gen():
-                    for chunk in response:
+                def stream_gen(c, resp):
+                    for chunk in resp:
                         yield chunk.text
-                return stream_gen()
+                return stream_gen(client, response)
 
             response = client.models.generate_content(
                 model=target_model,

@@ -314,9 +314,13 @@ export default function SandboxPage() {
           if (eventString.startsWith("data: ")) {
             try {
               const data = JSON.parse(eventString.substring(6));
-              if (data.type === "thought" || data.type === "error") {
+              if (data.type === "thought") {
                 thoughtText += data.content;
                 setActiveThoughtLog(thoughtText);
+              } else if (data.type === "error") {
+                thoughtText += data.content;
+                setActiveThoughtLog(thoughtText);
+                answerText += "\n\n" + data.content;
               } else if (data.type === "answer") {
                 answerText += data.content;
               }
