@@ -24,6 +24,7 @@ function WidgetChatContent() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isEmbedded, setIsEmbedded] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +81,7 @@ function WidgetChatContent() {
   };
 
   useEffect(() => {
+    setIsEmbedded(window.self !== window.top);
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "light") {
       setIsLightMode(true);
@@ -190,9 +192,9 @@ function WidgetChatContent() {
     }
   };
 
-  return (
-    <div className={`flex flex-col h-screen max-h-screen border rounded-xl overflow-hidden font-sans transition-colors duration-300 ${
-      isLightMode ? "bg-white border-slate-200" : "bg-[#0b0f19] border-white/10"
+  const widgetUI = (
+    <div className={`flex flex-col h-full border rounded-xl overflow-hidden font-sans transition-colors duration-300 shadow-xl ${
+      isLightMode ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0b0f19] border-white/10 shadow-black/50"
     }`}>
       {/* Header */}
       <header className={`px-4 py-3 border-b flex items-center justify-between transition-colors duration-300 ${
@@ -327,6 +329,29 @@ function WidgetChatContent() {
           Powered by <strong className={isLightMode ? "text-slate-700" : "text-slate-400"}>ZeroTicket</strong>
         </span>
       </div>
+    </div>
+  );
+
+  if (!isEmbedded) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 ${
+        isLightMode ? "bg-slate-100" : "bg-slate-900"
+      }`}>
+        <div className="w-full max-w-[380px] h-[650px] relative">
+          <div className={`absolute -top-10 left-0 right-0 text-center text-sm font-semibold tracking-wide ${
+            isLightMode ? "text-slate-500" : "text-slate-400"
+          }`}>
+            Live Widget Preview
+          </div>
+          {widgetUI}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen max-h-screen w-full">
+      {widgetUI}
     </div>
   );
 }

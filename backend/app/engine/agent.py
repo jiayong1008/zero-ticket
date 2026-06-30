@@ -39,8 +39,15 @@ class AgentEngine:
             response = client.chat.completions.create(
                 model=model or "gpt-4o",
                 messages=[{"role": "user", "content": content_list}],
-                temperature=0.0
+                temperature=0.0,
+                stream=stream
             )
+            if stream:
+                def stream_gen():
+                    for chunk in response:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                return stream_gen()
             return response.choices[0].message.content or ""
             
         elif prov == "anthropic":
@@ -62,6 +69,18 @@ class AgentEngine:
                     }
                 })
             
+            if stream:
+                def stream_gen():
+                    with client.messages.stream(
+                        model=model or "claude-3-5-sonnet-20241022",
+                        max_tokens=2000,
+                        messages=[{"role": "user", "content": content_list}],
+                        temperature=0.0
+                    ) as stream_response:
+                        for text in stream_response.text_stream:
+                            yield text
+                return stream_gen()
+                
             response = client.messages.create(
                 model=model or "claude-3-5-sonnet-20241022",
                 max_tokens=2000,
@@ -90,8 +109,15 @@ class AgentEngine:
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": content_list}],
-                temperature=0.0
+                temperature=0.0,
+                stream=stream
             )
+            if stream:
+                def stream_gen():
+                    for chunk in response:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                return stream_gen()
             
             return response.choices[0].message.content or ""
             
@@ -108,6 +134,16 @@ class AgentEngine:
                     mime_type = header.split(":")[1].split(";")[0]
                 image_bytes = base64.b64decode(b64_data)
                 contents.insert(0, types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
+
+            if stream:
+                response = client.models.generate_content_stream(
+                    model=target_model,
+                    contents=contents
+                )
+                def stream_gen():
+                    for chunk in response:
+                        yield chunk.text
+                return stream_gen()
 
             response = client.models.generate_content(
                 model=target_model,
