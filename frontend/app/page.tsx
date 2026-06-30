@@ -59,6 +59,17 @@ export default function DashboardPage() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [showLlmKey, setShowLlmKey] = useState(false);
 
+  // Confirm Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+
   const BACKEND_URL = "http://localhost:8088";
 
   const loadProjects = (targetCompanyId: string, token: string) => {
@@ -385,10 +396,18 @@ export default function DashboardPage() {
   }, [syncing, companyId, activeRepoId]);
 
   const handleResetSettings = () => {
-    if (confirm("Are you sure you want to reset ZeroTicket onboarding details? This will clear local configurations.")) {
-      localStorage.clear();
-      router.push("/onboarding");
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Reset Settings",
+      message: "Are you sure you want to reset ZeroTicket onboarding details? This will clear local configurations.",
+      confirmText: "Reset",
+      isDestructive: true,
+      onConfirm: () => {
+        localStorage.clear();
+        router.push("/onboarding");
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   if (!mounted || !companyId) {
@@ -1009,9 +1028,17 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                 </button>
                 <button
                   onClick={() => {
-                    if (confirm("Are you sure you want to clear the vector database index and perform a clean resync for this project? This will re-index all codebase files.")) {
-                      handleSyncCodebase(true);
-                    }
+                    setConfirmModal({
+                      isOpen: true,
+                      title: "Clean Resync",
+                      message: "Are you sure you want to clear the vector database index and perform a clean resync for this project? This will re-index all codebase files.",
+                      confirmText: "Clean Resync",
+                      isDestructive: true,
+                      onConfirm: () => {
+                        handleSyncCodebase(true);
+                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                      }
+                    });
                   }}
                   title="Clear vector index and sync from scratch"
                   className={`px-3 py-2 transition-all active:scale-95 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 border border-red-500/30 hover:border-red-500/50 ${
@@ -1136,6 +1163,48 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
           </div>
         </div>
       </div>
+
+      {/* Confirm Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border transform transition-all scale-100 ${
+            isLightMode ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
+          }`}>
+            <div className={`p-5 border-b ${isLightMode ? "border-slate-100" : "border-slate-800"}`}>
+              <h3 className={`text-lg font-bold ${isLightMode ? "text-slate-900" : "text-white"}`}>
+                {confirmModal.title}
+              </h3>
+            </div>
+            <div className="p-5">
+              <p className={`text-sm ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+                {confirmModal.message}
+              </p>
+            </div>
+            <div className={`p-4 flex justify-end gap-3 border-t ${isLightMode ? "bg-slate-50 border-slate-100" : "bg-slate-800/50 border-slate-800"}`}>
+              <button
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                  isLightMode 
+                    ? "text-slate-600 hover:bg-slate-200/50" 
+                    : "text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                {confirmModal.cancelText || "Cancel"}
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg text-white transition-colors shadow-sm ${
+                  confirmModal.isDestructive
+                    ? "bg-red-600 hover:bg-red-500"
+                    : "bg-blue-600 hover:bg-blue-500"
+                }`}
+              >
+                {confirmModal.confirmText || "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
