@@ -173,6 +173,15 @@ export default function SandboxPage() {
       }
     }
   };
+  const handleResetSession = () => {
+    const initialMsg: Message[] = [{ 
+      sender: "assistant", 
+      content: "Hello! I am ZeroTicket, connected to your codebase and database replica. Ask me any support question to test my logic retrieval and SQL security guard." 
+    }];
+    setMessages(initialMsg);
+    sessionStorage.setItem("sandbox_messages", JSON.stringify(initialMsg));
+    setActiveThoughtLog("");
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -459,12 +468,28 @@ export default function SandboxPage() {
             <section className={`h-full flex flex-col relative min-w-0 transition-colors duration-300 min-h-0 ${isLightMode ? "bg-white" : "bg-[#0b0f19]"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-50/50" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>Widget Chat Simulator</span>
-            {loading && (
-              <span className="text-xs text-blue-500 flex items-center gap-1.5 animate-pulse">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
-                AI is thinking...
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {loading && (
+                <span className="text-xs text-blue-500 flex items-center gap-1.5 animate-pulse">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                  AI is thinking...
+                </span>
+              )}
+              <button
+                onClick={handleResetSession}
+                className={`text-[10px] px-2 py-1 rounded border transition-colors flex items-center gap-1 font-semibold ${
+                  isLightMode
+                    ? "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-red-500"
+                    : "bg-[#0f172a] border-white/10 text-slate-400 hover:bg-white/5 hover:text-red-400"
+                }`}
+                title="Clear chat and restart session"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reset Chat
+              </button>
+            </div>
           </div>
 
           {/* Chat Messages */}
@@ -481,7 +506,7 @@ export default function SandboxPage() {
                 </div>
                 
                 <div
-                  className={`max-w-[85%] rounded-xl p-3.5 text-sm transition-all ${
+                  className={`max-w-[85%] rounded-xl p-3.5 text-sm transition-all whitespace-pre-wrap break-words ${
                     msg.sender === "user"
                       ? "bg-blue-600 text-white rounded-tr-none shadow-sm"
                       : msg.sender === "system"
