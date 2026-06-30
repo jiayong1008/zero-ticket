@@ -34,7 +34,7 @@ Open `http://localhost:3000` in your browser.
 
 * **`/onboarding`:** Multi-step wizard to setup the company details, clone the repository, configure database access, and select your AI Provider (Gemini, OpenAI, Anthropic, DeepSeek, Qwen, or Custom Local LLM).
 * **`/` (Dashboard):** Summary of configurations, active connections status, and guidelines/embed code for site widgets. Contains a secure Admin Passphrase login gate for self-hosted instances.
-* **`/sandbox`:** Developer console allowing claims setup (User ID, Tenant ID, custom JSON claims) to simulate how the AI SQL Security Guard behaves, trace logs, and thoughts inspection.
+* **`/sandbox`:** Developer console allowing claims setup (User ID, Tenant ID, custom JSON claims) to simulate how the AI SQL Security Guard behaves, inspect traces and thoughts, and test the embedded chat widget live.
 * **`/widget`:** Supports client chat widgets inside an iframe. Connects with JWT claims to guarantee secure queries.
 
 ---

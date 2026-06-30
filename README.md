@@ -17,7 +17,7 @@ ZeroTicket is an autonomous AI customer support platform that integrates directl
    ORDER BY created_at DESC 
    LIMIT 1;
    ```
-5. **Database Execution:** The safe query runs on the read-only MySQL replica (constrained by a hard **500ms** timeout and driver-level read-only permissions).
+5. **Database Execution:** The safe query runs on the read-only MySQL/PostgreSQL replica (constrained by a hard **500ms** timeout and driver-level read-only permissions).
 6. **Code Rules Consultation:** The AI consults the retrieved code logic (e.g., standard ACH transfers under $2,000 take 2 business days to clear).
 7. **Response Generation:** The AI explains the technical result in clean, human-readable English: *"Your $1,500 payment is pending because it was sent via bank transfer (ACH), which takes up to 2 business days to clear. It should clear by tomorrow morning."*
 
@@ -34,7 +34,7 @@ zeroticket/
 │   │   ├── main.py          # API Endpoints (Ingestion, Sandbox, Chat Session, Admin Security)
 │   │   ├── parser/
 │   │   │   ├── code_parser.py       # Scans repo and chunks Laravel models & controllers
-│   │   │   └── schema_extractor.py  # Connects to MySQL replica and extracts tables/schemas
+│   │   │   └── schema_extractor.py  # Connects to MySQL/PostgreSQL replica and extracts tables/schemas
 │   │   ├── vector/
 │   │   │   └── chroma_store.py      # Embeds chunks incrementally using Multi-LLM providers
 │   │   ├── engine/
@@ -48,10 +48,11 @@ zeroticket/
 └── frontend/                 # Next.js Web Client
     ├── app/
     │   ├── layout.tsx       # Root Next.js layout (theme transition listener)
-    │   ├── page.tsx         # Dashboard / Connection details, Sandbox Emulator, and Widget Integration
+    │   ├── page.tsx         # Dashboard / Connection details and Widget Integration
     │   ├── onboarding/      # Onboarding flow (Git repo, DB credentials, Multi-LLM setup)
-    │   └── widget/          # Customer-facing embedded chat widget (renders in iframe)
-    └── globals.css          # Design system, CSS variables, and light/dark styling overrides
+    │   ├── sandbox/         # Developer console for JWT simulation and live widget testing
+    │   ├── widget/          # Customer-facing embedded chat widget (renders in iframe)
+    │   └── globals.css      # Design system, CSS variables, and light/dark styling overrides
 ```
 
 💡 **Sub-project Documentation:**
@@ -109,7 +110,7 @@ This will launch the FastAPI backend on `http://localhost:8088` and the Next.js 
 * All dashboard cards, inputs, buttons, chat widget headers, and bubble styling elements switch using React inline class bindings based on the client `isLightMode` state.
 
 ### 3. Support Ingestion & SQL Security Guard
-* The AI engine translates user inquiries (e.g. *"why is my payment still pending?"*) into SQL queries against the local MySQL database.
+* The AI engine translates user inquiries (e.g. *"why is my payment still pending?"*) into SQL queries against the local MySQL or PostgreSQL database.
 * The **SQL Security Guard** (`backend/app/engine/security.py`) automatically rewrites generated SQL queries before executing them. It parses the statements and injects tenant constraints (e.g., `WHERE tenant_id = 'X'`) based on the JWT claims context, guaranteeing that a user from Company A can never view data belonging to Company B.
 
 ---
