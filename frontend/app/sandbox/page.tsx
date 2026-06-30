@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 
 interface Message {
   sender: "user" | "assistant" | "system";
@@ -104,8 +105,10 @@ export default function SandboxPage() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeThoughtLog, setActiveThoughtLog] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const BACKEND_URL = "http://localhost:8088";
 
@@ -148,12 +151,37 @@ export default function SandboxPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleImageFile = (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image exceeds 5MB limit.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSelectedImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) handleImageFile(file);
+        break;
+      }
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || loading) return;
 
     const userMessage = query;
+    const currentImage = selectedImage;
     setQuery("");
+    setSelectedImage(null);
     setLastQuery(userMessage);
     setMessages((prev) => [...prev, { sender: "user", content: userMessage }]);
     setLoading(true);
@@ -195,6 +223,7 @@ export default function SandboxPage() {
           llm_model: llmModel || undefined,
           api_key: savedKey,
           chat_history: historyPayload.length > 0 ? historyPayload : undefined,
+          image_data: currentImage,
         }),
       });
 
@@ -363,9 +392,10 @@ export default function SandboxPage() {
       </header>
 
       {/* Main Sandbox Workspace */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <PanelGroup orientation="horizontal" className="flex-1 overflow-hidden min-h-0">
         {/* Left Side: Mock JWT / Claims Controls (1/4 space) */}
-        <aside className={`w-80 border-r p-5 overflow-y-auto space-y-6 flex flex-col transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/30 border-white/10"}`}>
+        <Panel defaultSize={25} minSize={15} maxSize={40}>
+          <aside className={`h-full border-r p-5 overflow-y-auto space-y-6 flex flex-col transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/30 border-white/10"}`}>
           <div>
             <h2 className={`text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
               <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -421,9 +451,13 @@ export default function SandboxPage() {
             <strong>Security Rule:</strong> The guard will automatically wrap all SQL queries with subqueries based on the claims set above if corresponding columns exist (e.g. <code className={isLightMode ? "bg-amber-100/80 text-amber-950 px-1 py-0.5 rounded" : ""}>user_id</code> or <code className={isLightMode ? "bg-amber-100/80 text-amber-950 px-1 py-0.5 rounded" : ""}>tenant_id</code>).
           </div>
         </aside>
+        </Panel>
+        
+        <PanelResizeHandle className={`w-1 transition-colors hover:bg-blue-500/50 active:bg-blue-500 cursor-col-resize ${isLightMode ? "bg-slate-200" : "bg-white/10"}`} />
 
         {/* Center: Live Chat Sandbox Widget (2/5 space) */}
-        <section className={`flex-1 flex flex-col border-r relative transition-colors duration-300 min-h-0 ${isLightMode ? "bg-white border-slate-200" : "bg-[#0b0f19] border-white/10"}`}>
+        <Panel defaultSize={35} minSize={20}>
+          <section className={`h-full flex flex-col border-r relative transition-colors duration-300 min-h-0 ${isLightMode ? "bg-white border-slate-200" : "bg-[#0b0f19] border-white/10"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-50/50" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>Widget Chat Simulator</span>
             {loading && (
@@ -498,30 +532,83 @@ export default function SandboxPage() {
             </div>
           )}
           
-          <form onSubmit={handleSendMessage} className={`p-4 border-t flex gap-2 transition-colors duration-300 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/20 border-white/5"}`}>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. Why is my checkout payment still pending?"
-              className={`flex-1 px-4 py-3 rounded-lg text-sm transition-colors ${
-                isLightMode ? "bg-white text-slate-800 border border-slate-300 focus:border-blue-500 outline-none" : "glass-input"
-              }`}
-              required
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              disabled={loading || !query.trim()}
-              className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all disabled:opacity-50 shadow-md"
-            >
-              Send
-            </button>
+          <form onSubmit={handleSendMessage} className={`p-4 border-t flex flex-col gap-2 transition-colors duration-300 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/20 border-white/5"}`}>
+            {selectedImage && (
+              <div className="relative inline-block self-start">
+                <img src={selectedImage} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-slate-300" />
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2 w-full">
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleImageFile(e.target.files[0]);
+                  }
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-2 text-slate-500 hover:text-blue-500 transition-colors"
+                title="Attach Image"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              </button>
+              <textarea
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                }}
+                onPaste={handlePaste}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (query.trim() || selectedImage) {
+                      handleSendMessage(e as any);
+                    }
+                  }
+                }}
+                placeholder="e.g. Why is my checkout payment still pending?"
+                rows={1}
+                className={`flex-1 px-4 py-3 rounded-lg text-sm transition-colors resize-none overflow-y-auto min-h-[44px] ${
+                  isLightMode ? "bg-white text-slate-800 border border-slate-300 focus:border-blue-500 outline-none" : "glass-input"
+                }`}
+                required
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                disabled={loading || (!query.trim() && !selectedImage)}
+                className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all disabled:opacity-50 shadow-md"
+              >
+                Send
+              </button>
+            </div>
           </form>
         </section>
+        </Panel>
+        
+        <PanelResizeHandle className={`w-1 transition-colors hover:bg-blue-500/50 active:bg-blue-500 cursor-col-resize ${isLightMode ? "bg-slate-200" : "bg-white/10"}`} />
 
         {/* Right Side: Developer Console / Thought logs (2/5 space) */}
-        <section className={`w-1/2 flex flex-col overflow-hidden transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50" : "bg-[#0b1329]"}`}>
+        <Panel defaultSize={40} minSize={25}>
+          <section className={`h-full flex flex-col overflow-hidden transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50" : "bg-[#0b1329]"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-100" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold flex items-center gap-1.5 ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
               <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -568,7 +655,8 @@ export default function SandboxPage() {
             )}
           </div>
         </section>
-      </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }

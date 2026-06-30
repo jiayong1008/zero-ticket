@@ -1,6 +1,8 @@
 import time
 import re
 from google import genai
+from google.genai import types
+import base64
 from app.config import settings
 from app.db import DBConnection, get_target_db_conn
 from app.parser.schema_extractor import SchemaExtractor
@@ -20,9 +22,10 @@ class AgentEngine:
             raise ValueError("GEMINI_API_KEY is not configured.")
         return genai.Client(api_key=key)
 
-    def _generate_llm_content(self, provider: str, model: str, api_key: str, prompt: str) -> str:
+    def _generate_llm_content(self, provider: str, model: str, api_key: str, prompt: str, image_data: str = None) -> str:
         """
         Routes the generation request to the requested LLM provider dynamically.
+        Supports multimodal image inputs via image_data (data URI format).
         """
         prov = (provider or "gemini").lower()
         if prov == "openai":
@@ -30,7 +33,13 @@ class AgentEngine:
             client = OpenAI(api_key=api_key)
             response = client.chat.completions.create(
                 model=model or "gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
+            content_list = [{"type": "text", "text": prompt}]
+            if image_data:
+                content_list.append({"type": "image_url", "image_url": {"url": image_data}})
+            
+            response = client.chat.completions.create(
+                model=model or "gpt-4o",
+                messages=[{"role": "user", "content": content_list}],
                 temperature=0.0
             )
             return response.choices[0].message.content or ""
@@ -38,10 +47,26 @@ class AgentEngine:
         elif prov == "anthropic":
             from anthropic import Anthropic
             client = Anthropic(api_key=api_key)
+            content_list = [{"type": "text", "text": prompt}]
+            if image_data:
+                mime_type = "image/jpeg"
+                b64_data = image_data
+                if image_data.startswith("data:"):
+                    header, b64_data = image_data.split(",", 1)
+                    mime_type = header.split(":")[1].split(";")[0]
+                content_list.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": b64_data
+                    }
+                })
+
             response = client.messages.create(
                 model=model or "claude-3-5-sonnet-20241022",
                 max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": content_list}],
                 temperature=0.0
             )
             return response.content[0].text or ""
@@ -51,9 +76,15 @@ class AgentEngine:
             base_url = "https://api.deepseek.com/v1" if prov == "deepseek" else "https://dashscope.aliyuncs.com/compatible-mode/v1"
             client = OpenAI(api_key=api_key, base_url=base_url)
             model_name = model or ("deepseek-chat" if prov == "deepseek" else "qwen-plus")
+            # Deepseek/Qwen might not support images via OpenAI client this easily, 
+            # but we fall back to text-only if image unsupported or just send it like OpenAI.
+            content_list = [{"type": "text", "text": prompt}]
+            if image_data:
+                content_list.append({"type": "image_url", "image_url": {"url": image_data}})
+
             response = client.chat.completions.create(
                 model=model_name,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": content_list}],
                 temperature=0.0
             )
             return response.choices[0].message.content or ""
@@ -62,9 +93,13 @@ class AgentEngine:
             from openai import OpenAI
             base_url = self._llm_base_url or settings.CUSTOM_LLM_BASE_URL
             client = OpenAI(api_key=api_key or "noop", base_url=base_url)
+            content_list = [{"type": "text", "text": prompt}]
+            if image_data:
+                content_list.append({"type": "image_url", "image_url": {"url": image_data}})
+
             response = client.chat.completions.create(
                 model=model or "llama3",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": content_list}],
                 temperature=0.0
             )
             return response.choices[0].message.content or ""
@@ -72,13 +107,24 @@ class AgentEngine:
         else:
             client = self._get_gemini_client(api_key)
             target_model = model or "gemini-2.5-flash"
+            
+            contents = [prompt]
+            if image_data:
+                mime_type = "image/jpeg"
+                b64_data = image_data
+                if image_data.startswith("data:"):
+                    header, b64_data = image_data.split(",", 1)
+                    mime_type = header.split(":")[1].split(";")[0]
+                image_bytes = base64.b64decode(b64_data)
+                contents.insert(0, types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
+
             response = client.models.generate_content(
                 model=target_model,
-                contents=prompt
+                contents=contents
             )
             return response.text or ""
 
-    def execute_inquiry(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "", chat_history: list = None) -> dict:
+    def execute_inquiry(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "", chat_history: list = None, image_data: str = None) -> dict:
         """
         Coordinates the full execution loop:
         1. Retrieves relevant codebase context from Chroma.
@@ -104,6 +150,17 @@ class AgentEngine:
                 "answer": "Error: Failed to generate SQL draft using LLM: LLM API Key is not configured. Please save your API key in the Developer Dashboard.",
                 "thought_log": "LLM API Key missing in request and database."
             }
+
+        # 0.5 Preprocess Image OCR if image_data exists
+        thought_log = []
+        if image_data:
+            ocr_prompt = f"Analyze this image in the context of the user's inquiry: '{query}'. Extract any visible text, error messages, IDs, or relevant UI state that might be useful for a database lookup. Keep it concise."
+            try:
+                extracted_text = self._generate_llm_content(provider, model_name, api_key, ocr_prompt, image_data=image_data)
+                query = f"{query}\n\n[Extracted Image Context]: {extracted_text}"
+                thought_log.append(f"--- [Extracted Image Context] ---\n{extracted_text}\n")
+            except Exception as e:
+                thought_log.append(f"--- [Image OCR Error] ---\nFailed to extract image text: {str(e)}\n")
             
         # 1. Fetch DB Connection details
         conn_details = None
@@ -207,7 +264,6 @@ INSTRUCTIONS:
 3. Keep the query simple and efficient.
 4. Output ONLY the raw SQL query inside a single ```sql ... ``` block. Do NOT write any conversational text or explanation.
 """
-        thought_log = []
         thought_log.append("--- [Retrieved Code Snippets] ---")
         thought_log.append(code_context)
         thought_log.append("\n--- [DB Schema] ---")
@@ -263,9 +319,6 @@ INSTRUCTIONS:
         synthesis_prompt = f"""
 You are ZeroTicket, the AI support assistant. 
 Your goal is to answer the customer's support inquiry in a helpful, non-technical way.
-
-DATABASE SCHEMA:
-{schema_context}
 
 {history_context}
 CODE LOGIC EXPLAINER:

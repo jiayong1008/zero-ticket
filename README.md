@@ -6,7 +6,7 @@ ZeroTicket is an autonomous AI customer support platform that integrates directl
 
 ## 💡 Runtime Walkthrough (How it Answers a Question)
 
-1. **User Input:** End-user asks a question, e.g., *"Why is my transfer payment pending?"* (Signed JWT contains user context like `user_id: 852`).
+1. **User Input:** End-user asks a question and optionally attaches an image (e.g. a screenshot of an error). ZeroTicket performs Vision OCR to extract relevant context.
 2. **Context Retrieval:** ZeroTicket finds the relevant codebase chunks (payment logic) from ChromaDB and the replica database configurations.
 3. **Draft SQL Query:** The AI determines it needs to query the database and drafts a query: `SELECT status, amount, created_at, failure_reason FROM payments`
 4. **Security Wrapping:** The SQL Security Guard intercepts and reformulates the query with tenant constraints:

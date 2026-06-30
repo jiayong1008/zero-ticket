@@ -161,7 +161,7 @@ class SchemaExtractor:
                     if non_sensitive_cols:
                         col_selection = ", ".join([f"`{c}`" for c in non_sensitive_cols])
                         try:
-                            cursor.execute(f"SELECT {col_selection} FROM `{table}` LIMIT 3")
+                            cursor.execute(f"SELECT {col_selection} FROM `{table}` LIMIT 1")
                             samples = cursor.fetchall()
                             schema[table]['samples'] = samples
                         except Exception as e:
@@ -181,10 +181,11 @@ class SchemaExtractor:
             # Columns
             col_strs = []
             for col in details['columns']:
+                if self.is_sensitive(col['name']):
+                    continue
                 pk_indicator = " (PK)" if col['name'] in details['primary_keys'] else ""
-                nullable_indicator = " NULL" if col['nullable'] else " NOT NULL"
-                sensitive_indicator = " [SENSITIVE - HIDDEN]" if self.is_sensitive(col['name']) else ""
-                col_strs.append(f"  - {col['name']}: {col['type']}{pk_indicator}{nullable_indicator}{sensitive_indicator}")
+                nullable_indicator = " NULL" if col['nullable'] and not pk_indicator else ""
+                col_strs.append(f"  - {col['name']}: {col['type']}{pk_indicator}{nullable_indicator}")
             output.extend(col_strs)
             
             # Foreign keys

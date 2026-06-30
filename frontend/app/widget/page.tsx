@@ -21,10 +21,12 @@ function WidgetChatContent() {
     },
   ]);
   const [input, setInput] = useState("");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const BACKEND_URL = "http://localhost:8088";
 
   // Markdown format helper
@@ -120,12 +122,37 @@ function WidgetChatContent() {
     initSession();
   }, [token]);
 
+  const handleImageFile = (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image exceeds 5MB limit.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSelectedImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) handleImageFile(file);
+        break;
+      }
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading || !sessionId || !token) return;
 
     const userText = input;
+    const currentImage = selectedImage;
     setInput("");
+    setSelectedImage(null);
     setMessages((prev) => [...prev, { sender: "user", content: userText }]);
     setLoading(true);
 
@@ -139,6 +166,7 @@ function WidgetChatContent() {
         body: JSON.stringify({
           session_id: sessionId,
           message: userText,
+          image_data: currentImage,
         }),
       });
 
@@ -219,26 +247,76 @@ function WidgetChatContent() {
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSendMessage} className={`p-3 border-t flex gap-2 transition-colors duration-300 ${
+      <form onSubmit={handleSendMessage} className={`p-3 border-t flex flex-col gap-2 transition-colors duration-300 ${
         isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/20 border-white/5"
       }`}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question..."
-          className={`flex-1 px-3 py-2 rounded-lg text-xs transition-colors ${
-            isLightMode ? "bg-white text-slate-800 border border-slate-300 focus:border-blue-500 outline-none" : "bg-slate-900/60 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-          }`}
-          disabled={loading || !sessionId}
-        />
-        <button
-          type="submit"
-          disabled={loading || !input.trim() || !sessionId}
-          className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
-        >
-          Send
-        </button>
+        {selectedImage && (
+          <div className="relative inline-block self-start">
+            <img src={selectedImage} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-slate-300" />
+            <button
+              type="button"
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        <div className="flex gap-2 w-full">
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleImageFile(e.target.files[0]);
+              }
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-2 text-slate-500 hover:text-blue-500 transition-colors"
+            title="Attach Image"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+          </button>
+          <textarea
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+            }}
+            onPaste={handlePaste}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                // Check if form is submittable
+                if (input.trim() || selectedImage) {
+                  handleSendMessage(e as any);
+                }
+              }
+            }}
+            placeholder="Ask a question..."
+            rows={1}
+            className={`flex-1 px-3 py-2 rounded-lg text-xs transition-colors resize-none overflow-y-auto min-h-[36px] ${
+              isLightMode ? "bg-white text-slate-800 border border-slate-300 focus:border-blue-500 outline-none" : "bg-slate-900/60 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+            }`}
+            disabled={loading || !sessionId}
+          />
+          <button
+            type="submit"
+            disabled={loading || (!input.trim() && !selectedImage) || !sessionId}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
+          >
+            Send
+          </button>
+        </div>
       </form>
       
       {/* Brand footer */}

@@ -97,8 +97,8 @@ class SQLSecurityGuard:
                     for claim_col_name, claim_name in CLAIM_COLUMN_MAPPING.items():
                         if claim_col_name in table_cols_map and claim_name in jwt_claims:
                             actual_col_name = table_cols_map[claim_col_name]
-                            claim_val = jwt_claims[claim_name]
-                            if claim_val is not None:
+                            claim_val = jwt_claims.get(claim_name)
+                            if claim_val is not None and claim_val != "":
                                 filters.append(f"{quote_char}{actual_col_name}{quote_char} = {escape_sql_value(claim_val)}")
                     
                     # If we found security columns, rewrite table to a subquery

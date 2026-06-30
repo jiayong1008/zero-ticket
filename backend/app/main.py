@@ -102,6 +102,7 @@ class IngestRequest(BaseModel):
 class ChatMessageRequest(BaseModel):
     session_id: str
     message: str
+    image_data: Optional[str] = None
 
 class SandboxRequest(BaseModel):
     company_id: str
@@ -113,6 +114,7 @@ class SandboxRequest(BaseModel):
     api_key: Optional[str] = ""
     llm_base_url: Optional[str] = ""
     chat_history: Optional[list] = None
+    image_data: Optional[str] = None
 
 class LLMConfigRequest(BaseModel):
     company_id: str
@@ -583,7 +585,8 @@ def send_chat_message(
         company_id=company_id,
         query=data.message,
         jwt_claims=jwt_claims,
-        chat_history=chat_history if chat_history else None
+        chat_history=chat_history if chat_history else None,
+        image_data=data.image_data
     )
     
     assistant_msg = ChatMessage(
@@ -612,6 +615,7 @@ def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
         repository_id=data.repository_id,
         provider=data.llm_provider or "gemini",
         model_name=data.llm_model,
-        chat_history=data.chat_history
+        chat_history=data.chat_history,
+        image_data=data.image_data
     )
     return result
