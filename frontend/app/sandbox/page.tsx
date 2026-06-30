@@ -10,6 +10,46 @@ interface Message {
   thoughtLog?: string;
 }
 
+const ThoughtLogSection = ({ title, content, isLightMode, defaultExpanded = false }: { title: string, content: string[], isLightMode: boolean, defaultExpanded?: boolean }) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return (
+    <div className="mb-4">
+      <button 
+        onClick={() => setExpanded(!expanded)}
+        className={`w-full text-left text-sm font-bold border-b pb-1 flex items-center justify-between transition-colors hover:opacity-80 ${isLightMode ? "text-blue-600 border-slate-200" : "text-blue-400 border-white/10"}`}
+      >
+        <span>{title}</span>
+        <svg className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      {expanded && (
+        <div className="mt-3 space-y-1">
+          {content.map((line, idx) => {
+            if (line.toLowerCase().startsWith("select") || line.toLowerCase().startsWith("where") || line.toLowerCase().startsWith("from") || line.toLowerCase().startsWith("join") || line.toLowerCase().startsWith("and ")) {
+              return (
+                <div key={idx} className={`p-2 rounded border my-1 font-semibold ${isLightMode ? "text-emerald-800 bg-emerald-50 border-emerald-200" : "text-emerald-400 bg-emerald-950/20 border-emerald-500/10"}`}>
+                  {line}
+                </div>
+              );
+            }
+            if (line.includes("[SQL Execution/Security Error]") || line.includes("Error:")) {
+              return (
+                <div key={idx} className={`p-3 rounded border my-1 font-semibold ${isLightMode ? "text-red-800 bg-red-50 border-red-200" : "text-red-400 bg-red-950/20 border-red-500/20"}`}>
+                  {line}
+                </div>
+              );
+            }
+            return <div key={idx} className="my-0.5">{line}</div>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function SandboxPage() {
   const router = useRouter();
   const [companyId, setCompanyId] = useState("");
@@ -109,6 +149,7 @@ export default function SandboxPage() {
   const [activeThoughtLog, setActiveThoughtLog] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const BACKEND_URL = "http://localhost:8088";
 
@@ -190,6 +231,9 @@ export default function SandboxPage() {
     const userMessage = query;
     const currentImage = selectedImage;
     setQuery("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     setSelectedImage(null);
     setLastQuery(userMessage);
     setMessages((prev) => [...prev, { sender: "user", content: userMessage }]);
@@ -237,20 +281,61 @@ export default function SandboxPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Agent failed to process inquiry.");
-      const data = await res.json();
-
+      if (!res.ok || !res.body) throw new Error("Agent failed to process inquiry.");
+      
+      // Initialize the assistant message
       setMessages((prev) => [
         ...prev,
         {
           sender: "assistant",
-          content: data.answer,
-          thoughtLog: data.thought_log,
+          content: "",
+          thoughtLog: "",
         },
       ]);
-      
-      // Automatically select the latest thought log for review
-      setActiveThoughtLog(data.thought_log);
+      setActiveThoughtLog("");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let answerText = "";
+      let thoughtText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        let eventEnd = buffer.indexOf("\n\n");
+        while (eventEnd !== -1) {
+          const eventString = buffer.substring(0, eventEnd);
+          buffer = buffer.substring(eventEnd + 2);
+          
+          if (eventString.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(eventString.substring(6));
+              if (data.type === "thought" || data.type === "error") {
+                thoughtText += data.content;
+                setActiveThoughtLog(thoughtText);
+              } else if (data.type === "answer") {
+                answerText += data.content;
+              }
+              
+              setMessages((prev) => {
+                const newMessages = [...prev];
+                const lastMsg = { ...newMessages[newMessages.length - 1] };
+                lastMsg.content = answerText;
+                lastMsg.thoughtLog = thoughtText;
+                newMessages[newMessages.length - 1] = lastMsg;
+                return newMessages;
+              });
+            } catch (e) {
+              console.error("Failed to parse SSE event:", e);
+            }
+          }
+          eventEnd = buffer.indexOf("\n\n");
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
       setMessages((prev) => [
@@ -265,8 +350,16 @@ export default function SandboxPage() {
     }
   };
 
-  const handleRetryMessage = async (queryToRetry: string) => {
-    if (!queryToRetry.trim() || loading) return;
+  const handleRetryMessage = async (queryToRetry?: string) => {
+    let targetQuery = typeof queryToRetry === 'string' ? queryToRetry : lastQuery;
+    if (!targetQuery || !targetQuery.trim()) {
+      const lastUserMsg = [...messages].reverse().find(m => m.sender === "user");
+      if (lastUserMsg) {
+        targetQuery = lastUserMsg.content;
+      }
+    }
+
+    if (!targetQuery || !targetQuery.trim() || loading) return;
 
     setLoading(true);
     setError("");
@@ -302,7 +395,7 @@ export default function SandboxPage() {
         .filter(m => m.sender === "user" || m.sender === "assistant")
         .map(m => ({ role: m.sender, content: m.content }));
         
-      if (historyPayload.length > 0 && historyPayload[historyPayload.length - 1].role === "user" && historyPayload[historyPayload.length - 1].content === queryToRetry) {
+      if (historyPayload.length > 0 && historyPayload[historyPayload.length - 1].role === "user" && historyPayload[historyPayload.length - 1].content === targetQuery) {
         historyPayload = historyPayload.slice(0, -1);
       }
 
@@ -312,7 +405,7 @@ export default function SandboxPage() {
         body: JSON.stringify({
           company_id: companyId,
           repository_id: repositoryId || undefined,
-          query: queryToRetry,
+          query: targetQuery,
           mock_claims: mergedClaims,
           llm_provider: llmProvider || "gemini",
           llm_model: llmModel || undefined,
@@ -516,7 +609,19 @@ export default function SandboxPage() {
                       : "bg-slate-800 text-slate-100 rounded-tl-none border border-white/5"
                   }`}
                 >
-                  {msg.sender === "assistant" ? renderFormattedContent(msg.content) : msg.content}
+                  {msg.sender === "assistant" ? (
+                    msg.content ? (
+                      renderFormattedContent(msg.content)
+                    ) : (
+                      <div className="flex items-center gap-1.5 h-5 px-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                    )
+                  ) : (
+                    msg.content
+                  )}
                 </div>
 
                 {msg.thoughtLog && (
@@ -538,8 +643,8 @@ export default function SandboxPage() {
                     disabled={loading}
                     className="mt-1.5 text-xs text-red-500 hover:text-red-650 hover:underline flex items-center gap-1.5 font-semibold disabled:opacity-50"
                   >
-                    <svg className="w-3.5 h-3.5 animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.28 15H18" />
+                    <svg className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Retry Query
                   </button>
@@ -593,6 +698,7 @@ export default function SandboxPage() {
                 </svg>
               </button>
               <textarea
+                ref={textareaRef}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -646,31 +752,42 @@ export default function SandboxPage() {
 
           <div className={`flex-1 overflow-y-auto min-h-0 p-5 font-mono text-xs leading-relaxed select-text whitespace-pre-wrap break-all transition-colors ${isLightMode ? "text-slate-700 bg-white" : "text-slate-300"}`}>
             {activeThoughtLog ? (
-              // Format thought logs nicely
-              activeThoughtLog.split("\n").map((line, idx) => {
-                if (line.startsWith("---") && line.endsWith("---")) {
-                  return (
-                    <div key={idx} className={`text-sm font-bold border-b pb-1 mt-6 mb-3 flex items-center ${isLightMode ? "text-blue-600 border-slate-200" : "text-blue-400 border-white/5"}`}>
-                      {line.replace(/---/g, "").trim()}
-                    </div>
-                  );
+              (() => {
+                const lines = activeThoughtLog.split("\n");
+                const sections: { title: string, content: string[] }[] = [];
+                let currentSection: { title: string, content: string[] } | null = null;
+                
+                for (const line of lines) {
+                  if (line.startsWith("---") && line.endsWith("---")) {
+                    if (currentSection) {
+                      sections.push(currentSection);
+                    }
+                    currentSection = { title: line.replace(/---/g, "").trim(), content: [] };
+                  } else {
+                    if (currentSection) {
+                      currentSection.content.push(line);
+                    } else if (line.trim()) {
+                      currentSection = { title: "Initialization", content: [line] };
+                    }
+                  }
                 }
-                if (line.toLowerCase().startsWith("select") || line.toLowerCase().startsWith("where") || line.toLowerCase().startsWith("from")) {
-                  return (
-                    <div key={idx} className={`p-2 rounded border my-1 font-semibold ${isLightMode ? "text-emerald-800 bg-emerald-50 border-emerald-200" : "text-emerald-400 bg-emerald-950/20 border-emerald-500/10"}`}>
-                      {line}
-                    </div>
-                  );
+                if (currentSection) {
+                  sections.push(currentSection);
                 }
-                if (line.includes("[SQL Execution/Security Error]")) {
+
+                return sections.map((section, idx) => {
+                  const isLongSection = section.title.includes("DB Schema") || section.title.includes("Retrieved Code");
                   return (
-                    <div key={idx} className={`p-3 rounded border my-1 font-semibold ${isLightMode ? "text-red-800 bg-red-50 border-red-200" : "text-red-400 bg-red-950/20 border-red-500/20"}`}>
-                      {line}
-                    </div>
+                    <ThoughtLogSection 
+                      key={idx} 
+                      title={section.title} 
+                      content={section.content} 
+                      isLightMode={isLightMode}
+                      defaultExpanded={!isLongSection}
+                    />
                   );
-                }
-                return <div key={idx} className="my-0.5">{line}</div>;
-              })
+                });
+              })()
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center px-4">
                 <svg className="w-12 h-12 mb-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>

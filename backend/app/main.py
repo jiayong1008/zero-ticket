@@ -2,6 +2,7 @@ import uuid
 import secrets
 import hashlib
 from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks, Security, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
@@ -607,7 +608,8 @@ def send_chat_message(
 @app.post("/api/sandbox/simulate", dependencies=[Depends(verify_admin_passphrase)])
 def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
     engine = AgentEngine(db, repository_id=data.repository_id or "")
-    result = engine.execute_inquiry(
+    
+    stream_generator = engine.execute_inquiry_stream(
         company_id=data.company_id,
         query=data.query,
         jwt_claims=data.mock_claims,
@@ -618,4 +620,5 @@ def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
         chat_history=data.chat_history,
         image_data=data.image_data
     )
-    return result
+    
+    return StreamingResponse(stream_generator, media_type="text/event-stream")
