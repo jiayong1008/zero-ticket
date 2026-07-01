@@ -306,7 +306,10 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             
         conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
         if not conn_details:
-            conn_details = db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
+            conn_details = db.query(DBConnection).filter(
+                DBConnection.company_id == company_id,
+                DBConnection.repository_id == None
+            ).first()
         # conn_details may be None for code-only projects — that's fine, we skip DB schema verification.
             
         # Step 1: Scan and Parse Codebase
@@ -396,7 +399,10 @@ def run_ingestion(
     # conn_details may be None for code-only projects — ingest proceeds without DB schema verification
     conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
     if not conn_details:
-        conn_details = db.query(DBConnection).filter(DBConnection.company_id == data.company_id).first()
+        conn_details = db.query(DBConnection).filter(
+            DBConnection.company_id == data.company_id,
+            DBConnection.repository_id == None
+        ).first()
 
     # Guard: reject if already syncing this repo
     if repo.id in _ingestion_in_progress:
@@ -530,6 +536,11 @@ def get_company_projects(company_id: str, db: Session = Depends(get_db)):
     result = []
     for proj in projects:
         db_conn = db.query(DBConnection).filter(DBConnection.repository_id == proj.id).first()
+        if not db_conn:
+            db_conn = db.query(DBConnection).filter(
+                DBConnection.company_id == company_id,
+                DBConnection.repository_id == None
+            ).first()
         result.append({
             "repository_id": proj.id,
             "project_name": proj.project_name or proj.repo_name.split("/")[-1],

@@ -194,7 +194,10 @@ class AgentEngine:
         if repository_id:
             conn_details = self.db.query(DBConnection).filter(DBConnection.repository_id == repository_id).first()
         if not conn_details:
-            conn_details = self.db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
+            conn_details = self.db.query(DBConnection).filter(
+                DBConnection.company_id == company_id,
+                DBConnection.repository_id == None
+            ).first()
             
         has_db = bool(conn_details)
 
@@ -433,7 +436,10 @@ INSTRUCTIONS:
         if repository_id:
             conn_details = self.db.query(DBConnection).filter(DBConnection.repository_id == repository_id).first()
         if not conn_details:
-            conn_details = self.db.query(DBConnection).filter(DBConnection.company_id == company_id).first()
+            conn_details = self.db.query(DBConnection).filter(
+                DBConnection.company_id == company_id,
+                DBConnection.repository_id == None
+            ).first()
             
         has_db = bool(conn_details)
 
