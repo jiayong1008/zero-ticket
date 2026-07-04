@@ -142,7 +142,7 @@ This will launch the FastAPI backend on `http://localhost:8088` and the Next.js 
 
 ### Inline LLM Configuration Editor
 * The Dashboard's **Developer API Keys** card features an inline **"Edit LLM Config"** editor.
-* Allows updating the LLM API Key (or switching LLM providers between Gemini and OpenAI) on the fly without wiping existing project connections or resetting the dashboard.
+* Allows updating the LLM API Key or switching LLM providers (including Gemini, OpenAI, Anthropic, DeepSeek, Qwen, Fireworks AI, and Custom Local LLMs like Gemma 2) on the fly without wiping existing project connections or resetting the dashboard.
 
 ### Stateful Conversational Memory & Prompt Caching
 * The AI engine now inherently supports chat history, seamlessly handling conversational follow-ups and pronoun resolutions (e.g., *"What about my user ID?"*).

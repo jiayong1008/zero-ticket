@@ -1,5 +1,7 @@
 # Lablab.ai Hackathon Submission: ZeroTicket
 
+**Hackathon Page:** [AMD Developer Hackathon: ACT II](https://lablab.ai/ai-hackathons/amd-developer-hackathon-act-ii)
+
 ## 1. Project Information
 
 **Submission Title:** 
