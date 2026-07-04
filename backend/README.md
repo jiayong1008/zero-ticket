@@ -79,12 +79,10 @@ Start the development server using uvicorn on port `8088`:
 | `POST` | `/api/admin/generate_jwt` | Generates a mock tenant JWT token for testing. |
 | `POST` | `/api/company/register` | Registers a new company and generates API keys. |
 | `POST` | `/api/company/save_llm_config` | Saves company LLM configuration (provider, key, model). |
-| `GET` | `/api/company/projects` | Retrieves list of projects/repositories for a company. |
 | `POST` | `/api/repository/connect` | Configures repository path and target git branches. |
-| `POST` | `/api/db/connect` | Verifies connection to client MySQL/PostgreSQL replica. |
+| `POST` | `/api/database/connect` | Verifies connection to client MySQL replica. |
 | `POST` | `/api/ingest` | Triggers background codebase parser and embeds code blocks asynchronously. |
-| `POST` | `/api/ingest/cancel` | Cancels an ongoing codebase sync job. |
-| `POST` | `/api/webhooks/github` | Webhook triggered on GitHub pushes for auto-sync. |
+| `POST` | `/api/webhooks/github` | Automated webhook ingestion triggered by GitHub push events. |
 | `POST` | `/api/sandbox/simulate` | Simulates AI support agent responses with custom mock JWT claims context. |
 | `POST` | `/api/chat/session` | Authenticates support iframe widget and issues JWT context. |
 | `POST` | `/api/chat/send` | Chat communication bridge for active support widgets. | |

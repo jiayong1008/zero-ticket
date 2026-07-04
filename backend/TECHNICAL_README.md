@@ -22,6 +22,20 @@ When a repository is synced via the `/api/ingest` endpoint:
 3. **Embedding Generation:** The chunks are sent to the embedding model (e.g., `gemini-embedding-001`) to be converted into high-dimensional vector representations.
 4. **Vector Storage (`app/vector/`):** The embeddings and their metadata (file path, line numbers) are stored locally in **ChromaDB**. 
 
+#### 🤖 GitOps & GitHub Webhook Sync (`/api/webhooks/github`)
+For production deployments, codebase syncing can be completely automated using GitHub Webhooks:
+* **How it works:** GitHub sends a POST event payload containing commit updates to ZeroTicket's webhook endpoint. ZeroTicket validates the payload signature using the secure **Repository ID** as the HMAC secret key, updates the local repository checkout, and triggers the background ingestion task to scan and embed the code changes.
+* **Testing Webhooks Locally:** Since local servers run on `localhost`, GitHub cannot send webhooks directly to your machine. To test this locally:
+  1. Start a local HTTP tunnel using **ngrok**:
+     ```bash
+     ngrok http 8088
+     ```
+  2. Configure the webhook URL in your GitHub repository settings:
+     ```
+     http://<YOUR_NGROK_SUBDOMAIN>.ngrok-free.app/api/webhooks/github?repository_id=<REPO_ID>
+     ```
+  3. Set the Webhook "Secret" to your exact **Repository ID** (verified securely via SHA-256 HMAC signature checks in the backend). 
+
 ### 2. The Chat Execution Pipeline (Support Queries)
 When a user asks a question via the chat widget (`/api/chat/send`):
 1. **Semantic Search:** The backend embeds the user's question and queries ChromaDB to find the most relevant chunks of code from the ingested repository.
