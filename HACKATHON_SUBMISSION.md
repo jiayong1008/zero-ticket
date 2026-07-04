@@ -15,7 +15,13 @@ In B2B SaaS, customer support often gets bottlenecked by complex inquiries like,
 
 ZeroTicket solves this. It is a self-hosted AI engine that ingests an enterprise codebase and extracts the database schema. When a user asks a complex question, the AI generates a SQL query. Crucially, before execution, our proprietary **SQL Security Guard** intercepts the query and dynamically injects JWT-based tenant constraints (e.g., `tenant_id = 123`), ensuring absolute data isolation.
 
-Built specifically for the **Unicorn Track**, ZeroTicket leverages **Fireworks AI** for ultra-fast, open-source model inference (e.g., Llama 3), allowing enterprises to deploy a 100% on-premise, air-gapped support AI without relying on proprietary, closed-source LLMs. We built this using FastAPI, Next.js, ChromaDB, and Tree-sitter for AST parsing to optimize context windows. ZeroTicket proves that AI can securely execute dynamic SQL in a multi-tenant environment without leaking data.
+### 🌟 Key Innovations & Standout Features:
+1. **The SQL Security Guard:** Our proprietary compiler safety layer parses AI-generated SQL queries and intercepts mutations (INSERT, UPDATE, DELETE). It automatically wraps queries in tenant-isolation constraints at runtime based on the user's secure JWT context. It is mathematically impossible for one client to access another client's data.
+2. **Multi-Language AST Ingestion Engine:** Rather than generic text search, our ingestion pipeline uses Tree-sitter and abstract syntax tree (AST) parsers to scan classes, endpoints, database relations, and policies. It natively supports Node.js (Express, Next.js), Python (FastAPI, Django), PHP (Laravel), and Prisma schemas.
+3. **Model-Agnostic & 100% Private (AMD GPU + Gemma 2):** Built to meet strict enterprise compliance (SOC2/HIPAA). The entire stack can be run on-premise on AMD GPUs using Google's open-weights Gemma 2, preventing proprietary corporate code or database schemas from leaking to third-party public cloud APIs.
+4. **Token-Aware Conversational Memory:** Features a sliding contextual window and dynamic prompt construction optimized specifically for prompt caching discounts, providing sub-second AI response times at a fraction of the cost.
+
+We built this using FastAPI, Next.js, ChromaDB, and Tree-sitter. ZeroTicket proves that AI can securely execute dynamic SQL in a multi-tenant environment without compromising data security or corporate IP.
 
 **Main Tracks:** 
 Unicorn Track
