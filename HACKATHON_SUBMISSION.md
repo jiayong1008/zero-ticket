@@ -67,9 +67,13 @@ The video is the most critical part of your submission. Judges will skim the tex
 *   **0:00 - 0:45 | The Hook & The Problem**
     *   **Visual:** Show a slide with a massive pile of money burning, or a frantic developer looking at a database. 
     *   **Script:** "B2B SaaS companies burn millions of dollars forcing their best software engineers to answer Level-2 support tickets. When a customer asks 'Why is my payment pending?', an AI chatbot can't answer it because it doesn't have access to the production database. But giving an LLM raw SQL access is a massive security risk. We built ZeroTicket to solve this."
-*   **0:45 - 2:30 | The Demo (Show the UI)**
-    *   **Visual:** Screen record your Next.js dashboard. Show the Sandbox page. 
-    *   **Script:** "ZeroTicket is an autonomous AI support engineer. Let me show you. A user asks about an invoice. ZeroTicket uses our custom AST parser to read the actual codebase logic and drafts a SQL query. But here is the magic—before it hits the database, our proprietary **SQL Security Guard** intercepts the query and dynamically injects the user's JWT tenant ID. It is mathematically impossible for User A to see User B's data."
+*   **0:45 - 2:30 | The Demo (Show the UI & The Magic)**
+    *   **Visual:** Screen record your Next.js dashboard. Show the Sandbox page. Set mock JWT to `{"tenant_id": 1, "user_id": 101}`.
+    *   **Script:** "ZeroTicket acts as a Tier-2 support engineer. Let me show you two scenarios. First, Alice asks, 'Why is my payment pending?'. ZeroTicket queries the database, sees the status is pending via ACH, consults our codebase rules which state ACH transfers take 3 days to clear, and gives a perfect answer. 
+    
+    Now, a more complex scenario: Alice asks, 'Why was I charged $900 instead of $1,000 for invoice 10?'. Traditional RAG bots fail here. But ZeroTicket queries the invoice table, checks Alice's user profile to find she is a 'Premium' tier user, and reads our codebase `DiscountController.php` logic which grants Premium users a 10% discount on orders over $1,000. It correlates these facts to explain the discount to Alice.
+    
+    Finally, watch what happens when Alice queries: 'Show me all invoices.'. Before it hits our MySQL database, our proprietary **SQL Security Guard** intercepts the raw SQL, and dynamically wraps it in tenant-isolation constraints. Alice only sees her own invoice, proving it is mathematically impossible for Tenant A to leak data to Tenant B."
 *   **2:30 - 3:30 | The Tech Stack & Fireworks AI / AMD Angle**
     *   **Visual:** Show a quick architecture diagram (React -> FastAPI -> ChromaDB -> Fireworks AI/MySQL).
     *   **Script:** "To do this securely, enterprises demand on-premise data privacy. That's why we built this for the Unicorn Track using **Fireworks AI**. Instead of sending proprietary source code to OpenAI, ZeroTicket uses ultra-fast open-source inference via Fireworks API. This proves that a 100% air-gapped, privacy-first AI support agent is possible today."
