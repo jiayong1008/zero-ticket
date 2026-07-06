@@ -532,10 +532,37 @@ export default function SandboxPage() {
     if (!savedId) {
       router.push("/onboarding");
     } else {
+      const repoId = localStorage.getItem("repository_id") || "";
       setCompanyId(savedId);
       setCompanyName(savedName || "Default Company");
-      setRepositoryId(localStorage.getItem("repository_id") || "");
-      setRepoName(localStorage.getItem("repo_name") || "Active Project");
+      setRepositoryId(repoId);
+      
+      const cachedRepoName = localStorage.getItem("repo_name");
+      if (cachedRepoName && cachedRepoName !== "Active Project") {
+        setRepoName(cachedRepoName);
+      } else {
+        setRepoName("Active Project");
+        if (repoId) {
+          const token = localStorage.getItem("admin_token") || "";
+          fetch(`${BACKEND_URL}/api/company/projects?company_id=${savedId}`, {
+            headers: {
+              "X-Admin-Token": token
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) {
+              const activeProj = data.find((p: any) => p.repository_id === repoId);
+              if (activeProj) {
+                const name = activeProj.project_name || activeProj.repo_path.split("/").pop() || "Active Project";
+                setRepoName(name);
+                localStorage.setItem("repo_name", name);
+              }
+            }
+          })
+          .catch(err => console.error("Error loading project name:", err));
+        }
+      }
       setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
       setLlmModel(localStorage.getItem("llm_model") || "");
     }
