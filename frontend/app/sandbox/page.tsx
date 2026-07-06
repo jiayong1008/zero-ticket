@@ -1482,11 +1482,22 @@ export default function SandboxPage() {
               />
             </div>
 
+            {/* Error Message Display Container */}
+            {teachStatus.startsWith("Error:") && (
+              <div className={`p-3 text-[11px] rounded-xl border font-mono max-h-24 overflow-y-auto leading-relaxed ${
+                isLightMode 
+                  ? "bg-red-50 border-red-200 text-red-800" 
+                  : "bg-red-950/20 border-red-500/20 text-red-400"
+              }`}>
+                <span className="font-bold uppercase text-[9px] block mb-1">Learning Error Details:</span>
+                {teachStatus.replace("Error: ", "")}
+              </div>
+            )}
+
             <div className="flex items-center justify-between mt-2 border-t pt-3">
               <span className="text-xs font-mono">
                 {teachStatus === "loading" && <span className="text-amber-500 animate-pulse">Optimizing context rules...</span>}
                 {teachStatus === "success" && <span className="text-emerald-500 font-semibold">✅ Guidelines updated in Git!</span>}
-                {teachStatus.startsWith("Error:") && <span className="text-red-500 font-semibold">{teachStatus}</span>}
               </span>
               
               <div className="flex gap-2">
