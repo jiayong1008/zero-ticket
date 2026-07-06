@@ -1208,54 +1208,6 @@ export default function SandboxPage() {
                         </button>
                       )}
                     </div>
-
-                    {teachMessageIndex === i && (
-                      <div className={`mt-2 p-3 rounded-lg border flex flex-col gap-2.5 transition-colors ${
-                        isLightMode ? "bg-slate-100/50 border-slate-200" : "bg-slate-900/40 border-white/5"
-                      }`}>
-                        <div className="text-[10px] uppercase font-extrabold tracking-wider text-amber-500 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                          Teach AI Codebase Correction
-                        </div>
-                        <textarea
-                          value={teachInput}
-                          onChange={(e) => setTeachInput(e.target.value)}
-                          placeholder="What should the AI have known? (e.g., 'BO refers to BackOffice profiles; 1187 is a profile ID in table backoffice_profiles.')"
-                          rows={2}
-                          className={`w-full p-2 text-xs rounded border focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors font-mono leading-relaxed ${
-                            isLightMode 
-                              ? "bg-white border-slate-200 text-slate-800" 
-                              : "bg-slate-950 border-white/5 text-slate-300"
-                          }`}
-                        />
-                        <div className="flex items-center justify-between min-h-6">
-                          <span className="text-[10.5px] font-mono text-slate-400">
-                            {teachStatus === "loading" && "Optimizing rules context..."}
-                            {teachStatus === "success" && "✅ Repository rules context updated!"}
-                            {teachStatus.startsWith("Error:") && <span className="text-red-500 font-semibold">{teachStatus}</span>}
-                          </span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setTeachMessageIndex(null)}
-                              className={`px-2.5 py-1 text-xs rounded border transition-colors ${
-                                isLightMode 
-                                  ? "border-slate-300 hover:bg-slate-200 text-slate-600" 
-                                  : "border-white/5 hover:bg-white/5 text-slate-300"
-                              }`}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => handleSaveContext(i)}
-                              disabled={!teachInput.trim() || teachStatus === "loading"}
-                              className="px-2.5 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded font-bold disabled:opacity-50 transition-colors"
-                            >
-                              Save Context
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -1473,6 +1425,91 @@ export default function SandboxPage() {
             alt="Fullscreen" 
             className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
           />
+        </div>
+      )}
+
+      {/* Teach AI Context Modal Overlay */}
+      {teachMessageIndex !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-full max-w-lg rounded-2xl border p-6 flex flex-col gap-4 shadow-2xl transition-all duration-300 transform scale-100 ${
+            isLightMode ? "bg-white border-slate-200" : "bg-[#0f172a] border-white/10"
+          }`}>
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <h3 className={`text-sm font-bold uppercase tracking-wider ${isLightMode ? "text-slate-800" : "text-white"}`}>
+                  Teach AI / Correct Response
+                </h3>
+              </div>
+              <button 
+                onClick={() => setTeachMessageIndex(null)}
+                className={`p-1 rounded-lg transition-colors ${isLightMode ? "hover:bg-slate-100 text-slate-400 hover:text-slate-700" : "hover:bg-white/5 text-slate-400 hover:text-white"}`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Conversation Context Reference */}
+            <div className={`p-3 rounded-lg text-xs leading-relaxed font-mono ${
+              isLightMode ? "bg-slate-50 text-slate-650 border border-slate-200" : "bg-slate-950/40 text-slate-400 border border-white/5"
+            }`}>
+              <span className="font-bold text-amber-500 block mb-1 uppercase text-[9px]">Last Query Context:</span>
+              "{messages[teachMessageIndex]?.content ? (messages[teachMessageIndex - 1]?.content || "") : ""}"
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className={`text-xs font-semibold ${isLightMode ? "text-slate-700" : "text-slate-350"}`}>
+                What should the AI have known?
+              </label>
+              <textarea
+                value={teachInput}
+                onChange={(e) => setTeachInput(e.target.value)}
+                placeholder="Explain the correction or codebase mapping. For example:
+- BO refers to BackOffice system.
+- 1187 refers to a profile ID in table backoffice_profiles.
+- Always check the tickets status before replying."
+                rows={6}
+                autoFocus
+                className={`w-full p-3 text-xs rounded-xl border focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors font-mono leading-relaxed resize-none ${
+                  isLightMode 
+                    ? "bg-white border-slate-200 text-slate-800 focus:border-amber-500" 
+                    : "bg-slate-950 border-white/5 text-slate-300 focus:border-amber-500/50"
+                }`}
+              />
+            </div>
+
+            <div className="flex items-center justify-between mt-2 border-t pt-3">
+              <span className="text-xs font-mono">
+                {teachStatus === "loading" && <span className="text-amber-500 animate-pulse">Optimizing context rules...</span>}
+                {teachStatus === "success" && <span className="text-emerald-500 font-semibold">✅ Guidelines updated in Git!</span>}
+                {teachStatus.startsWith("Error:") && <span className="text-red-500 font-semibold">{teachStatus}</span>}
+              </span>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTeachMessageIndex(null)}
+                  className={`px-4 py-2 text-xs rounded-xl border font-semibold transition-colors ${
+                    isLightMode 
+                      ? "border-slate-300 hover:bg-slate-100 text-slate-700" 
+                      : "border-white/10 hover:bg-white/5 text-slate-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSaveContext(teachMessageIndex)}
+                  disabled={!teachInput.trim() || teachStatus === "loading"}
+                  className="px-4 py-2 text-xs bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-white rounded-xl font-bold disabled:opacity-50 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Save Guidelines
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
