@@ -592,6 +592,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                         localStorage.setItem("repository_id", proj.id);
                         localStorage.setItem("repo_path", proj.repo_path);
                         localStorage.setItem("repo_branch", proj.branch);
+                        localStorage.setItem("repo_name", proj.name || proj.repo_path.split("/").pop());
                         setProjectDropOpen(false);
                       }}
                       className={`w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 ${

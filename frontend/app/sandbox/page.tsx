@@ -284,6 +284,7 @@ export default function SandboxPage() {
   const [companyId, setCompanyId] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [repositoryId, setRepositoryId] = useState("");
+  const [repoName, setRepoName] = useState("");
   const [llmProvider, setLlmProvider] = useState("gemini");
   const [llmModel, setLlmModel] = useState("");
   
@@ -534,6 +535,7 @@ export default function SandboxPage() {
       setCompanyId(savedId);
       setCompanyName(savedName || "Default Company");
       setRepositoryId(localStorage.getItem("repository_id") || "");
+      setRepoName(localStorage.getItem("repo_name") || "Active Project");
       setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
       setLlmModel(localStorage.getItem("llm_model") || "");
     }
@@ -861,7 +863,9 @@ export default function SandboxPage() {
           </button>
           <div>
             <h1 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>AI Sandbox Emulator</h1>
-            <p className={`text-xs transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Testing context for {companyName}</p>
+            <p className={`text-xs transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+              Testing context for <span className="font-semibold text-blue-500">{repoName}</span> ({companyName})
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
