@@ -11,9 +11,237 @@ interface Message {
   imageData?: string;
 }
 
-const ThoughtLogSection = ({ title, content, isLightMode, defaultExpanded = false }: { title: string, content: string[], isLightMode: boolean, defaultExpanded?: boolean }) => {
+const ThoughtLogSection = ({ 
+  title, 
+  content, 
+  isLightMode, 
+  defaultExpanded = false,
+  previousSectionContent = []
+}: { 
+  title: string, 
+  content: string[], 
+  isLightMode: boolean, 
+  defaultExpanded?: boolean,
+  previousSectionContent?: string[]
+}) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
+  // Helper to check if a line is a SQL query line
+  const isSqlLine = (line: string) => {
+    const l = line.toLowerCase().trim();
+    return l.startsWith("select") || l.startsWith("where") || l.startsWith("from") || l.startsWith("join") || l.startsWith("and ") || l.startsWith("order by") || l.startsWith("limit");
+  };
+
+  // Helper to render DB Query results as a styled table
+  const renderDbResultsTable = (rawText: string) => {
+    try {
+      // Clean up Python stringified list of dicts
+      let jsonSafe = rawText
+        .trim()
+        .replace(/'/g, '"')
+        .replace(/\bTrue\b/g, 'true')
+        .replace(/\bFalse\b/g, 'false')
+        .replace(/\bNone\b/g, 'null');
+      
+      const parsed = JSON.parse(jsonSafe);
+      if (parsed.isArray || (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object')) {
+        const headers = Object.keys(parsed[0]);
+        return (
+          <div className={`overflow-x-auto rounded border my-2 ${isLightMode ? 'border-slate-200 bg-slate-50' : 'border-white/5'}`}>
+            <table className="w-full text-left text-[11px] border-collapse">
+              <thead>
+                <tr className={isLightMode ? "bg-slate-100 border-b border-slate-200" : "bg-slate-900/50 border-b border-white/10"}>
+                  {headers.map(h => (
+                    <th key={h} className={`p-2 font-semibold uppercase tracking-wider ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${isLightMode ? 'divide-slate-200' : 'divide-white/5'}`}>
+                {parsed.map((row: any, idx: number) => (
+                  <tr key={idx} className={isLightMode ? "hover:bg-slate-200/50" : "hover:bg-slate-900/20"}>
+                    {headers.map(h => (
+                      <td key={h} className={`p-2 font-mono ${isLightMode ? 'text-slate-800' : 'text-slate-300'}`}>{String(row[h])}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+    } catch (e) {
+      // Fallback if not parseable
+    }
+    return (
+      <div className={`p-2 border rounded my-1 font-mono break-words whitespace-pre-wrap ${
+        isLightMode 
+          ? 'text-slate-700 bg-slate-50 border-slate-200' 
+          : 'text-slate-400 bg-slate-950/20 border-white/5'
+      }`}>
+        {rawText}
+      </div>
+    );
+  };
+
+  // Clean title for mapping
+  const lowerTitle = title.toLowerCase();
+
+  // 1. Live Server Logs Section Style
+  if (lowerTitle.includes("live logs") || lowerTitle.includes("server logs")) {
+    return (
+      <div className="mb-4">
+        <button 
+          onClick={() => setExpanded(!expanded)}
+          className={`w-full text-left text-sm font-bold border-b pb-1 flex items-center justify-between transition-colors hover:opacity-80 ${isLightMode ? "text-emerald-700 border-slate-200" : "text-emerald-400 border-white/10"}`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            📟 Live Server Logs Scanner
+          </span>
+          <svg className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {expanded && (
+          <div className="mt-3 rounded-lg border border-emerald-500/20 bg-black/90 p-4 font-mono text-[11px] text-emerald-400 shadow-lg overflow-x-auto leading-relaxed max-h-60 overflow-y-auto">
+            <div className="text-emerald-500 border-b border-emerald-500/10 pb-1 mb-2 flex items-center justify-between">
+              <span>tail -n 100 server.log --secure-filter</span>
+              <span className="text-[9px] uppercase bg-emerald-950 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">Active Isolation</span>
+            </div>
+            {content.map((line, idx) => (
+              <div key={idx} className="hover:bg-emerald-950/20 px-1 py-0.5 rounded transition-colors break-words whitespace-pre-wrap">
+                {line}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 2. SQL Security Guard Diff Style
+  if (lowerTitle.includes("sanitized sql") || lowerTitle.includes("security guard")) {
+    const rawSqlDraft = previousSectionContent.join("\n").trim();
+    const sanitizedSql = content.join("\n").trim();
+    
+    return (
+      <div className="mb-4">
+        <button 
+          onClick={() => setExpanded(!expanded)}
+          className={`w-full text-left text-sm font-bold border-b pb-1 flex items-center justify-between transition-colors hover:opacity-80 ${isLightMode ? "text-cyan-700 border-slate-200" : "text-cyan-400 border-white/10"}`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            🛡️ SQL Security Guard Sanitizer
+          </span>
+          <svg className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {expanded && (
+          <div className="mt-3 space-y-3 font-mono text-[11px]">
+            {rawSqlDraft && (
+              <div className={`rounded border p-3 ${isLightMode ? 'border-red-200 bg-red-50/50' : 'border-red-500/20 bg-red-950/10'}`}>
+                <div className={`font-bold mb-1 flex items-center gap-1 ${isLightMode ? 'text-red-700' : 'text-red-400'}`}>
+                  <span>-</span> LLM Raw Drafted SQL (Insecure)
+                </div>
+                <div className={`pl-3 border-l break-words whitespace-pre-wrap ${isLightMode ? 'border-red-300 text-red-800' : 'border-red-500/20 text-red-300'}`}>
+                  {rawSqlDraft}
+                </div>
+              </div>
+            )}
+            <div className={`rounded border p-3 ${isLightMode ? 'border-emerald-200 bg-emerald-50/50' : 'border-emerald-500/20 bg-emerald-950/10'}`}>
+              <div className={`font-bold mb-1 flex items-center gap-1 ${isLightMode ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                <span>+</span> Sanitized Query (Tenant Isolated)
+              </div>
+              <div className={`pl-3 border-l break-words whitespace-pre-wrap font-semibold ${isLightMode ? 'border-emerald-300 text-emerald-800' : 'border-emerald-500/20 text-emerald-300'}`}>
+                {sanitizedSql}
+              </div>
+              <div className={`mt-2 text-[9.5px] p-1.5 rounded border flex items-center gap-1 ${
+                isLightMode 
+                  ? 'text-emerald-850 bg-emerald-100/60 border-emerald-200' 
+                  : 'text-emerald-500 bg-emerald-950/30 border-emerald-500/10'
+              }`}>
+                <svg className={`w-3.5 h-3.5 flex-shrink-0 ${isLightMode ? 'text-emerald-650' : 'text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>Compile-time tenant isolation injected successfully.</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Skip rendering Drafted SQL separately since we group it in the Sanitized SQL diff!
+  if (lowerTitle.includes("drafted sql")) {
+    return null;
+  }
+
+  // 3. Database Execution Results Style
+  if (lowerTitle.includes("database query results") || lowerTitle.includes("query results")) {
+    const headerLine = title; // e.g. "Database Query Results (Time: 12ms)"
+    const execTimeMatch = headerLine.match(/Time:\s*(\w+)/);
+    const execTime = execTimeMatch ? execTimeMatch[1] : "N/A";
+    
+    return (
+      <div className="mb-4">
+        <button 
+          onClick={() => setExpanded(!expanded)}
+          className={`w-full text-left text-sm font-bold border-b pb-1 flex items-center justify-between transition-colors hover:opacity-80 ${isLightMode ? "text-indigo-700 border-slate-200" : "text-indigo-400 border-white/10"}`}
+        >
+          <span className="flex items-center gap-1.5">
+            ⚡ Database Query Execution ({execTime})
+          </span>
+          <svg className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {expanded && (
+          <div className="mt-3">
+            {renderDbResultsTable(content.join("\n"))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 4. Code Snippets / RAG Context Style
+  if (lowerTitle.includes("retrieved code")) {
+    return (
+      <div className="mb-4">
+        <button 
+          onClick={() => setExpanded(!expanded)}
+          className={`w-full text-left text-sm font-bold border-b pb-1 flex items-center justify-between transition-colors hover:opacity-80 ${isLightMode ? "text-amber-700 border-slate-200" : "text-amber-400 border-white/10"}`}
+        >
+          <span>📁 Retrieved Codebase Rules</span>
+          <svg className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {expanded && (
+          <div className="mt-3 space-y-2">
+            {content.join("\n").split("### File: ").filter(Boolean).map((block, bIdx) => {
+              const linesOfBlock = block.trim().split("\n");
+              const header = linesOfBlock[0]; // e.g. "PaymentController.php (Lines 10-20)"
+              const codeLines = linesOfBlock.slice(1).join("\n").replace(/```/g, "").trim();
+              return (
+                <div key={bIdx} className={`rounded border overflow-hidden ${isLightMode ? 'border-slate-200 bg-slate-50' : 'border-white/5 bg-slate-900/20'}`}>
+                  <div className={`p-2 font-mono text-[10px] border-b ${isLightMode ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-slate-900/50 text-slate-400 border-white/5'} flex items-center justify-between`}>
+                    <span>{header.replace(/```/g, "").trim()}</span>
+                  </div>
+                  <pre className={`p-3 overflow-x-auto text-[10.5px] leading-relaxed font-mono whitespace-pre ${isLightMode ? 'text-slate-800' : 'text-slate-300'}`}>{codeLines}</pre>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 5. Default Section style
   return (
     <div className="mb-4">
       <button 
@@ -27,16 +255,16 @@ const ThoughtLogSection = ({ title, content, isLightMode, defaultExpanded = fals
       </button>
       
       {expanded && (
-        <div className="mt-3 space-y-1">
+        <div className="mt-3 space-y-1 font-mono text-[11px] leading-relaxed">
           {content.map((line, idx) => {
-            if (line.toLowerCase().startsWith("select") || line.toLowerCase().startsWith("where") || line.toLowerCase().startsWith("from") || line.toLowerCase().startsWith("join") || line.toLowerCase().startsWith("and ")) {
+            if (isSqlLine(line)) {
               return (
                 <div key={idx} className={`p-2 rounded border my-1 font-semibold ${isLightMode ? "text-emerald-800 bg-emerald-50 border-emerald-200" : "text-emerald-400 bg-emerald-950/20 border-emerald-500/10"}`}>
                   {line}
                 </div>
               );
             }
-            if (line.includes("[SQL Execution/Security Error]") || line.includes("Error:")) {
+            if (line.includes("[SQL Execution/Security Error]") || line.includes("Error:") || line.toLowerCase().includes("failed")) {
               return (
                 <div key={idx} className={`p-3 rounded border my-1 font-semibold ${isLightMode ? "text-red-800 bg-red-50 border-red-200" : "text-red-400 bg-red-950/20 border-red-500/20"}`}>
                   {line}
@@ -117,6 +345,15 @@ export default function SandboxPage() {
       customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
       loadImage: true,
       desc: "Loads a mock screenshot of a billing failure. AI extracts 'ERR-ACH-502' via OCR, checks PaymentController.php and gives routing/ACH solutions."
+    },
+    {
+      name: "6. Intent Debugger (Alice)",
+      query: "Why did the chatbot classify my intent as cobroke yesterday?",
+      userId: "101",
+      tenantId: "1",
+      customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
+      loadImage: false,
+      desc: "Alice queries a chatbot classification discrepancy. ZeroTicket inspects the live server.log and matches the IntentClassifier trigger rule."
     }
   ];
 
@@ -970,11 +1207,15 @@ export default function SandboxPage() {
           <section className={`h-full flex flex-col min-w-0 overflow-hidden transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50" : "bg-[#0b1329]"}`}>
           <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-slate-100" : "border-white/5 bg-slate-900/10"}`}>
             <span className={`text-xs font-semibold flex items-center gap-1.5 ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
-              <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              <svg className="w-4 h-4 text-blue-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              AI Engine Thoughts & SQL Inspector
+              ZeroTicket Cyber-Security Trace Debugger
             </span>
+            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+              100% Isolated
+            </div>
           </div>
 
           <div className={`flex-1 overflow-y-auto min-h-0 p-5 font-mono text-xs leading-relaxed select-text whitespace-pre-wrap break-all transition-colors ${isLightMode ? "text-slate-700 bg-white" : "text-slate-300"}`}>
@@ -1002,6 +1243,13 @@ export default function SandboxPage() {
                   sections.push(currentSection);
                 }
 
+                // Find the drafted SQL content to pass as previous content for the Diff view
+                let draftedSqlContent: string[] = [];
+                const draftSec = sections.find(s => s.title.includes("LLM Drafted SQL"));
+                if (draftSec) {
+                  draftedSqlContent = draftSec.content;
+                }
+
                 return sections.map((section, idx) => {
                   const isLongSection = section.title.includes("DB Schema") || section.title.includes("Retrieved Code");
                   return (
@@ -1011,6 +1259,7 @@ export default function SandboxPage() {
                       content={section.content} 
                       isLightMode={isLightMode}
                       defaultExpanded={!isLongSection}
+                      previousSectionContent={draftedSqlContent}
                     />
                   );
                 });
