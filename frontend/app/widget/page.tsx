@@ -275,7 +275,11 @@ function WidgetChatContent() {
       {/* Message List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
         {error && (
-          <div className="p-3 rounded-lg bg-red-950/40 border border-red-500/25 text-red-300 text-xs leading-relaxed">
+          <div className={`p-3 rounded-lg text-xs leading-relaxed border ${
+            isLightMode 
+              ? "bg-red-50 border-red-200 text-red-800" 
+              : "bg-red-950/40 border-red-500/25 text-red-300"
+          }`}>
             {error}
           </div>
         )}

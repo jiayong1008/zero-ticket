@@ -1103,7 +1103,11 @@ export default function SandboxPage() {
 
           {/* Form */}
           {error && (
-            <div className="mx-4 p-3 rounded bg-red-950/20 border border-red-500/20 text-red-400 text-xs">
+            <div className={`mx-4 p-3 rounded text-xs border ${
+              isLightMode 
+                ? "bg-red-50 border-red-200 text-red-800" 
+                : "bg-red-950/20 border-red-500/20 text-red-400"
+            }`}>
               {error}
             </div>
           )}
@@ -1215,7 +1219,11 @@ export default function SandboxPage() {
               </svg>
               ZeroTicket Cyber-Security Trace Debugger
             </span>
-            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-500/20">
+            <div className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+              isLightMode 
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                : "bg-emerald-950/50 text-emerald-400 border-emerald-500/20"
+            }`}>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
               100% Isolated
             </div>
