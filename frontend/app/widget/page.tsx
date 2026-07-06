@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 interface Message {
   sender: "user" | "assistant" | "system";
   content: string;
+  imageData?: string;
 }
 
 function WidgetChatContent() {
@@ -22,12 +23,29 @@ function WidgetChatContent() {
   ]);
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isEmbedded, setIsEmbedded] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const BACKEND_URL = "http://localhost:8088";
 
   // Markdown format helper
@@ -45,6 +63,17 @@ function WidgetChatContent() {
         text = text.substring(2);
       }
       
+      let isHeading = false;
+      let headingLevel = 0;
+      if (text.startsWith('#')) {
+        const match = text.match(/^(#{1,6})\s+(.*)$/);
+        if (match) {
+          isHeading = true;
+          headingLevel = match[1].length;
+          text = match[2];
+        }
+      }
+      
       const parts = [];
       let currentIdx = 0;
       const boldRegex = /\*\*(.*?)\*\*/g;
@@ -55,12 +84,31 @@ function WidgetChatContent() {
         if (matchIdx > currentIdx) {
           parts.push(text.substring(currentIdx, matchIdx));
         }
-        parts.push(<strong key={matchIdx} className={`font-extrabold ${isLightMode ? "text-slate-900" : "text-white"}`}>{match[1]}</strong>);
+        parts.push(<strong key={matchIdx} className={`font-extrabold`}>{match[1]}</strong>);
         currentIdx = boldRegex.lastIndex;
       }
       
       if (currentIdx < text.length) {
         parts.push(text.substring(currentIdx));
+      }
+      
+      if (isHeading) {
+        const HeaderTag = `h${headingLevel}` as keyof JSX.IntrinsicElements;
+        const sizeClasses: Record<number, string> = {
+          1: "text-lg font-black mt-3 mb-1.5",
+          2: "text-base font-bold mt-2 mb-1",
+          3: "text-[13px] font-bold mt-1.5 mb-1",
+          4: "text-xs font-bold mt-1.5 mb-1",
+          5: "text-[11px] font-semibold mt-1 mb-1",
+          6: "text-[11px] font-semibold mt-1 mb-1",
+        };
+        const activeClass = sizeClasses[headingLevel] || "text-[13px] font-bold mt-1.5 mb-1";
+        
+        return (
+          <HeaderTag key={pIdx} className={`${activeClass} leading-tight`}>
+            {parts}
+          </HeaderTag>
+        );
       }
       
       if (isBullet) {
@@ -152,14 +200,17 @@ function WidgetChatContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || loading || !sessionId || !token) return;
+    if ((!input.trim() && !selectedImage) || loading || !sessionId || !token) return;
 
     const userText = input;
     const currentImage = selectedImage;
     setInput("");
     setSelectedImage(null);
-    setMessages((prev) => [...prev, { sender: "user", content: userText }]);
+    setMessages((prev) => [...prev, { sender: "user", content: userText, imageData: currentImage }]);
     setLoading(true);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const res = await fetch(`${BACKEND_URL}/api/chat/send`, {
@@ -168,6 +219,7 @@ function WidgetChatContent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        signal: controller.signal,
         body: JSON.stringify({
           session_id: sessionId,
           message: userText,
@@ -183,6 +235,16 @@ function WidgetChatContent() {
       const data = await res.json();
       setMessages((prev) => [...prev, { sender: "assistant", content: data.answer }]);
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "system",
+            content: "Generation stopped by user.",
+          },
+        ]);
+        return;
+      }
       setMessages((prev) => [
         ...prev,
         {
@@ -192,6 +254,7 @@ function WidgetChatContent() {
       ]);
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -235,6 +298,14 @@ function WidgetChatContent() {
                   : "bg-slate-800 text-slate-100 rounded-tl-none border border-white/5"
               }`}
             >
+              {msg.imageData && (
+                <img 
+                  src={msg.imageData} 
+                  alt="Attached" 
+                  className={`max-h-40 w-auto rounded-lg mb-2 cursor-zoom-in hover:opacity-90 transition-opacity border ${isLightMode ? 'border-slate-200' : 'border-white/10'}`} 
+                  onClick={() => setFullScreenImage(msg.imageData || null)}
+                />
+              )}
               {msg.sender === "assistant" ? renderFormattedContent(msg.content) : msg.content}
             </div>
           </div>
@@ -256,12 +327,16 @@ function WidgetChatContent() {
         isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/20 border-white/5"
       }`}>
         {selectedImage && (
-          <div className="relative inline-block self-start">
-            <img src={selectedImage} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-slate-300" />
+          <div className="relative inline-block self-start z-10 hover:z-50 group">
+            <img 
+              src={selectedImage} 
+              alt="Preview" 
+              className="h-16 w-16 object-cover rounded-lg border border-slate-300 transition-transform duration-200 origin-bottom-left group-hover:scale-[4] group-hover:shadow-2xl cursor-zoom-in" 
+            />
             <button
               type="button"
               onClick={() => setSelectedImage(null)}
-              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600"
+              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600 z-10 opacity-100 group-hover:opacity-0 transition-opacity"
             >
               ×
             </button>
@@ -314,13 +389,29 @@ function WidgetChatContent() {
             }`}
             disabled={loading || !sessionId}
           />
-          <button
-            type="submit"
-            disabled={loading || (!input.trim() && !selectedImage) || !sessionId}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
-          >
-            Send
-          </button>
+          {loading ? (
+            <button
+              type="button"
+              onClick={handleStopGeneration}
+              className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Stop
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={(!input.trim() && !selectedImage) || !sessionId}
+              className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg transition-colors disabled:opacity-50 shadow-sm flex items-center justify-center"
+              title="Send"
+            >
+              <svg className="w-4 h-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+            </button>
+          )}
         </div>
       </form>
       
@@ -387,13 +478,25 @@ function WidgetChatContent() {
   return (
     <div className="h-screen max-h-screen w-full">
       {widgetUI}
+      {fullScreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out p-4 md:p-8"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <img 
+            src={fullScreenImage} 
+            alt="Fullscreen" 
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 export default function WidgetPage() {
   return (
-    <Suspense fallback={<div className="p-4 text-xs text-slate-400">Loading support widget...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#0b0f19] flex items-center justify-center text-white text-xs">Loading Widget Context...</div>}>
       <WidgetChatContent />
     </Suspense>
   );

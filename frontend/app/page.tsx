@@ -45,6 +45,12 @@ export default function DashboardPage() {
   const [llmApiKey, setLlmApiKey] = useState("");
   const [llmModel, setLlmModel] = useState("llama3");
   const [llmBaseUrl, setLlmBaseUrl] = useState("http://localhost:11434/v1");
+  const [selectedPresetModel, setSelectedPresetModel] = useState("gemini-2.5-flash");
+
+  const geminiPresets = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro", "gemini-1.5-pro"];
+  const openaiPresets = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"];
+  const customPresets = ["gemma2", "llama3", "mistral"];
+
   const [isEditingLLM, setIsEditingLLM] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -181,6 +187,49 @@ export default function DashboardPage() {
       }
     }
   }, [activeRepoId, projects]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (llmProvider === "gemini") {
+      if (geminiPresets.includes(llmModel)) {
+        setSelectedPresetModel(llmModel);
+      } else if (!llmModel) {
+        setSelectedPresetModel("gemini-2.5-flash");
+        setLlmModel("gemini-2.5-flash");
+      } else {
+        setSelectedPresetModel("other");
+      }
+    } else if (llmProvider === "openai") {
+      if (openaiPresets.includes(llmModel)) {
+        setSelectedPresetModel(llmModel);
+      } else if (!llmModel) {
+        setSelectedPresetModel("gpt-4o");
+        setLlmModel("gpt-4o");
+      } else {
+        setSelectedPresetModel("other");
+      }
+    } else if (llmProvider === "custom") {
+      if (customPresets.includes(llmModel)) {
+        setSelectedPresetModel(llmModel);
+      } else if (!llmModel) {
+        setSelectedPresetModel("gemma2");
+        setLlmModel("gemma2");
+      } else {
+        setSelectedPresetModel("other");
+      }
+    }
+  }, [llmProvider, llmModel, mounted]);
+
+  const handlePresetModelChange = (modelName: string) => {
+    setSelectedPresetModel(modelName);
+    if (modelName !== "other") {
+      setLlmModel(modelName);
+      localStorage.setItem("llm_model", modelName);
+    } else {
+      setLlmModel("");
+      localStorage.setItem("llm_model", "");
+    }
+  };
 
   const toggleTheme = () => {
     const nextTheme = !isLightMode;
@@ -895,10 +944,90 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                     <option value="custom">Custom / Ollama</option>
                   </select>
                 </div>
-                {llmProvider === "custom" ? (
-                  <div className="space-y-2">
+                <div className="space-y-2">
+                  {llmProvider !== "custom" && (
                     <div>
-                      <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Custom Model Name</label>
+                      <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>LLM API Key</label>
+                      <div className="relative">
+                        <input
+                          type={showLlmKey ? "text" : "password"}
+                          value={llmApiKey}
+                          onChange={(e) => {
+                            setLlmApiKey(e.target.value);
+                            localStorage.setItem("llm_api_key", e.target.value);
+                            localStorage.setItem("gemini_api_key", e.target.value);
+                          }}
+                          placeholder={llmProvider === "gemini" ? "AIzaSy..." : "sk-..."}
+                          className={`w-full pl-2 pr-8 py-1 text-xs rounded border transition-colors ${
+                            isLightMode 
+                              ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
+                              : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowLlmKey(!showLlmKey)}
+                          className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
+                            isLightMode ? "text-slate-400 hover:text-slate-600" : "text-slate-500 hover:text-slate-300"
+                          }`}
+                        >
+                          {showLlmKey ? (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m0 0a10.05 10.05 0 015.71-1.581c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-1.563 3.029m-5.858-.908a3 3 0 00-4.243-4.243M9.878 9.878L14.12 14.12" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                      Model Name
+                    </label>
+                    <select
+                      value={selectedPresetModel}
+                      onChange={(e) => handlePresetModelChange(e.target.value)}
+                      className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                        selectedPresetModel === "other" ? "mb-1.5" : ""
+                      } ${
+                        isLightMode 
+                          ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
+                          : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      }`}
+                    >
+                      {llmProvider === "gemini" && (
+                        <>
+                          <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                          <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
+                          <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                          <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                          <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        </>
+                      )}
+                      {llmProvider === "openai" && (
+                        <>
+                          <option value="gpt-4o">GPT-4o (Default)</option>
+                          <option value="gpt-4o-mini">GPT-4o Mini</option>
+                          <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        </>
+                      )}
+                      {llmProvider === "custom" && (
+                        <>
+                          <option value="gemma2">Gemma 2 (Default)</option>
+                          <option value="llama3">Llama 3</option>
+                          <option value="mistral">Mistral</option>
+                        </>
+                      )}
+                      <option value="other">Custom Model Name...</option>
+                    </select>
+
+                    {selectedPresetModel === "other" && (
                       <input
                         type="text"
                         value={llmModel}
@@ -906,14 +1035,18 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                           setLlmModel(e.target.value);
                           localStorage.setItem("llm_model", e.target.value);
                         }}
-                        placeholder="llama3"
+                        placeholder="Type custom model name (e.g. models/gemini-2.5-flash)..."
                         className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
                           isLightMode 
                             ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
                             : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
                         }`}
+                        required
                       />
-                    </div>
+                    )}
+                  </div>
+
+                  {llmProvider === "custom" && (
                     <div>
                       <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Custom Base URL</label>
                       <input
@@ -931,50 +1064,14 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                         }`}
                       />
                     </div>
+                  )}
+
+                  {llmProvider === "custom" && (
                     <p className="text-[9px] text-slate-500 italic mt-0.5">
                       Routes requests to your custom local LLM server endpoint.
                     </p>
-                  </div>
-                ) : (
-                  <div>
-                    <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>LLM API Key</label>
-                    <div className="relative">
-                      <input
-                        type={showLlmKey ? "text" : "password"}
-                        value={llmApiKey}
-                        onChange={(e) => {
-                          setLlmApiKey(e.target.value);
-                          localStorage.setItem("llm_api_key", e.target.value);
-                          localStorage.setItem("gemini_api_key", e.target.value);
-                        }}
-                        placeholder={llmProvider === "gemini" ? "AIzaSy..." : "sk-..."}
-                        className={`w-full pl-2 pr-8 py-1 text-xs rounded border transition-colors ${
-                          isLightMode 
-                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
-                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowLlmKey(!showLlmKey)}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
-                          isLightMode ? "text-slate-400 hover:text-slate-600" : "text-slate-500 hover:text-slate-300"
-                        }`}
-                      >
-                        {showLlmKey ? (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m0 0a10.05 10.05 0 015.71-1.581c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-1.563 3.029m-5.858-.908a3 3 0 00-4.243-4.243M9.878 9.878L14.12 14.12" />
-                          </svg>
-                        ) : (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handleSaveLLMConfig}

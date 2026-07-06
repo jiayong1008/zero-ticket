@@ -8,6 +8,7 @@ interface Message {
   sender: "user" | "assistant" | "system";
   content: string;
   thoughtLog?: string;
+  imageData?: string;
 }
 
 const ThoughtLogSection = ({ title, content, isLightMode, defaultExpanded = false }: { title: string, content: string[], isLightMode: boolean, defaultExpanded?: boolean }) => {
@@ -70,6 +71,85 @@ export default function SandboxPage() {
   const [query, setQuery] = useState("");
   const [lastQuery, setLastQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+
+  const DEMO_SCENARIOS = [
+    {
+      name: "1. ACH Clearing (Alice)",
+      query: "Why is my payment pending?",
+      userId: "101",
+      tenantId: "1",
+      customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
+      loadImage: false,
+      desc: "Checks payments DB, finds Alice's ACH payment ($1,500) and references PaymentController.php's 3-day rule."
+    },
+    {
+      name: "2. Tiered Discount (Alice)",
+      query: "Why was I charged $900 instead of $1,000 for invoice 10?",
+      userId: "101",
+      tenantId: "1",
+      customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
+      loadImage: false,
+      desc: "Checks DiscountController.php (Premium gets 10% off for invoices >= $1000) and Alice's Invoice 10."
+    },
+    {
+      name: "3. Flat Discount (Bob)",
+      query: "Why was I charged $160 instead of $200 for invoice 20?",
+      userId: "102",
+      tenantId: "2",
+      customClaims: '{\n  "role": "user",\n  "plan": "enterprise"\n}',
+      loadImage: false,
+      desc: "Checks DiscountController.php (Enterprise flat 20% off) and Bob's Invoice 20."
+    },
+    {
+      name: "4. SQL Security Guard",
+      query: "Show me all invoices.",
+      userId: "101",
+      tenantId: "1",
+      customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
+      loadImage: false,
+      desc: "Alice queries all invoices. Security Guard rewrites the SQL to force tenant_id=1, completely blocking Bob's Tenant 2 data."
+    },
+    {
+      name: "5. Multimodal OCR (Image)",
+      query: "Why is my payment failing?",
+      userId: "101",
+      tenantId: "1",
+      customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
+      loadImage: true,
+      desc: "Loads a mock screenshot of a billing failure. AI extracts 'ERR-ACH-502' via OCR, checks PaymentController.php and gives routing/ACH solutions."
+    }
+  ];
+
+  const handleSelectScenario = (sc: typeof DEMO_SCENARIOS[0]) => {
+    setQuery(sc.query);
+    setMockUserId(sc.userId);
+    setMockTenantId(sc.tenantId);
+    setCustomClaims(sc.customClaims);
+    setSelectedImage(null);
+
+    if (sc.loadImage) {
+      fetch('/billing_error.png')
+        .then(res => res.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setSelectedImage(e.target?.result as string);
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(err => {
+          console.error("Failed to load demo image:", err);
+        });
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "system",
+        content: `👉 Ready to test **${sc.name}**\n\n**Goal:** ${sc.desc}\n\n*Click "Send" in the chat box to run the simulation.*`
+      }
+    ]);
+  };
   
   // Load messages from sessionStorage on mount
   useEffect(() => {
@@ -108,6 +188,17 @@ export default function SandboxPage() {
         text = text.substring(2);
       }
       
+      let isHeading = false;
+      let headingLevel = 0;
+      if (text.startsWith('#')) {
+        const match = text.match(/^(#{1,6})\s+(.*)$/);
+        if (match) {
+          isHeading = true;
+          headingLevel = match[1].length;
+          text = match[2];
+        }
+      }
+      
       const parts = [];
       let currentIdx = 0;
       const boldRegex = /\*\*(.*?)\*\*/g;
@@ -118,12 +209,31 @@ export default function SandboxPage() {
         if (matchIdx > currentIdx) {
           parts.push(text.substring(currentIdx, matchIdx));
         }
-        parts.push(<strong key={matchIdx} className={`font-extrabold ${isLightMode ? "text-slate-900" : "text-white"}`}>{match[1]}</strong>);
+        parts.push(<strong key={matchIdx} className={`font-extrabold`}>{match[1]}</strong>);
         currentIdx = boldRegex.lastIndex;
       }
       
       if (currentIdx < text.length) {
         parts.push(text.substring(currentIdx));
+      }
+      
+      if (isHeading) {
+        const HeaderTag = `h${headingLevel}` as keyof JSX.IntrinsicElements;
+        const sizeClasses: Record<number, string> = {
+          1: "text-xl font-black mt-4 mb-2",
+          2: "text-lg font-bold mt-3 mb-1.5",
+          3: "text-base font-bold mt-2 mb-1",
+          4: "text-sm font-bold mt-2 mb-1",
+          5: "text-sm font-semibold mt-1 mb-1",
+          6: "text-xs font-semibold mt-1 mb-1",
+        };
+        const activeClass = sizeClasses[headingLevel] || "text-base font-bold mt-2 mb-1";
+        
+        return (
+          <HeaderTag key={pIdx} className={activeClass}>
+            {parts}
+          </HeaderTag>
+        );
       }
       
       if (isBullet) {
@@ -146,10 +256,26 @@ export default function SandboxPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [activeThoughtLog, setActiveThoughtLog] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const BACKEND_URL = "http://localhost:8088";
 
@@ -226,7 +352,7 @@ export default function SandboxPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim() || loading) return;
+    if ((!query.trim() && !selectedImage) || loading) return;
 
     const userMessage = query;
     const currentImage = selectedImage;
@@ -236,7 +362,7 @@ export default function SandboxPage() {
     }
     setSelectedImage(null);
     setLastQuery(userMessage);
-    setMessages((prev) => [...prev, { sender: "user", content: userMessage }]);
+    setMessages((prev) => [...prev, { sender: "user", content: userMessage, imageData: currentImage }]);
     setLoading(true);
     setError("");
 
@@ -257,6 +383,9 @@ export default function SandboxPage() {
       ...parsedClaims,
     };
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
       
@@ -268,6 +397,7 @@ export default function SandboxPage() {
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           company_id: companyId,
           repository_id: repositoryId || undefined,
@@ -341,6 +471,24 @@ export default function SandboxPage() {
         }
       }
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const newMessages = [...prev];
+          const lastMsg = { ...newMessages[newMessages.length - 1] };
+          if (lastMsg.sender === "assistant") {
+            lastMsg.content = lastMsg.content + " _[Generation stopped by user]_";
+            newMessages[newMessages.length - 1] = lastMsg;
+          } else {
+            newMessages.push({
+              sender: "system",
+              content: "Generation stopped by user.",
+            });
+          }
+          return newMessages;
+        });
+        return;
+      }
       setError(err.message || "Something went wrong.");
       setMessages((prev) => [
         ...prev,
@@ -351,6 +499,7 @@ export default function SandboxPage() {
       ]);
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -392,6 +541,9 @@ export default function SandboxPage() {
       ...parsedClaims,
     };
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const savedKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "";
       
@@ -406,6 +558,7 @@ export default function SandboxPage() {
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           company_id: companyId,
           repository_id: repositoryId || undefined,
@@ -432,6 +585,16 @@ export default function SandboxPage() {
       
       setActiveThoughtLog(data.thought_log);
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "system",
+            content: "Generation stopped by user.",
+          },
+        ]);
+        return;
+      }
       setError(err.message || "Something went wrong.");
       setMessages((prev) => [
         ...prev,
@@ -442,6 +605,7 @@ export default function SandboxPage() {
       ]);
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -502,6 +666,31 @@ export default function SandboxPage() {
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left Side: Mock JWT / Claims Controls (Fixed Width) */}
         <aside className={`w-[25%] min-w-[250px] max-w-[320px] border-r h-full p-5 overflow-y-auto space-y-6 flex flex-col transition-colors duration-300 min-h-0 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/30 border-white/10"}`}>
+          <div>
+            <h2 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+              <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Quick Demo Scenarios
+            </h2>
+            <div className="space-y-2">
+              {DEMO_SCENARIOS.map((sc, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectScenario(sc)}
+                  className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all flex flex-col gap-1 ${
+                    isLightMode 
+                      ? "bg-white border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 text-slate-800" 
+                      : "bg-[#0f172a]/85 border-white/5 hover:border-blue-500/50 hover:bg-blue-500/5 text-slate-300"
+                  }`}
+                >
+                  <span className="font-semibold text-blue-500">{sc.name}</span>
+                  <span className={`text-[10px] leading-normal opacity-75`}>{sc.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <h2 className={`text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
               <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -599,7 +788,11 @@ export default function SandboxPage() {
                 }`}
               >
                 <div className="text-[10px] text-slate-500 mb-1 capitalize">
-                  {msg.sender === "user" ? `User (${mockUserId})` : msg.sender === "system" ? "System Error" : "AI Agent"}
+                  {msg.sender === "user" 
+                    ? `User (${mockUserId})` 
+                    : msg.sender === "system" 
+                      ? (msg.content.startsWith("Error:") ? "System Error" : "System Notification") 
+                      : "AI Agent"}
                 </div>
                 
                 <div
@@ -607,13 +800,23 @@ export default function SandboxPage() {
                     msg.sender === "user"
                       ? "bg-blue-600 text-white rounded-tr-none shadow-sm"
                       : msg.sender === "system"
-                      ? "bg-red-950/40 border border-red-500/20 text-red-300"
+                      ? (isLightMode 
+                          ? (msg.content.startsWith("Error:") ? "bg-red-50 border border-red-200 text-red-800" : "bg-amber-50 border border-amber-200 text-amber-900") 
+                          : (msg.content.startsWith("Error:") ? "bg-red-950/40 border border-red-500/20 text-red-300" : "bg-yellow-950/20 border border-yellow-500/20 text-yellow-300"))
                       : isLightMode
                       ? "bg-slate-100 border border-slate-200 text-slate-800 rounded-tl-none shadow-sm"
                       : "bg-slate-800 text-slate-100 rounded-tl-none border border-white/5"
                   }`}
                 >
-                  {msg.sender === "assistant" ? (
+                  {msg.imageData && (
+                    <img 
+                      src={msg.imageData} 
+                      alt="Attached" 
+                      className={`max-h-48 w-auto rounded-lg mb-3 cursor-zoom-in hover:opacity-90 transition-opacity border ${isLightMode ? 'border-slate-200' : 'border-white/10'}`} 
+                      onClick={() => setFullScreenImage(msg.imageData || null)}
+                    />
+                  )}
+                  {msg.sender === "assistant" || msg.sender === "system" ? (
                     msg.content ? (
                       renderFormattedContent(msg.content)
                     ) : (
@@ -667,12 +870,16 @@ export default function SandboxPage() {
           
           <form onSubmit={handleSendMessage} className={`p-4 border-t flex flex-col gap-2 transition-colors duration-300 ${isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0f172a]/20 border-white/5"}`}>
             {selectedImage && (
-              <div className="relative inline-block self-start">
-                <img src={selectedImage} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-slate-300" />
+              <div className="relative inline-block self-start z-10 hover:z-50 group">
+                <img 
+                  src={selectedImage} 
+                  alt="Preview" 
+                  className="h-16 w-16 object-cover rounded-lg border border-slate-300 transition-transform duration-200 origin-bottom-left group-hover:scale-[4] group-hover:shadow-2xl cursor-zoom-in" 
+                />
                 <button
                   type="button"
                   onClick={() => setSelectedImage(null)}
-                  className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600"
+                  className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600 z-10 opacity-100 group-hover:opacity-0 transition-opacity"
                 >
                   ×
                 </button>
@@ -726,13 +933,29 @@ export default function SandboxPage() {
                 required
                 disabled={loading}
               />
-              <button
-                type="submit"
-                disabled={loading || (!query.trim() && !selectedImage)}
-                className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all disabled:opacity-50 shadow-md"
-              >
-                Send
-              </button>
+              {loading ? (
+                <button
+                  type="button"
+                  onClick={handleStopGeneration}
+                  className="px-5 py-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition-all shadow-md flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Stop
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!query.trim() && !selectedImage}
+                  className="p-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all disabled:opacity-50 shadow-md flex items-center justify-center"
+                  title="Send"
+                >
+                  <svg className="w-5 h-5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              )}
             </div>
           </form>
         </section>
@@ -805,6 +1028,18 @@ export default function SandboxPage() {
         </Panel>
       </PanelGroup>
       </div>
+      {fullScreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out p-4 md:p-8"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <img 
+            src={fullScreenImage} 
+            alt="Fullscreen" 
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
+          />
+        </div>
+      )}
     </div>
   );
 }
