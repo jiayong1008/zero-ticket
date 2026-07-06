@@ -8,28 +8,28 @@
 ZeroTicket: AI Support-as-Code
 
 **Short Description (Summary):** 
-An autonomous AI Tier-2 support engineer that securely queries live production databases using a proprietary SQL Security Guard and Fireworks AI.
+An autonomous AI Tier-3 support engineer that automates technical SaaS operations by securely reasoning over codebases, database records, server logs, and recent Git history using a secure SQL Security Guard and AMD-optimized local LLMs.
 
 **Long Description:** 
-In B2B SaaS, customer support often gets bottlenecked by complex inquiries like, "Why is my payment pending?" These require a human engineer to read the source code and manually query the production database, which is expensive and slow. Current AI chatbots fail because they only read static documentation, and giving generic LLMs raw database access is a massive security and data-leak liability.
+In B2B SaaS, customer support gets bottlenecked by complex technical inquiries like, "Why did the chatbot classify my intent as 'cobroke' instead of 'tenant'?" or "Why was my payment charged incorrectly?" Resolving these require software engineers to stop coding, dig through codebase rules, query production replicas, and trace server log files. This process is slow, expensive, and takes engineers away from building features.
 
-ZeroTicket solves this. It is a self-hosted AI engine that ingests an enterprise codebase and extracts the database schema. When a user asks a complex question, the AI generates a SQL query. Crucially, before execution, our proprietary **SQL Security Guard** intercepts the query and dynamically injects JWT-based tenant constraints (e.g., `tenant_id = 123`), ensuring absolute data isolation.
+ZeroTicket solves this. It is a self-hosted AI engine that ingests an enterprise codebase, extracts the database schema, parses server logs, and indexes recent Git history. When a customer asks a complex technical question, the AI reasons over the actual code rules and live data to provide a precise explanation. Crucially, before executing any database query or log lookup, our proprietary **SQL Security Guard** wraps requests in JWT-based tenant constraints (e.g., `tenant_id = 123`), ensuring absolute multi-tenant data isolation and preventing data leakage.
 
 ### 🌟 Key Innovations & Standout Features:
-1. **The SQL Security Guard:** Our proprietary compiler safety layer parses AI-generated SQL queries and intercepts mutations (INSERT, UPDATE, DELETE). It automatically wraps queries in tenant-isolation constraints at runtime based on the user's secure JWT context. It is mathematically impossible for one client to access another client's data.
+1. **The SQL Security Guard:** Our proprietary compiler safety layer parses AI-generated SQL queries and intercepts mutations. It automatically wraps queries in tenant-isolation constraints at runtime based on the user's secure JWT context. It is mathematically impossible for one client to access another client's data.
 2. **Multi-Language AST Ingestion Engine:** Rather than generic text search, our ingestion pipeline uses Tree-sitter and abstract syntax tree (AST) parsers to scan classes, endpoints, database relations, and policies. It natively supports Node.js (Express, Next.js), Python (FastAPI, Django), PHP (Laravel), and Prisma schemas.
-3. **Automated GitOps Webhook Sync:** ZeroTicket is built for production operations. It exposes a secure `/api/webhooks/github` endpoint that integrates directly with GitHub push events, triggering background ingestion tasks automatically on every code commit.
-4. **Token-Aware Incremental Ingestion:** To stay within LLM rate limits and reduce token costs, our vector database tracks chunk IDs and skips unchanged code blocks. For updates and changes, a built-in clean-up pipeline removes stale vectors to prevent duplicate contexts.
+3. **Log & Timeline-Aware Troubleshooting:** ZeroTicket integrates with server log files (e.g., `server.log`) and database audit logs. By scanning recent Git commits (specifically targeted to the last 20 commits to avoid token bloat), it cross-references log timelines with code updates. It can instantly tell a user: *"Your payment failed yesterday due to a database timeout, but commit `a8f3b2c` resolved this 2 hours ago."*
+4. **Interactive Ingest Guidance & Context Tuning:** During repository onboarding, developers can provide custom context guidelines (e.g., where debug logs are located) to instruct the indexing engine, allowing ZeroTicket to customize its reasoning system for any repository layout.
 5. **Model-Agnostic & 100% Private (AMD GPU + Gemma 2):** Built to meet strict enterprise compliance (SOC2/HIPAA). The entire stack can be run on-premise on AMD GPUs using Google's open-weights Gemma 2, preventing proprietary corporate code or database schemas from leaking to third-party public cloud APIs.
 6. **Token-Budgeted Conversational Memory:** Features a sliding contextual window and dynamic prompt construction optimized specifically for prompt caching discounts, providing sub-second AI response times at a fraction of the cost.
 
-We built this using FastAPI, Next.js, ChromaDB, and Tree-sitter. ZeroTicket proves that AI can securely execute dynamic SQL in a multi-tenant environment without compromising data security or corporate IP.
+We built this using FastAPI, Next.js, ChromaDB, and Tree-sitter. ZeroTicket proves that AI can securely execute dynamic SQL and parse production logs in a multi-tenant environment without compromising data security or corporate IP.
 
 **Main Tracks:** 
 Unicorn Track
 
 **Technologies:** 
-Fireworks AI, Python, FastAPI, Next.js, React, TailwindCSS, ChromaDB, MySQL, Llama 3
+Fireworks AI, Python, FastAPI, Next.js, React, TailwindCSS, ChromaDB, MySQL, PostgreSQL, Gemma 2, Llama 3
 
 ---
 
@@ -55,7 +55,7 @@ Self-hosted / Docker (Designed for Enterprise On-Premise Privacy)
 *(Insert URL if hosted, e.g., on Vercel or an AMD VM. If running locally for the demo, mention it is a self-hosted enterprise architecture.)*
 
 **Additional Information:** 
-ZeroTicket is designed specifically for enterprise B2B scaling. By utilizing open-source models via Fireworks AI and AMD GPU infrastructure, it offers a pathway for strict enterprise compliance (HIPAA, SOC2) by ensuring proprietary code and database schemas never leave the company's internal network. In the future, we plan to expand the SQL Security Guard to natively support PostgreSQL and MongoDB, and introduce automated "fix" PR generation for common bugs identified through repetitive support tickets.
+ZeroTicket is designed specifically for enterprise B2B scaling. By utilizing open-source models via Fireworks AI and AMD GPU infrastructure, it offers a pathway for strict enterprise compliance (HIPAA, SOC2) by ensuring proprietary code and database schemas never leave the company's internal network. In the future, we plan to expand the SQL Security Guard to natively support MongoDB, and introduce automated "fix" PR generation for common bugs identified through repetitive support tickets.
 
 ---
 ---
@@ -67,18 +67,18 @@ ZeroTicket is designed specifically for enterprise B2B scaling. By utilizing ope
 The video is the most critical part of your submission. Judges will skim the text but will watch the video. 
 
 *   **0:00 - 0:45 | The Hook & The Problem**
-    *   **Visual:** Show a slide with a massive pile of money burning, or a frantic developer looking at a database. 
-    *   **Script:** "B2B SaaS companies burn millions of dollars forcing their best software engineers to answer Level-2 support tickets. When a customer asks 'Why is my payment pending?', an AI chatbot can't answer it because it doesn't have access to the production database. But giving an LLM raw SQL access is a massive security risk. We built ZeroTicket to solve this."
+    *   **Visual:** Show a slide with a massive pile of money burning, or a support rep frantically messaging developers. 
+    *   **Script:** "B2B SaaS companies burn millions of dollars forcing their best software engineers to answer Level-2 and Level-3 support tickets. When a customer asks 'Why did the chatbot classify my intent as cobroke instead of tenant yesterday?', an agent can't answer it because they don't have access to server logs, codebase commits, or production databases. But giving an AI chatbot raw access is a massive security risk. We built ZeroTicket to solve this."
 *   **0:45 - 2:30 | The Demo (Show the UI & The Magic)**
     *   **Visual:** Screen record your Next.js dashboard. Show the Sandbox page. Set mock JWT to `{"tenant_id": 1, "user_id": 101}`.
-    *   **Script:** "ZeroTicket acts as a Tier-2 support engineer. Let me show you two scenarios. First, Alice asks, 'Why is my payment pending?'. ZeroTicket queries the database, sees the status is pending via ACH, consults our codebase rules which state ACH transfers take 3 days to clear, and gives a perfect answer. 
+    *   **Script:** "ZeroTicket acts as a virtual Tier-3 support engineer. Let me show you how it works. First, Alice asks, 'Why did the system classify my inquiry as cobroke yesterday?'. ZeroTicket reads our codebase `IntentClassifier.py` rules, retrieves yesterday's audit logs from the database, and explains: 'The keyword "agent" in your query triggered the cobroke rule. However, a bug fix was deployed in commit `a8f3b2` two hours ago, resolving this issue.'
     
-    Now, a more complex scenario: Alice asks, 'Why was I charged $900 instead of $1,000 for invoice 10?'. Traditional RAG bots fail here. But ZeroTicket queries the invoice table, checks Alice's user profile to find she is a 'Premium' tier user, and reads our codebase `DiscountController.php` logic which grants Premium users a 10% discount on orders over $1,000. It correlates these facts to explain the discount to Alice.
+    Now, a billing scenario: Alice asks, 'Why was I charged $900 instead of $1,000 for invoice 10?'. Traditional RAG bots fail here. But ZeroTicket queries the invoice table, checks Alice's user profile to find she is a 'Premium' tier user, and reads our codebase `DiscountController.php` logic which grants Premium users a 10% discount on orders over $1,000. It correlates these facts to explain the discount to Alice.
     
     Finally, watch what happens when Alice queries: 'Show me all invoices.'. Before it hits our MySQL database, our proprietary **SQL Security Guard** intercepts the raw SQL, and dynamically wraps it in tenant-isolation constraints. Alice only sees her own invoice, proving it is mathematically impossible for Tenant A to leak data to Tenant B."
 *   **2:30 - 3:30 | The Tech Stack & Fireworks AI / AMD Angle**
     *   **Visual:** Show a quick architecture diagram (React -> FastAPI -> ChromaDB -> Fireworks AI/MySQL).
-    *   **Script:** "To do this securely, enterprises demand on-premise data privacy. That's why we built this for the Unicorn Track using **Fireworks AI**. Instead of sending proprietary source code to OpenAI, ZeroTicket uses ultra-fast open-source inference via Fireworks API. This proves that a 100% air-gapped, privacy-first AI support agent is possible today."
+    *   **Script:** "To do this securely, enterprises demand on-premise data privacy. That's why we built this for the Unicorn Track using **Fireworks AI** and **Gemma 2**. Instead of sending proprietary source code or database schemas to OpenAI, ZeroTicket can be deployed on AMD GPUs running Google's open-weights Gemma 2 locally. This proves that a 100% air-gapped, privacy-first AI support agent is possible today."
 *   **3:30 - 4:00 | The Business Model (Selling it)**
     *   **Visual:** Slide showing "B2B SaaS Licensing".
     *   **Script:** "Our go-to-market is B2B enterprise software companies. We charge a flat per-project licensing fee for the self-hosted Docker deployment, saving companies hundreds of engineering hours every month. Thank you."
@@ -86,11 +86,11 @@ The video is the most critical part of your submission. Judges will skim the tex
 ## 5. 💼 How to Sell It (The Startup Angle)
 
 When judges score the **Product/Market Potential**, they are looking for a real business model. 
-1.  **Who is the buyer?** CTOs and VPs of Engineering. They hate that their highly-paid developers are stuck doing customer support. ZeroTicket gives them their developers back.
-2.  **Why buy this over Intercom's AI?** Intercom AI just reads Notion docs. ZeroTicket reads the *actual live database* safely. Emphasize that difference heavily. 
-3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech) cannot use generic AI tools due to compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Fireworks AI/AMD GPUs, you capture the high-end market that OpenAI cannot touch.
+1.  **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads. They hate that developers are stuck doing support. ZeroTicket gives them their developers back and reduces support resolution times from days to seconds.
+2.  **Why buy this over Intercom's AI?** Intercom AI just reads static FAQ documents and Notion pages. ZeroTicket reads the *actual live database records, server logs, and codebase logic* safely. 
+3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 2 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.
 
 ## 6. 🔥 Pro-Tips for Submission Day
 *   **Make sure the repo is public** when you submit, or the judges will instantly dock points.
 *   **Include a robust README in your GitHub** (which you already have!). Make sure it has setup instructions just in case a judge wants to run it.
-*   **In the Video:** Speak clearly, and don't speed through the demo. Let them see the SQL Security Guard working in real-time. That is your killer feature.
+*   **In the Video:** Speak clearly, and don't speed through the demo. Let them see the SQL Security Guard and log trace timeline working in real-time. That is your killer feature.

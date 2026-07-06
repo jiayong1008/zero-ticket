@@ -502,4 +502,32 @@ class CodeParser:
                         # Log error internally and continue
                         print(f"Error parsing file {rel_path}: {str(e)}")
                     
+        # Ingest recent Git commit history as a virtual chunk
+        git_dir = os.path.join(self.repo_path, ".git")
+        if os.path.exists(git_dir):
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["git", "log", "-n", "15", "--pretty=format:Commit: %h | Author: %an | Date: %ad | %s", "--date=relative"],
+                    cwd=self.repo_path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    commit_log = result.stdout.strip()
+                    git_file_path = os.path.join(self.repo_path, "git_history.txt")
+                    chunks.append({
+                        'file_path': git_file_path,
+                        'content': f"Recent Git Commit History (Last 15 updates):\n\n{commit_log}",
+                        'name': 'GitCommitHistory',
+                        'start_line': 1,
+                        'end_line': len(commit_log.splitlines()) + 2,
+                        'chunk_type': 'general_logic'
+                    })
+                    print(f"[Git Ingestion] Successfully ingested {len(commit_log.splitlines())} commits into virtual chunk.")
+            except Exception as e:
+                print(f"[Git Ingestion Error] Failed to scan git logs: {e}")
+
         return chunks

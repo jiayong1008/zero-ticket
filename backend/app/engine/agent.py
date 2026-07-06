@@ -16,6 +16,110 @@ class AgentEngine:
         self._llm_base_url = llm_base_url
         self.chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id, llm_base_url=llm_base_url)
 
+    def _get_live_logs(self, company_id: str, repository_id: str, jwt_claims: dict) -> tuple[str, list[str]]:
+        """
+        Scans for .log files in the repository directory, reads from the bottom up,
+        filters for rows containing jwt_claims (user_id/tenant_id), and returns a formatted
+        log string and a list of thought logs.
+        """
+        import os
+        from app.db import Repository
+        
+        # 1. Resolve repository path
+        repo = None
+        if repository_id:
+            repo = self.db.query(Repository).filter(Repository.id == repository_id).first()
+        if not repo:
+            repo = self.db.query(Repository).filter(Repository.company_id == company_id).first()
+            
+        if not repo or not repo.repo_name or not os.path.exists(repo.repo_name):
+            return "No active repository found or directory does not exist.", ["No repository mapped for live log scanning."]
+            
+        repo_path = repo.repo_name
+        log_files = []
+        exclude_dirs = {'.venv', 'venv', 'node_modules', '.git', 'vendor'}
+        
+        # 2. Scan for log files
+        try:
+            for root, dirs, files in os.walk(repo_path):
+                dirs[:] = [d for d in dirs if d not in exclude_dirs]
+                for file in files:
+                    if file.endswith('.log'):
+                        log_files.append(os.path.join(root, file))
+        except Exception as e:
+            return f"Error scanning log files: {str(e)}", [f"Failed to scan directory for logs: {str(e)}"]
+            
+        if not log_files:
+            return "No server log files (.log) found in the repository.", ["No local log files discovered in repository path."]
+            
+        # 3. Resolve user identifiers to filter
+        search_terms = []
+        for key in ["user_id", "tenant_id", "company_id", "customer_id", "client_id"]:
+            val = jwt_claims.get(key)
+            if val is not None and val != "":
+                search_terms.append(str(val))
+                
+        if not search_terms:
+            return "No secure user identifier claims provided in JWT context. Logs omitted for security.", ["Logs omitted: missing user/tenant ID in JWT context."]
+            
+        # 4. Read and filter logs
+        matching_lines = []
+        thought_logs = [
+            f"Scanning log files: {[os.path.basename(f) for f in log_files]}",
+            f"Filtering securely for identifiers: {search_terms}"
+        ]
+        
+        try:
+            for log_path in log_files:
+                try:
+                    with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        import re
+                        patterns = [re.compile(r'\b' + re.escape(term) + r'\b') for term in search_terms]
+                        lines = f.readlines()
+                        for line in reversed(lines[-1000:]):
+                            if any(pattern.search(line) for pattern in patterns):
+                                matching_lines.append(f"[{os.path.basename(log_path)}] {line.strip()}")
+                                if len(matching_lines) >= 100:
+                                    break
+                except Exception as ex:
+                    thought_logs.append(f"Failed to read file {os.path.basename(log_path)}: {str(ex)}")
+                if len(matching_lines) >= 100:
+                    break
+        except Exception as e:
+            return f"Error reading log files: {str(e)}", thought_logs + [f"Error reading log: {str(e)}"]
+            
+        # 5. Format results
+        if matching_lines:
+            log_context = "LIVE LOG ENTRIES MATCHING USER CONTEXT:\n" + "\n".join(reversed(matching_lines))
+            thought_logs.append(f"Matched {len(matching_lines)} secure log lines.")
+        else:
+            log_context = "No live server log entries matched this user's context/identifiers."
+            thought_logs.append("No matching log entries found.")
+            
+        return log_context, thought_logs
+
+    def _get_custom_guidelines(self, company_id: str, repository_id: str) -> str:
+        """
+        Reads custom user guidelines if ai_context_rules.txt exists in the repository root.
+        """
+        import os
+        from app.db import Repository
+        repo = None
+        if repository_id:
+            repo = self.db.query(Repository).filter(Repository.id == repository_id).first()
+        if not repo:
+            repo = self.db.query(Repository).filter(Repository.company_id == company_id).first()
+            
+        if repo and repo.repo_name:
+            rules_path = os.path.join(repo.repo_name, "ai_context_rules.txt")
+            if os.path.exists(rules_path):
+                try:
+                    with open(rules_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        return f.read().strip()
+                except Exception:
+                    pass
+        return ""
+
     def _get_gemini_client(self, api_key: str = ""):
         key = api_key or settings.GEMINI_API_KEY
         if not key:
@@ -230,6 +334,17 @@ class AgentEngine:
             chroma = _CS(persist_dir="chroma_db", repository_id=repository_id)
         else:
             chroma = self.chroma
+        
+        # Ingest live logs context and custom guidelines
+        log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims)
+        custom_guidelines = self._get_custom_guidelines(company_id, repository_id)
+        guideline_context = f"\nCUSTOM REPOSITORY CONFIGURATION & RULES:\n{custom_guidelines}\n" if custom_guidelines else ""
+        
+        thought_log.append("--- [Live Logs Matching Context] ---")
+        for t in log_thoughts:
+            thought_log.append(t)
+        thought_log.append(log_context + "\n")
+
         code_snippets = []
         code_context = ""
         try:
@@ -365,6 +480,10 @@ Your goal is to answer the customer's support inquiry in a helpful, non-technica
 CODE LOGIC EXPLAINER:
 {code_context}
 
+LIVE SERVER LOGS:
+{log_context}
+
+{guideline_context}
 USER INQUIRY:
 "{query}"
 
@@ -469,6 +588,17 @@ INSTRUCTIONS:
             chroma = _CS(persist_dir="chroma_db", repository_id=repository_id)
         else:
             chroma = self.chroma
+            
+        # Ingest live logs context and custom guidelines
+        log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims)
+        custom_guidelines = self._get_custom_guidelines(company_id, repository_id)
+        guideline_context = f"\nCUSTOM REPOSITORY CONFIGURATION & RULES:\n{custom_guidelines}\n" if custom_guidelines else ""
+        
+        yield yield_event("thought", "--- [Live Logs Matching Context] ---\n")
+        for t in log_thoughts:
+            yield yield_event("thought", t + "\n")
+        yield yield_event("thought", log_context + "\n\n")
+
         code_snippets = []
         code_context = ""
         try:
@@ -601,6 +731,10 @@ Your goal is to answer the customer's support inquiry in a helpful, non-technica
 CODE LOGIC EXPLAINER:
 {code_context}
 
+LIVE SERVER LOGS:
+{log_context}
+
+{guideline_context}
 USER INQUIRY:
 "{query}"
 
