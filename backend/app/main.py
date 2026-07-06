@@ -129,6 +129,12 @@ class GenerateJWTRequest(BaseModel):
     user_id: str
     tenant_id: str
 
+class LearnContextRequest(BaseModel):
+    company_id: str
+    repository_id: str
+    correction: str
+    chat_history: Optional[list] = None
+
 # API Endpoints
 
 @app.get("/api/health")
@@ -645,3 +651,26 @@ def simulate_sandbox(data: SandboxRequest, db: Session = Depends(get_db)):
     )
     
     return StreamingResponse(stream_generator, media_type="text/event-stream")
+
+@app.post("/api/sandbox/learn", dependencies=[Depends(verify_admin_passphrase)])
+def learn_sandbox_context(data: LearnContextRequest, db: Session = Depends(get_db)):
+    from app.engine.learning_optimizer import optimize_and_save_context_rules
+    repo = db.query(Repository).filter(Repository.id == data.repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found.")
+        
+    try:
+        updated_rules = optimize_and_save_context_rules(
+            repository_path=repo.repo_name,
+            user_correction=data.correction,
+            chat_history=data.chat_history,
+            company_id=data.company_id,
+            db=db
+        )
+        return {
+            "status": "success",
+            "message": "AI context guidelines updated successfully.",
+            "rules": updated_rules
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -291,6 +291,11 @@ export default function SandboxPage() {
   // Theme state
   const [isLightMode, setIsLightMode] = useState(false);
   
+  // Teach AI / Learn loop state
+  const [teachMessageId, setTeachMessageId] = useState<string | null>(null);
+  const [teachInput, setTeachInput] = useState("");
+  const [teachStatus, setTeachStatus] = useState("");
+  
   // Mock claims for the JWT
   const [mockUserId, setMockUserId] = useState("852");
   const [mockTenantId, setMockTenantId] = useState("1");
@@ -640,6 +645,48 @@ export default function SandboxPage() {
     setMessages(initialMsg);
     sessionStorage.setItem("sandbox_messages", JSON.stringify(initialMsg));
     setActiveThoughtLog("");
+  };
+
+  const handleSaveContext = async (msg: Message) => {
+    if (!teachInput.trim()) return;
+    setTeachStatus("loading");
+    
+    // We pass the last few messages for conversation context
+    const idx = messages.findIndex(m => m.id === msg.id);
+    const historySlice = messages.slice(Math.max(0, idx - 4), idx + 1).map(m => ({
+      sender: m.sender,
+      content: m.content
+    }));
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sandbox/learn`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Token": localStorage.getItem("admin_token") || ""
+        },
+        body: JSON.stringify({
+          company_id: companyId,
+          repository_id: repositoryId,
+          correction: teachInput,
+          chat_history: historySlice
+        })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to update guidelines context.");
+      }
+      
+      setTeachStatus("success");
+      setTimeout(() => {
+        setTeachMessageId(null);
+        setTeachInput("");
+        setTeachStatus("");
+      }, 2000);
+    } catch (err: any) {
+      setTeachStatus(`Error: ${err.message || "An error occurred"}`);
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -1129,16 +1176,88 @@ export default function SandboxPage() {
                 </div>
 
                 {msg.thoughtLog && (
-                  <button
-                    onClick={() => setActiveThoughtLog(msg.thoughtLog || "")}
-                    className="mt-1.5 text-xs text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    Inspect Engine Thoughts
-                  </button>
+                  <div className="mt-2 flex flex-col gap-2">
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => setActiveThoughtLog(msg.thoughtLog || "")}
+                        className="text-xs text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Inspect Engine Thoughts
+                      </button>
+                      
+                      {msg.sender === "assistant" && (
+                        <button
+                          onClick={() => {
+                            setTeachMessageId(teachMessageId === msg.id ? null : msg.id || "");
+                            setTeachInput("");
+                            setTeachStatus("");
+                          }}
+                          className={`text-xs flex items-center gap-1.5 font-semibold hover:underline ${
+                            teachMessageId === msg.id 
+                              ? "text-amber-500" 
+                              : isLightMode ? "text-slate-500 hover:text-slate-800" : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          Teach AI / Correct
+                        </button>
+                      )}
+                    </div>
+
+                    {teachMessageId === msg.id && (
+                      <div className={`mt-2 p-3 rounded-lg border flex flex-col gap-2.5 transition-colors ${
+                        isLightMode ? "bg-slate-100/50 border-slate-200" : "bg-slate-900/40 border-white/5"
+                      }`}>
+                        <div className="text-[10px] uppercase font-extrabold tracking-wider text-amber-500 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Teach AI Codebase Correction
+                        </div>
+                        <textarea
+                          value={teachInput}
+                          onChange={(e) => setTeachInput(e.target.value)}
+                          placeholder="What should the AI have known? (e.g., 'BO refers to BackOffice profiles; 1187 is a profile ID in table backoffice_profiles.')"
+                          rows={2}
+                          className={`w-full p-2 text-xs rounded border focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors font-mono leading-relaxed ${
+                            isLightMode 
+                              ? "bg-white border-slate-200 text-slate-800" 
+                              : "bg-slate-950 border-white/5 text-slate-300"
+                          }`}
+                        />
+                        <div className="flex items-center justify-between min-h-6">
+                          <span className="text-[10.5px] font-mono text-slate-400">
+                            {teachStatus === "loading" && "Optimizing rules context..."}
+                            {teachStatus === "success" && "✅ Repository rules context updated!"}
+                            {teachStatus.startsWith("Error:") && <span className="text-red-500 font-semibold">{teachStatus}</span>}
+                          </span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setTeachMessageId(null)}
+                              className={`px-2.5 py-1 text-xs rounded border transition-colors ${
+                                isLightMode 
+                                  ? "border-slate-300 hover:bg-slate-200 text-slate-600" 
+                                  : "border-white/5 hover:bg-white/5 text-slate-300"
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleSaveContext(msg)}
+                              disabled={!teachInput.trim() || teachStatus === "loading"}
+                              className="px-2.5 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded font-bold disabled:opacity-50 transition-colors"
+                            >
+                              Save Context
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {(msg.sender === "system" || msg.content.startsWith("Error:")) && i === messages.length - 1 && (
