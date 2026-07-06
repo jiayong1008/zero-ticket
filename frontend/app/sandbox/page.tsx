@@ -1484,13 +1484,13 @@ export default function SandboxPage() {
 
             {/* Error Message Display Container */}
             {teachStatus.startsWith("Error:") && (
-              <div className={`p-3 text-[11px] rounded-xl border font-mono max-h-24 overflow-y-auto leading-relaxed ${
+              <div className={`p-3 text-[11px] rounded-xl border font-mono max-h-24 overflow-y-auto leading-relaxed whitespace-pre-wrap ${
                 isLightMode 
                   ? "bg-red-50 border-red-200 text-red-800" 
                   : "bg-red-950/20 border-red-500/20 text-red-400"
               }`}>
                 <span className="font-bold uppercase text-[9px] block mb-1">Learning Error Details:</span>
-                {teachStatus.replace("Error: ", "")}
+                {teachStatus.replace("Error: ", "").replace(/\\n/g, "\n")}
               </div>
             )}
 
