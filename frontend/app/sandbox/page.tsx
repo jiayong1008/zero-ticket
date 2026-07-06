@@ -447,13 +447,39 @@ export default function SandboxPage() {
         if (matchIdx > currentIdx) {
           parts.push(text.substring(currentIdx, matchIdx));
         }
-        parts.push(<strong key={matchIdx} className={`font-extrabold`}>{match[1]}</strong>);
+        parts.push(<strong key={matchIdx} className="font-extrabold">{match[1]}</strong>);
         currentIdx = boldRegex.lastIndex;
       }
       
       if (currentIdx < text.length) {
         parts.push(text.substring(currentIdx));
       }
+
+      // Second pass: parse italics in the text segments
+      const finalParts: React.ReactNode[] = [];
+      parts.forEach((part, pIndex) => {
+        if (typeof part !== 'string') {
+          finalParts.push(part);
+          return;
+        }
+        
+        let currentItalicIdx = 0;
+        const italicRegex = /\*(.*?)\*/g;
+        let italicMatch;
+        
+        while ((italicMatch = italicRegex.exec(part)) !== null) {
+          const matchIdx = italicMatch.index;
+          if (matchIdx > currentItalicIdx) {
+            finalParts.push(part.substring(currentItalicIdx, matchIdx));
+          }
+          finalParts.push(<em key={`${pIndex}-${matchIdx}`} className="italic">{italicMatch[1]}</em>);
+          currentItalicIdx = italicRegex.lastIndex;
+        }
+        
+        if (currentItalicIdx < part.length) {
+          finalParts.push(part.substring(currentItalicIdx));
+        }
+      });
       
       if (isHeading) {
         const HeaderTag = `h${headingLevel}` as keyof JSX.IntrinsicElements;
@@ -469,7 +495,7 @@ export default function SandboxPage() {
         
         return (
           <HeaderTag key={pIdx} className={activeClass}>
-            {parts}
+            {finalParts}
           </HeaderTag>
         );
       }
@@ -478,14 +504,14 @@ export default function SandboxPage() {
         return (
           <div key={pIdx} className="flex items-start gap-2 ml-3 my-1">
             <span className="text-blue-500 mt-1.5 text-[8px]">•</span>
-            <span className="flex-1 leading-relaxed text-xs sm:text-sm">{parts}</span>
+            <span className="flex-1 leading-relaxed text-xs sm:text-sm">{finalParts}</span>
           </div>
         );
       }
       
       return (
         <p key={pIdx} className="leading-relaxed mb-1.5 text-xs sm:text-sm">
-          {parts}
+          {finalParts}
         </p>
       );
     });
