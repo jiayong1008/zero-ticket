@@ -292,7 +292,7 @@ export default function SandboxPage() {
   const [isLightMode, setIsLightMode] = useState(false);
   
   // Teach AI / Learn loop state
-  const [teachMessageId, setTeachMessageId] = useState<string | null>(null);
+  const [teachMessageIndex, setTeachMessageIndex] = useState<number | null>(null);
   const [teachInput, setTeachInput] = useState("");
   const [teachStatus, setTeachStatus] = useState("");
   
@@ -647,13 +647,12 @@ export default function SandboxPage() {
     setActiveThoughtLog("");
   };
 
-  const handleSaveContext = async (msg: Message) => {
+  const handleSaveContext = async (msgIndex: number) => {
     if (!teachInput.trim()) return;
     setTeachStatus("loading");
     
     // We pass the last few messages for conversation context
-    const idx = messages.findIndex(m => m.id === msg.id);
-    const historySlice = messages.slice(Math.max(0, idx - 4), idx + 1).map(m => ({
+    const historySlice = messages.slice(Math.max(0, msgIndex - 4), msgIndex + 1).map(m => ({
       sender: m.sender,
       content: m.content
     }));
@@ -680,7 +679,7 @@ export default function SandboxPage() {
       
       setTeachStatus("success");
       setTimeout(() => {
-        setTeachMessageId(null);
+        setTeachMessageIndex(null);
         setTeachInput("");
         setTeachStatus("");
       }, 2000);
@@ -1192,12 +1191,12 @@ export default function SandboxPage() {
                       {msg.sender === "assistant" && (
                         <button
                           onClick={() => {
-                            setTeachMessageId(teachMessageId === msg.id ? null : msg.id || "");
+                            setTeachMessageIndex(teachMessageIndex === i ? null : i);
                             setTeachInput("");
                             setTeachStatus("");
                           }}
                           className={`text-xs flex items-center gap-1.5 font-semibold hover:underline ${
-                            teachMessageId === msg.id 
+                            teachMessageIndex === i 
                               ? "text-amber-500" 
                               : isLightMode ? "text-slate-500 hover:text-slate-800" : "text-slate-400 hover:text-white"
                           }`}
@@ -1210,7 +1209,7 @@ export default function SandboxPage() {
                       )}
                     </div>
 
-                    {teachMessageId === msg.id && (
+                    {teachMessageIndex === i && (
                       <div className={`mt-2 p-3 rounded-lg border flex flex-col gap-2.5 transition-colors ${
                         isLightMode ? "bg-slate-100/50 border-slate-200" : "bg-slate-900/40 border-white/5"
                       }`}>
@@ -1237,7 +1236,7 @@ export default function SandboxPage() {
                           </span>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => setTeachMessageId(null)}
+                              onClick={() => setTeachMessageIndex(null)}
                               className={`px-2.5 py-1 text-xs rounded border transition-colors ${
                                 isLightMode 
                                   ? "border-slate-300 hover:bg-slate-200 text-slate-600" 
@@ -1247,7 +1246,7 @@ export default function SandboxPage() {
                               Cancel
                             </button>
                             <button
-                              onClick={() => handleSaveContext(msg)}
+                              onClick={() => handleSaveContext(i)}
                               disabled={!teachInput.trim() || teachStatus === "loading"}
                               className="px-2.5 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded font-bold disabled:opacity-50 transition-colors"
                             >
