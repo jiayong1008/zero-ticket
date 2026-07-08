@@ -56,6 +56,11 @@ export default function DashboardPage() {
   const [success, setSuccess] = useState("");
   const [isLightMode, setIsLightMode] = useState(false);
 
+  // AI Context Rules states
+  const [contextRules, setContextRules] = useState("");
+  const [isSavingRules, setIsSavingRules] = useState(false);
+  const [isLoadingRules, setIsLoadingRules] = useState(false);
+
   // Admin lock states
   const [loginRequired, setLoginRequired] = useState(false);
   const [adminToken, setAdminToken] = useState("");
@@ -187,6 +192,65 @@ export default function DashboardPage() {
       }
     }
   }, [activeRepoId, projects]);
+
+  // Fetch rules whenever the active repository changes
+  useEffect(() => {
+    if (!activeRepoId) {
+      setContextRules("");
+      return;
+    }
+    
+    setIsLoadingRules(true);
+    const headers: Record<string, string> = {};
+    const token = adminToken || localStorage.getItem("admin_token") || "";
+    if (token) {
+      headers["X-Admin-Token"] = token;
+    }
+
+    fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/rules`, { headers })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load rules");
+        return r.json();
+      })
+      .then((data) => {
+        setContextRules(data.rules || "");
+      })
+      .catch((err) => {
+        console.error("Error loading rules:", err);
+      })
+      .finally(() => setIsLoadingRules(false));
+  }, [activeRepoId, adminToken]);
+
+  const handleSaveRules = () => {
+    if (!activeRepoId) return;
+    
+    setIsSavingRules(true);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    const token = adminToken || localStorage.getItem("admin_token") || "";
+    if (token) {
+      headers["X-Admin-Token"] = token;
+    }
+
+    fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/rules`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ rules: contextRules }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to save rules");
+        return r.json();
+      })
+      .then(() => {
+        toast.success("AI Context Guidelines saved successfully!");
+      })
+      .catch((err) => {
+        console.error("Error saving rules:", err);
+        toast.error("Failed to save AI Context Guidelines.");
+      })
+      .finally(() => setIsSavingRules(false));
+  };
 
   useEffect(() => {
     if (!mounted) return;
@@ -1168,6 +1232,75 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
           </div>
         </div>
       </div>
+
+      {/* AI Context Rules / Knowledge Base Section */}
+      {activeRepoId && (
+        <div className={`rounded-xl p-5 border flex flex-col gap-4 transition-all shadow-sm ${
+          isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                Knowledge Base & Tuning
+              </span>
+              <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
+                Custom AI Context Guidelines
+              </h2>
+            </div>
+            <p className={`text-[11px] max-w-md text-right transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+              Specify log paths, database mappings, error code resolutions, and custom business logic. These rules reside in <code>ai_context_rules.txt</code>.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {isLoadingRules ? (
+              <div className="h-32 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+              </div>
+            ) : (
+              <textarea
+                value={contextRules}
+                onChange={(e) => setContextRules(e.target.value)}
+                placeholder="Example:&#10;- The primary server log is located at 'server.log'.&#10;- Each User ID is mapped to a contact number. You can extract it from the log if needed.&#10;- When payment is ACH and status is pending, it takes 3 business days to clear."
+                className={`w-full h-36 px-3 py-2 text-xs font-mono rounded-lg border transition-colors outline-none resize-y ${
+                  isLightMode
+                    ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+                }`}
+              />
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs">
+            <span className={isLightMode ? "text-slate-500" : "text-slate-400"}>
+              Guidelines will be automatically read on every support query.
+            </span>
+            <button
+              onClick={handleSaveRules}
+              disabled={isSavingRules || isLoadingRules}
+              className={`px-4 py-1.5 text-[11px] font-bold rounded-lg transition-all active:scale-95 shadow-sm flex items-center gap-1.5 ${
+                isSavingRules 
+                  ? "bg-slate-500 text-slate-200 cursor-not-allowed" 
+                  : "bg-blue-600 hover:bg-blue-500 text-white"
+              }`}
+            >
+              {isSavingRules ? (
+                <>
+                  <div className="w-3 h-3 rounded-full border border-white border-t-transparent animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  Save Guidelines
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Integration Code Blocks Section */}
       <div className="space-y-4">

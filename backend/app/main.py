@@ -135,6 +135,9 @@ class LearnContextRequest(BaseModel):
     correction: str
     chat_history: Optional[list] = None
 
+class SaveRulesRequest(BaseModel):
+    rules: str
+
 # API Endpoints
 
 @app.get("/api/health")
@@ -674,3 +677,36 @@ def learn_sandbox_context(data: LearnContextRequest, db: Session = Depends(get_d
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/repository/{repository_id}/rules", dependencies=[Depends(verify_admin_passphrase)])
+def get_repository_rules(repository_id: str, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+    
+    rules_filepath = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    rules_content = ""
+    if os.path.exists(rules_filepath):
+        try:
+            with open(rules_filepath, "r", encoding="utf-8", errors="ignore") as f:
+                rules_content = f.read()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to read rules file: {str(e)}")
+            
+    return {"rules": rules_content}
+
+@app.post("/api/repository/{repository_id}/rules", dependencies=[Depends(verify_admin_passphrase)])
+def save_repository_rules(repository_id: str, data: SaveRulesRequest, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+        
+    rules_filepath = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    try:
+        os.makedirs(os.path.dirname(rules_filepath), exist_ok=True)
+        with open(rules_filepath, "w", encoding="utf-8") as f:
+            f.write(data.rules)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write rules file: {str(e)}")
+        
+    return {"status": "saved", "rules": data.rules}
