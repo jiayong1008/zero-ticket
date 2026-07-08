@@ -1539,30 +1539,31 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
                 Knowledge Base & Tuning
               </span>
-              <div className="flex items-center gap-3">
-                <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
-                  Custom AI Context Guidelines
-                </h2>
-                <button
-                  onClick={handleResetOnboarding}
-                  disabled={isLoadingQuestions}
-                  className={`px-2 py-0.5 text-[9px] font-bold rounded border transition-all active:scale-95 flex items-center gap-1 shadow-sm ${
-                    isLightMode
-                      ? "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      : "border-white/5 text-slate-300 hover:bg-white/5"
-                  }`}
-                  title="Force re-generate onboarding clarification questions from project files & database schema."
-                >
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
-                  </svg>
-                  Re-run Discovery
-                </button>
-              </div>
+              <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
+                Custom AI Context Guidelines
+              </h2>
             </div>
-            <p className={`text-[11px] max-w-md text-right transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
-              Specify log paths, database mappings, error code resolutions, and custom business logic. These rules reside in <code>ai_context_rules.txt</code>.
-            </p>
+            
+            <div className="flex items-center gap-4">
+              <p className={`text-[11px] max-w-xs text-right transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                Specify log paths, database mappings, error resolutions, and logic in <code>ai_context_rules.txt</code>.
+              </p>
+              <button
+                onClick={handleResetOnboarding}
+                disabled={isLoadingQuestions}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all active:scale-95 flex items-center gap-1.5 shadow-sm ${
+                  isLightMode
+                    ? "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                    : "border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
+                }`}
+                title="Force re-generate onboarding clarification questions from project files & database schema."
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
+                </svg>
+                Re-run AI Discovery
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
