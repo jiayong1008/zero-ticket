@@ -48,6 +48,13 @@ When a user asks a question via the chat widget (`/api/chat/send`):
    - **Database Mode:** The SQL results and code context are fed to the LLM to generate the final natural language response.
    - **Codebase-Only Mode:** If no database is connected, the SQL generation/execution steps are skipped entirely, and the LLM synthesizes an answer purely by explaining the company's rules, logic, and policies found in the codebase.
 
+### 3. The Self-Tuning Context Rules Loop (Knowledge Base)
+To make the AI agent smarter over time without adding database or codebase overhead, ZeroTicket implements a version-controlled **"Context-as-Code"** alignment loop:
+1. **Rule Ingestion:** On every support query, the backend reads custom guidelines defined in a plain text `ai_context_rules.txt` file located in the root of the linked repository.
+2. **Context Adaptation:** These rules are fed directly to the LLM system prompt, allowing developers/support admins to define custom log paths, database mappings, error code resolutions, and business logic.
+3. **Interactive Learning ("Teach AI"):** Support engineers can correct AI mistakes directly from the Sandbox page. ZeroTicket sends the correction to the `/api/sandbox/learn` endpoint, where an LLM merges it with existing guidelines in a token-optimized format and writes it back to `ai_context_rules.txt`.
+4. **Manual Guidelines Management:** Alternatively, admins can directly view and edit the rules file contents from the Developer Dashboard via the `GET` and `POST` `/api/repository/{repository_id}/rules` endpoints, making it simple to manage project context without manual code commits.
+
 ---
 
 ## 📂 Folder Structure (`backend/app/`)

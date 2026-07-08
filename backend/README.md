@@ -85,4 +85,6 @@ Start the development server using uvicorn on port `8088`:
 | `POST` | `/api/webhooks/github` | Automated webhook ingestion triggered by GitHub push events. |
 | `POST` | `/api/sandbox/simulate` | Simulates AI support agent responses with custom mock JWT claims context. |
 | `POST` | `/api/chat/session` | Authenticates support iframe widget and issues JWT context. |
-| `POST` | `/api/chat/send` | Chat communication bridge for active support widgets. | |
+| `POST` | `/api/chat/send` | Chat communication bridge for active support widgets. |
+| `GET` | `/api/repository/{id}/rules` | Fetches the custom AI guidelines (`ai_context_rules.txt`) for a repository. |
+| `POST` | `/api/repository/{id}/rules` | Overwrites the custom AI guidelines (`ai_context_rules.txt`) for a repository. |
