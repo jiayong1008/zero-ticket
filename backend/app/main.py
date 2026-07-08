@@ -410,20 +410,22 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
 _ingestion_in_progress: set = set()
 
 
-def generate_onboarding_questions_task(company_id: str, repository_id: str, api_key: str, provider: str, db):
+def generate_onboarding_questions_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session=None):
     """
     Background discovery agent that scans the repository files and database schema,
     uses the LLM to identify 3-4 configuration/context ambiguities, and saves them
     as onboarding questions in the SQLite metadata database.
     """
-    from app.db import Repository, DBConnection, OnboardingQuestion, get_target_db_conn
+    from app.db import Repository, DBConnection, OnboardingQuestion, get_target_db_conn, SessionLocal
     from app.parser.schema_extractor import SchemaExtractor
     from app.engine.agent import AgentEngine
     import os
     import json
     import re
     
-    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    db = db_session or SessionLocal()
+    try:
+        repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo or not repo.repo_name or not os.path.exists(repo.repo_name):
         return
         
@@ -583,6 +585,10 @@ Example JSON output format:
             db.commit()
         except Exception as e_fallback:
             print(f"[onboarding] Fallback failed: {str(e_fallback)}")
+    finally:
+        if not db_session:
+            db.close()
+
 
 @app.post("/api/ingest", dependencies=[Depends(verify_admin_passphrase)])
 def run_ingestion(
@@ -1000,8 +1006,7 @@ def reset_onboarding_questions(repository_id: str, background_tasks: BackgroundT
         repo.company_id,
         repo.id,
         api_key,
-        provider,
-        db
+        provider
     )
     
     return {"status": "triggered"}
