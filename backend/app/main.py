@@ -416,16 +416,23 @@ def generate_onboarding_questions_task(company_id: str, repository_id: str, api_
     uses the LLM to identify 3-4 configuration/context ambiguities, and saves them
     as onboarding questions in the SQLite metadata database.
     """
-    from app.db import Repository, DBConnection, OnboardingQuestion, get_target_db_conn, SessionLocal
+    from app.db import SessionLocal
+    db = db_session or SessionLocal()
+    try:
+        _execute_onboarding_discovery(company_id, repository_id, api_key, provider, db)
+    finally:
+        if not db_session:
+            db.close()
+
+def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: str, provider: str, db):
+    from app.db import Repository, DBConnection, OnboardingQuestion, get_target_db_conn
     from app.parser.schema_extractor import SchemaExtractor
     from app.engine.agent import AgentEngine
     import os
     import json
     import re
     
-    db = db_session or SessionLocal()
-    try:
-        repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo or not repo.repo_name or not os.path.exists(repo.repo_name):
         return
         
@@ -585,9 +592,6 @@ Example JSON output format:
             db.commit()
         except Exception as e_fallback:
             print(f"[onboarding] Fallback failed: {str(e_fallback)}")
-    finally:
-        if not db_session:
-            db.close()
 
 
 @app.post("/api/ingest", dependencies=[Depends(verify_admin_passphrase)])
