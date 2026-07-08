@@ -1258,16 +1258,26 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                 <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
               </div>
             ) : (
-              <textarea
-                value={contextRules}
-                onChange={(e) => setContextRules(e.target.value)}
-                placeholder="Example:&#10;- The primary server log is located at 'server.log'.&#10;- Each User ID is mapped to a contact number. You can extract it from the log if needed.&#10;- When payment is ACH and status is pending, it takes 3 business days to clear."
-                className={`w-full h-36 px-3 py-2 text-xs font-mono rounded-lg border transition-colors outline-none resize-y ${
-                  isLightMode
-                    ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                    : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
-                }`}
-              />
+              <div className="relative">
+                <textarea
+                  value={contextRules}
+                  onChange={(e) => setContextRules(e.target.value)}
+                  maxLength={3500}
+                  placeholder={"Example:\n- The primary server log is located at 'server.log'.\n- Each User ID is mapped to a contact number. You can extract it from the log if needed.\n- When payment is ACH and status is pending, it takes 3 business days to clear."}
+                  className={`w-full h-36 px-3 py-2 pb-6 text-xs font-mono rounded-lg border transition-colors outline-none resize-y ${
+                    isLightMode
+                      ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                      : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+                  }`}
+                />
+                <span className={`absolute bottom-2.5 right-3 text-[9px] font-semibold tracking-wide ${
+                  contextRules.length >= 3200 
+                    ? "text-rose-500 font-bold" 
+                    : isLightMode ? "text-slate-400" : "text-slate-500"
+                }`}>
+                  {contextRules.length} / 3,500 chars
+                </span>
+              </div>
             )}
           </div>
 
