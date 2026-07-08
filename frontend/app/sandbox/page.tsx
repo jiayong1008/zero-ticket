@@ -487,7 +487,7 @@ export default function SandboxPage() {
       });
       
       if (isHeading) {
-        const HeaderTag = `h${headingLevel}` as keyof JSX.IntrinsicElements;
+        const HeaderTag = `h${headingLevel}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
         const sizeClasses: Record<number, string> = {
           1: "text-xl font-black mt-4 mb-2",
           2: "text-lg font-bold mt-3 mb-1.5",
@@ -700,7 +700,7 @@ export default function SandboxPage() {
     }
     setSelectedImage(null);
     setLastQuery(userMessage);
-    setMessages((prev) => [...prev, { sender: "user", content: userMessage, imageData: currentImage }]);
+    setMessages((prev) => [...prev, { sender: "user", content: userMessage, imageData: currentImage || undefined }]);
     setLoading(true);
     setError("");
 

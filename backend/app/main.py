@@ -1,13 +1,16 @@
+import os
 import uuid
 import secrets
 import hashlib
+import json
+import time
 from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks, Security, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 admin_token_header = APIKeyHeader(name="X-Admin-Token", auto_error=False)
 
@@ -25,7 +28,7 @@ def verify_admin_passphrase(token: Optional[str] = Security(admin_token_header))
 
 from app.db import (
     init_db, get_db, Company, Repository, DBConnection, 
-    ChatSession, ChatMessage, encrypt_password, decrypt_password
+    ChatSession, ChatMessage, OnboardingQuestion, encrypt_password, decrypt_password
 )
 from app.auth import verify_jwt_token
 from app.parser.code_parser import CodeParser
@@ -137,6 +140,13 @@ class LearnContextRequest(BaseModel):
 
 class SaveRulesRequest(BaseModel):
     rules: str
+
+class AnswerItem(BaseModel):
+    id: str
+    answer: str
+
+class SubmitAnswersRequest(BaseModel):
+    answers: List[AnswerItem]
 
 # API Endpoints
 
@@ -378,6 +388,12 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         import time
         repo.last_synced_at = int(time.time())
         db.commit()
+        
+        # Step 4: Generate onboarding clarification questions
+        try:
+            generate_onboarding_questions_task(company_id, repository_id, api_key, provider, db)
+        except Exception as e_onboarding:
+            print(f"[onboarding] Failed to trigger onboarding questions: {e_onboarding}")
     except Exception as e:
         import traceback
         with open("ingestion_error.log", "w") as f:
@@ -392,6 +408,181 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
 
 # Track which repos are currently being ingested to prevent duplicate background tasks
 _ingestion_in_progress: set = set()
+
+
+def generate_onboarding_questions_task(company_id: str, repository_id: str, api_key: str, provider: str, db):
+    """
+    Background discovery agent that scans the repository files and database schema,
+    uses the LLM to identify 3-4 configuration/context ambiguities, and saves them
+    as onboarding questions in the SQLite metadata database.
+    """
+    from app.db import Repository, DBConnection, OnboardingQuestion, get_target_db_conn
+    from app.parser.schema_extractor import SchemaExtractor
+    from app.engine.agent import AgentEngine
+    import os
+    import json
+    import re
+    
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo or not repo.repo_name or not os.path.exists(repo.repo_name):
+        return
+        
+    # 1. Collect file list (recursive relative files, ignoring hidden and vendor dirs)
+    file_list = []
+    ignore_dirs = {".git", "node_modules", "vendor", "venv", ".venv", "__pycache__", "dist", "build"}
+    for root, dirs, files in os.walk(repo.repo_name):
+        dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
+        for file in files:
+            if file.startswith("."):
+                continue
+            # Store relative path
+            rel_path = os.path.relpath(os.path.join(root, file), repo.repo_name)
+            # Only keep files with extensions matching code/logs/db
+            ext = os.path.splitext(file)[1].lower()
+            if ext in [".py", ".js", ".ts", ".tsx", ".php", ".sql", ".log"] or file == "server.log":
+                file_list.append(rel_path)
+                
+    # Cap file list to first 50 to avoid prompt bloat
+    file_list_str = "\n".join(file_list[:50])
+    
+    # 2. Extract database schema
+    schema_context = "No database connected."
+    conn_details = db.query(DBConnection).filter(DBConnection.repository_id == repo.id).first()
+    if not conn_details:
+        conn_details = db.query(DBConnection).filter(
+            DBConnection.company_id == company_id,
+            DBConnection.repository_id == None
+        ).first()
+        
+    if conn_details:
+        try:
+            target_conn = get_target_db_conn(conn_details)
+            schema_extractor = SchemaExtractor(target_conn)
+            db_schema = schema_extractor.extract_schema(conn_details.db_name)
+            schema_context = schema_extractor.format_schema_for_llm(db_schema)
+            target_conn.close()
+        except Exception as e:
+            schema_context = f"Database connection exists but schema inspection failed: {str(e)}"
+            
+    # 3. Read existing guidelines
+    existing_guidelines = ""
+    rules_path = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    if os.path.exists(rules_path):
+        try:
+            with open(rules_path, "r", encoding="utf-8", errors="ignore") as f:
+                existing_guidelines = f.read().strip()
+        except Exception:
+            pass
+            
+    # 4. Formulate Prompt
+    prompt = f"""
+You are the AI Onboarding Assistant for ZeroTicket.
+Your job is to analyze a project's codebase file list and database schema, and generate exactly 3-4 highly specific, high-value clarifying questions to help the support bot configure its business rules.
+
+FILES SCANNED:
+{file_list_str}
+
+DATABASE SCHEMA:
+{schema_context}
+
+EXISTING GUIDELINES:
+{existing_guidelines}
+
+DIRECTIONS:
+Generate exactly 3 to 4 clarifying questions. Each question must target a specific ambiguity or configuration detail that is critical for troubleshooting support tickets:
+1. Log files: If there are multiple log files or if no log path is configured, ask where the primary server/error log is.
+2. Table mappings: If there are ambiguous tables (e.g., invoices vs receipts, users vs customers), ask which table stores the primary record.
+3. Custom state maps: If there are status columns (e.g. status code integers like 0, 1, 2), ask what they map to in plain English.
+4. Business policies: Ask about specific timing/rules if needed.
+
+Output ONLY a JSON list of objects, where each object contains:
+- "question": string, the user-facing question.
+- "options": list of strings, 2-3 logical multiple choice options based on files/schema (e.g. candidate log paths or table names) plus a final option "Other / Write-in...". If it is completely open-ended, use an empty list [].
+- "context_key": string, a short unique identifier for this rule category (e.g., "log_path", "invoice_table").
+
+Example JSON output format:
+[
+  {{
+    "question": "Which file represents the primary server log for tracking exceptions?",
+    "options": ["server.log", "storage/logs/laravel.log", "Other / Write-in..."],
+    "context_key": "log_path"
+  }}
+]
+"""
+    
+    # 5. Invoke LLM via AgentEngine helper
+    try:
+        agent = AgentEngine(db)
+        from app.db import Company
+        company = db.query(Company).filter(Company.id == company_id).first()
+        model_name = company.llm_model if company else "gemini-2.5-flash"
+        
+        response_text = agent._generate_llm_content(provider, model_name, api_key, prompt)
+        
+        # Clean JSON block
+        json_match = re.search(r"```(?:json)?(.*?)```", response_text, re.DOTALL | re.IGNORECASE)
+        if json_match:
+            response_json = json_match.group(1).strip()
+        else:
+            response_json = response_text.strip()
+            
+        questions_list = json.loads(response_json)
+        
+        # Delete old pending questions for this repository
+        db.query(OnboardingQuestion).filter(
+            OnboardingQuestion.repository_id == repository_id,
+            OnboardingQuestion.is_answered == False
+        ).delete()
+        db.commit()
+        
+        # Insert new questions
+        for q in questions_list:
+            new_q = OnboardingQuestion(
+                id=str(uuid.uuid4()),
+                repository_id=repository_id,
+                question=q["question"],
+                options=json.dumps(q.get("options", [])),
+                context_key=q.get("context_key", ""),
+                is_answered=False
+            )
+            db.add(new_q)
+        db.commit()
+        print(f"[onboarding] Generated {len(questions_list)} onboarding questions for repo {repository_id}")
+    except Exception as e:
+        print(f"[onboarding] Failed to generate onboarding questions: {str(e)}")
+        # Fallback to a default set of questions if LLM fails
+        try:
+            db.query(OnboardingQuestion).filter(
+                OnboardingQuestion.repository_id == repository_id,
+                OnboardingQuestion.is_answered == False
+            ).delete()
+            db.commit()
+            
+            defaults = [
+                {
+                    "question": "What is the path to your server/error log file relative to the project root?",
+                    "options": ["server.log", "storage/logs/laravel.log", "Other / Write-in..."],
+                    "context_key": "log_path"
+                },
+                {
+                    "question": "What table represents invoices or payment transactions in your database?",
+                    "options": ["invoices", "payments", "transactions", "Other / Write-in..."],
+                    "context_key": "payment_table"
+                }
+            ]
+            for q in defaults:
+                new_q = OnboardingQuestion(
+                    id=str(uuid.uuid4()),
+                    repository_id=repository_id,
+                    question=q["question"],
+                    options=json.dumps(q["options"]),
+                    context_key=q["context_key"],
+                    is_answered=False
+                )
+                db.add(new_q)
+            db.commit()
+        except Exception as e_fallback:
+            print(f"[onboarding] Fallback failed: {str(e_fallback)}")
 
 @app.post("/api/ingest", dependencies=[Depends(verify_admin_passphrase)])
 def run_ingestion(
@@ -710,3 +901,107 @@ def save_repository_rules(repository_id: str, data: SaveRulesRequest, db: Sessio
         raise HTTPException(status_code=500, detail=f"Failed to write rules file: {str(e)}")
         
     return {"status": "saved", "rules": data.rules}
+
+
+@app.get("/api/repository/{repository_id}/onboarding-questions", dependencies=[Depends(verify_admin_passphrase)])
+def get_onboarding_questions(repository_id: str, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+        
+    questions = db.query(OnboardingQuestion).filter(
+        OnboardingQuestion.repository_id == repository_id
+    ).order_by(OnboardingQuestion.created_at.asc()).all()
+    
+    res = []
+    for q in questions:
+        try:
+            opts = json.loads(q.options) if q.options else []
+        except Exception:
+            opts = []
+        res.append({
+            "id": q.id,
+            "question": q.question,
+            "options": opts,
+            "answer": q.answer,
+            "is_answered": q.is_answered,
+            "context_key": q.context_key
+        })
+    return res
+
+
+@app.post("/api/repository/{repository_id}/onboarding-questions/submit", dependencies=[Depends(verify_admin_passphrase)])
+def submit_onboarding_answers(repository_id: str, data: SubmitAnswersRequest, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+        
+    # Read existing guidelines file
+    rules_filepath = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    existing_rules = ""
+    if os.path.exists(rules_filepath):
+        try:
+            with open(rules_filepath, "r", encoding="utf-8", errors="ignore") as f:
+                existing_rules = f.read().strip()
+        except Exception:
+            pass
+            
+    # Process submitted answers and compile them as new rules
+    new_rules_list = []
+    if existing_rules:
+        new_rules_list.append(existing_rules)
+        
+    for item in data.answers:
+        q_record = db.query(OnboardingQuestion).filter(
+            OnboardingQuestion.id == item.id,
+            OnboardingQuestion.repository_id == repository_id
+        ).first()
+        if q_record:
+            q_record.answer = item.answer
+            q_record.is_answered = True
+            q_record.answered_at = int(time.time())
+            
+            # Format as rule
+            # E.g. "- [context_key]: answer" or "- Question: Answer"
+            rule_entry = f"- {q_record.question}\n  Answer: {item.answer}"
+            new_rules_list.append(rule_entry)
+            
+    db.commit()
+    
+    # Save the updated guidelines file
+    updated_rules = "\n\n".join(new_rules_list)
+    try:
+        os.makedirs(os.path.dirname(rules_filepath), exist_ok=True)
+        with open(rules_filepath, "w", encoding="utf-8") as f:
+            f.write(updated_rules)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write rules file: {str(e)}")
+        
+    return {"status": "success", "rules": updated_rules}
+
+
+@app.post("/api/repository/{repository_id}/onboarding-questions/reset", dependencies=[Depends(verify_admin_passphrase)])
+def reset_onboarding_questions(repository_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+        
+    # Get active LLM settings for company
+    from app.db import Company, decrypt_password
+    company = db.query(Company).filter(Company.id == repo.company_id).first()
+    if not company or not company.encrypted_llm_api_key:
+        raise HTTPException(status_code=400, detail="LLM configuration not found. Setup LLM key first.")
+        
+    api_key = decrypt_password(company.encrypted_llm_api_key)
+    provider = company.llm_provider or "gemini"
+    
+    background_tasks.add_task(
+        generate_onboarding_questions_task,
+        repo.company_id,
+        repo.id,
+        api_key,
+        provider,
+        db
+    )
+    
+    return {"status": "triggered"}

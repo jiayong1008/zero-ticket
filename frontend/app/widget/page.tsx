@@ -119,7 +119,7 @@ function WidgetChatContent() {
       });
       
       if (isHeading) {
-        const HeaderTag = `h${headingLevel}` as keyof JSX.IntrinsicElements;
+        const HeaderTag = `h${headingLevel}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
         const sizeClasses: Record<number, string> = {
           1: "text-lg font-black mt-3 mb-1.5",
           2: "text-base font-bold mt-2 mb-1",
@@ -232,7 +232,7 @@ function WidgetChatContent() {
     const currentImage = selectedImage;
     setInput("");
     setSelectedImage(null);
-    setMessages((prev) => [...prev, { sender: "user", content: userText, imageData: currentImage }]);
+    setMessages((prev) => [...prev, { sender: "user", content: userText, imageData: currentImage || undefined }]);
     setLoading(true);
 
     const controller = new AbortController();

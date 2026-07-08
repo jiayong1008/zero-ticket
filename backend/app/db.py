@@ -37,6 +37,7 @@ class Repository(Base):
     
     company = relationship("Company", back_populates="repositories")
     db_connection = relationship("DBConnection", back_populates="repository", uselist=False, cascade="all, delete-orphan")
+    onboarding_questions = relationship("OnboardingQuestion", back_populates="repository", cascade="all, delete-orphan")
 
 class DBConnection(Base):
     __tablename__ = 'db_connections'
@@ -76,6 +77,21 @@ class ChatMessage(Base):
     created_at = Column(Integer, default=lambda: int(time.time()))
     
     session = relationship("ChatSession", back_populates="messages")
+
+
+class OnboardingQuestion(Base):
+    __tablename__ = 'onboarding_questions'
+    id = Column(String(36), primary_key=True)
+    repository_id = Column(String(36), ForeignKey('repositories.id', ondelete='CASCADE'), nullable=False)
+    question = Column(Text, nullable=False)
+    options = Column(Text, nullable=True)  # JSON-encoded array of options (strings) or empty for open-ended text input
+    answer = Column(Text, nullable=True)   # The answer given by the developer
+    is_answered = Column(Boolean, default=False)
+    context_key = Column(String(100), nullable=True)
+    created_at = Column(Integer, default=lambda: int(time.time()))
+    answered_at = Column(Integer, nullable=True)
+
+    repository = relationship("Repository", back_populates="onboarding_questions")
 
 
 # Database Engine setup for SQLite system DB

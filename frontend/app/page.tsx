@@ -61,6 +61,22 @@ export default function DashboardPage() {
   const [isSavingRules, setIsSavingRules] = useState(false);
   const [isLoadingRules, setIsLoadingRules] = useState(false);
 
+  // Onboarding questions states
+  interface OnboardingQuestion {
+    id: string;
+    question: string;
+    options: string[];
+    answer: string | null;
+    is_answered: boolean;
+    context_key: string;
+  }
+  const [onboardingQuestions, setOnboardingQuestions] = useState<OnboardingQuestion[]>([]);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [selectedOption, setSelectedOption] = useState("");
+  const [writeInAnswer, setWriteInAnswer] = useState("");
+  const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+
   // Admin lock states
   const [loginRequired, setLoginRequired] = useState(false);
   const [adminToken, setAdminToken] = useState("");
@@ -220,6 +236,187 @@ export default function DashboardPage() {
       })
       .finally(() => setIsLoadingRules(false));
   }, [activeRepoId, adminToken]);
+
+  // Fetch onboarding questions whenever the active repository changes
+  useEffect(() => {
+    if (!activeRepoId) {
+      setOnboardingQuestions([]);
+      return;
+    }
+
+    setIsLoadingQuestions(true);
+    const headers: Record<string, string> = {};
+    const token = adminToken || localStorage.getItem("admin_token") || "";
+    if (token) {
+      headers["X-Admin-Token"] = token;
+    }
+
+    fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/onboarding-questions`, { headers })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load questions");
+        return r.json();
+      })
+      .then((data) => {
+        const unanswered = (data || []).filter((q: any) => !q.is_answered);
+        setOnboardingQuestions(unanswered);
+        setCurrentQuestionIdx(0);
+        setSelectedOption("");
+        setWriteInAnswer("");
+      })
+      .catch((err) => {
+        console.error("Error loading onboarding questions:", err);
+      })
+      .finally(() => setIsLoadingQuestions(false));
+  }, [activeRepoId, adminToken]);
+
+  const handleNextQuestion = () => {
+    if (onboardingQuestions.length === 0) return;
+    const currentQ = onboardingQuestions[currentQuestionIdx];
+    const finalAns = selectedOption === "Other / Write-in..." || currentQ.options.length === 0
+      ? writeInAnswer
+      : selectedOption;
+
+    const updatedQuestions = [...onboardingQuestions];
+    updatedQuestions[currentQuestionIdx].answer = finalAns || "Skipped";
+    setOnboardingQuestions(updatedQuestions);
+
+    if (currentQuestionIdx < onboardingQuestions.length - 1) {
+      setCurrentQuestionIdx((prev) => prev + 1);
+      setSelectedOption("");
+      setWriteInAnswer("");
+    } else {
+      // It was the last question, submit all answers!
+      setIsSubmittingOnboarding(true);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      const token = adminToken || localStorage.getItem("admin_token") || "";
+      if (token) {
+        headers["X-Admin-Token"] = token;
+      }
+
+      const answersToSend = updatedQuestions.map((q) => ({
+        id: q.id,
+        answer: q.answer || "Skipped"
+      }));
+
+      fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/onboarding-questions/submit`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ answers: answersToSend }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to submit answers");
+          return r.json();
+        })
+        .then((data) => {
+          toast.success("AI Context Guidelines tuned successfully!");
+          setContextRules(data.rules || "");
+          // Re-fetch questions to update answered status
+          return fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/onboarding-questions`, { headers });
+        })
+        .then((r) => r.json())
+        .then((data) => {
+          const unanswered = (data || []).filter((q: any) => !q.is_answered);
+          setOnboardingQuestions(unanswered);
+        })
+        .catch((err) => {
+          console.error("Error submitting onboarding answers:", err);
+          toast.error("Failed to submit answers.");
+        })
+        .finally(() => setIsSubmittingOnboarding(false));
+    }
+  };
+
+  const handleSkipQuestion = () => {
+    if (onboardingQuestions.length === 0) return;
+    const updatedQuestions = [...onboardingQuestions];
+    updatedQuestions[currentQuestionIdx].answer = "Skipped";
+    setOnboardingQuestions(updatedQuestions);
+
+    if (currentQuestionIdx < onboardingQuestions.length - 1) {
+      setCurrentQuestionIdx((prev) => prev + 1);
+      setSelectedOption("");
+      setWriteInAnswer("");
+    } else {
+      // It was the last question, submit all!
+      setIsSubmittingOnboarding(true);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      const token = adminToken || localStorage.getItem("admin_token") || "";
+      if (token) {
+        headers["X-Admin-Token"] = token;
+      }
+
+      const answersToSend = updatedQuestions.map((q) => ({
+        id: q.id,
+        answer: q.answer || "Skipped"
+      }));
+
+      fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/onboarding-questions/submit`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ answers: answersToSend }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to submit answers");
+          return r.json();
+        })
+        .then((data) => {
+          toast.success("AI Context Guidelines saved!");
+          setContextRules(data.rules || "");
+          return fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/onboarding-questions`, { headers });
+        })
+        .then((r) => r.json())
+        .then((data) => {
+          const unanswered = (data || []).filter((q: any) => !q.is_answered);
+          setOnboardingQuestions(unanswered);
+        })
+        .catch((err) => {
+          console.error("Error submitting onboarding:", err);
+          toast.error("Failed to submit answers.");
+        })
+        .finally(() => setIsSubmittingOnboarding(false));
+    }
+  };
+
+  const handleResetOnboarding = () => {
+    if (!activeRepoId) return;
+    setIsLoadingQuestions(true);
+    const headers: Record<string, string> = {};
+    const token = adminToken || localStorage.getItem("admin_token") || "";
+    if (token) {
+      headers["X-Admin-Token"] = token;
+    }
+
+    fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/onboarding-questions/reset`, {
+      method: "POST",
+      headers,
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to trigger reset");
+        toast.success("Regenerating onboarding questions in background...");
+        // Poll for questions after 2 seconds
+        setTimeout(() => {
+          fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/onboarding-questions`, { headers })
+            .then((r) => r.json())
+            .then((data) => {
+              const unanswered = (data || []).filter((q: any) => !q.is_answered);
+              setOnboardingQuestions(unanswered);
+              setCurrentQuestionIdx(0);
+              setSelectedOption("");
+              setWriteInAnswer("");
+              setIsLoadingQuestions(false);
+            });
+        }, 2500);
+      })
+      .catch((err) => {
+        console.error("Error resetting onboarding:", err);
+        toast.error("Failed to reset onboarding questions.");
+        setIsLoadingQuestions(false);
+      });
+  };
 
   const handleSaveRules = () => {
     if (!activeRepoId) return;
@@ -656,7 +853,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                         localStorage.setItem("repository_id", proj.id);
                         localStorage.setItem("repo_path", proj.repo_path);
                         localStorage.setItem("repo_branch", proj.branch);
-                        localStorage.setItem("repo_name", proj.name || proj.repo_path.split("/").pop());
+                        localStorage.setItem("repo_name", proj.name || proj.repo_path.split("/").pop() || "");
                         setProjectDropOpen(false);
                       }}
                       className={`w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 ${
@@ -1233,6 +1430,105 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
         </div>
       </div>
 
+      {/* AI Onboarding discovery questionnaire card */}
+      {activeRepoId && onboardingQuestions.length > 0 && onboardingQuestions.some(q => !q.is_answered) && (
+        <div className={`rounded-xl p-5 border flex flex-col gap-4 transition-all shadow-sm ${
+          isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-blue-500">
+                AI Onboarding Assistant
+              </span>
+              <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
+                ZeroTicket Setup Discovery
+              </h2>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+              isLightMode ? "bg-slate-100 text-slate-600" : "bg-white/5 text-slate-300"
+            }`}>
+              Question {currentQuestionIdx + 1} of {onboardingQuestions.length}
+            </span>
+          </div>
+
+          {isLoadingQuestions ? (
+            <div className="h-32 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3 py-2">
+                <p className={`text-xs font-semibold ${isLightMode ? "text-slate-700" : "text-slate-200"}`}>
+                  {onboardingQuestions[currentQuestionIdx]?.question}
+                </p>
+
+                {/* If options exist, render MCQs */}
+                {onboardingQuestions[currentQuestionIdx]?.options && onboardingQuestions[currentQuestionIdx].options.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {onboardingQuestions[currentQuestionIdx].options.map((opt: string) => (
+                      <button
+                        key={opt}
+                        onClick={() => {
+                          setSelectedOption(opt);
+                          if (opt !== "Other / Write-in...") setWriteInAnswer("");
+                        }}
+                        className={`p-3 text-left text-xs rounded-lg border transition-all active:scale-[0.98] ${
+                          selectedOption === opt
+                            ? "border-blue-500 bg-blue-500/10 text-blue-500 font-medium"
+                            : isLightMode
+                              ? "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                              : "border-white/5 bg-white/5 hover:bg-white/10 text-slate-300"
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {/* If "Other / Write-in..." selected, or if no options are present, show text area */}
+                {(selectedOption === "Other / Write-in..." || !onboardingQuestions[currentQuestionIdx]?.options || onboardingQuestions[currentQuestionIdx]?.options.length === 0) && (
+                  <textarea
+                    value={writeInAnswer}
+                    onChange={(e) => setWriteInAnswer(e.target.value)}
+                    placeholder="Type your response or details here..."
+                    className={`w-full h-20 px-3 py-2 text-xs rounded-lg border transition-colors outline-none resize-none ${
+                      isLightMode
+                        ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+                    }`}
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-200/20 pt-4">
+                <button
+                  onClick={handleSkipQuestion}
+                  disabled={isSubmittingOnboarding}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
+                    isLightMode ? "text-slate-500 hover:bg-slate-150" : "text-slate-400 hover:bg-white/5"
+                  }`}
+                >
+                  Skip Question
+                </button>
+
+                <button
+                  onClick={handleNextQuestion}
+                  disabled={
+                    isSubmittingOnboarding || 
+                    (!selectedOption && onboardingQuestions[currentQuestionIdx]?.options && onboardingQuestions[currentQuestionIdx].options.length > 0) ||
+                    ((selectedOption === "Other / Write-in..." || !onboardingQuestions[currentQuestionIdx]?.options || onboardingQuestions[currentQuestionIdx]?.options.length === 0) && !writeInAnswer.trim())
+                  }
+                  className={`px-4 py-1.5 text-[11px] font-bold rounded-lg transition-all active:scale-95 shadow-sm bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isSubmittingOnboarding ? "Saving..." : currentQuestionIdx === onboardingQuestions.length - 1 ? "Finish & Apply" : "Next Question"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* AI Context Rules / Knowledge Base Section */}
       {activeRepoId && (
         <div className={`rounded-xl p-5 border flex flex-col gap-4 transition-all shadow-sm ${
@@ -1243,9 +1539,26 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               <span className={`text-[10px] uppercase font-bold tracking-wider transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
                 Knowledge Base & Tuning
               </span>
-              <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
-                Custom AI Context Guidelines
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
+                  Custom AI Context Guidelines
+                </h2>
+                <button
+                  onClick={handleResetOnboarding}
+                  disabled={isLoadingQuestions}
+                  className={`px-2 py-0.5 text-[9px] font-bold rounded border transition-all active:scale-95 flex items-center gap-1 shadow-sm ${
+                    isLightMode
+                      ? "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      : "border-white/5 text-slate-300 hover:bg-white/5"
+                  }`}
+                  title="Force re-generate onboarding clarification questions from project files & database schema."
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
+                  </svg>
+                  Re-run Discovery
+                </button>
+              </div>
             </div>
             <p className={`text-[11px] max-w-md text-right transition-colors ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
               Specify log paths, database mappings, error code resolutions, and custom business logic. These rules reside in <code>ai_context_rules.txt</code>.

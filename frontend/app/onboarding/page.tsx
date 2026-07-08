@@ -238,7 +238,7 @@ function OnboardingPageContent() {
       localStorage.setItem("repo_path", repoPath);
       localStorage.setItem("repo_branch", branch);
       localStorage.setItem("repository_id", data.repository_id);
-      localStorage.setItem("repo_name", projectName || repoPath.split("/").pop());
+      localStorage.setItem("repo_name", projectName || repoPath.split("/").pop() || "");
       
       setStep(3);
     } catch (err: any) {
