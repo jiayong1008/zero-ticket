@@ -499,6 +499,7 @@ DATABASE STATE RETRIEVED:
 INSTRUCTIONS:
 1. Address the customer directly and explain their situation clearly in simple English.
 2. Avoid raw developer terms, SQL queries, column names, or raw JSON states in your final reply. For example, do not say "The invoice table has status = 2", instead say "Your invoice is currently in pending state".
+3. STRICT EVIDENCE CONSTRAINT: Never speculate, assume, or state generic support policies, timelines (e.g. "takes 1-3 working days"), or procedures unless they are explicitly present in the DATABASE STATE RETRIEVED, LIVE SERVER LOGS, CODE LOGIC EXPLAINER, or the CUSTOM GUIDELINES. If the data does not confirm a timeline or status, clearly state that you cannot verify it rather than making it up.
 {db_instructions}
 """
         
@@ -750,6 +751,7 @@ DATABASE STATE RETRIEVED:
 INSTRUCTIONS:
 1. Address the customer directly and explain their situation clearly in simple English.
 2. Avoid raw developer terms, SQL queries, column names, or raw JSON states in your final reply. For example, do not say "The invoice table has status = 2", instead say "Your invoice is currently in pending state".
+3. STRICT EVIDENCE CONSTRAINT: Never speculate, assume, or state generic support policies, timelines (e.g. "takes 1-3 working days"), or procedures unless they are explicitly present in the DATABASE STATE RETRIEVED, LIVE SERVER LOGS, CODE LOGIC EXPLAINER, or the CUSTOM GUIDELINES. If the data does not confirm a timeline or status, clearly state that you cannot verify it rather than making it up.
 {db_instructions}
 """
         
