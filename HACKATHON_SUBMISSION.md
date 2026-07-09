@@ -137,9 +137,9 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 *   **Visual:** Comparison flowchart of the Support-as-Code Workflow Shift:
     ![ZeroTicket Support Workflow Shift](./screenshots/support_workflow_shift.png)
 *   **Bullet Points:**
-    *   **Level 2/3 Escalations:** Complex customer inquiries (e.g., payment discrepancies, webhook failures) require engineers to stop coding and investigate.
-    *   **The Cost:** High-value software engineers waste up to 20% of their work week digging through raw server logs, checking database tables, and tracing codebase routes.
-    *   **The Risk:** Giving support staff or public LLMs raw access to production databases violates data privacy compliance (SOC2/HIPAA) and risks cross-tenant data leaks.
+    *   **Developer Burnout:** Constant support interruptions to check replica DBs or grep server logs disrupt high-value development flow.
+    *   **Context-Switching Cost:** Studies show it takes an average of **23 minutes & 15 seconds** to refocus on a coding task after a single support interruption.
+    *   **Data Security Risks:** Giving support agents or public cloud LLMs raw access to production databases violates compliance (SOC2/HIPAA) and risks cross-tenant data leaks.
 
 ### 🛝 Slide 3: The ZeroTicket Solution
 *   **Headline:** Secure, Autonomous Tier-3 Operations
