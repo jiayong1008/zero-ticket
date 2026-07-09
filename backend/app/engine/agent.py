@@ -29,6 +29,7 @@ class AgentEngine:
             try:
                 dt = datetime(int(year), int(month), int(day))
                 patterns.append(dt.strftime("%d/%b/%Y")) # e.g. 02/Jul/2026
+                patterns.append(dt.strftime("%d/%m/%Y")) # e.g. 02/07/2026
             except Exception:
                 pass
                 
@@ -45,6 +46,7 @@ class AgentEngine:
                     try:
                         dt = datetime(year, m_num, day)
                         patterns.append(dt.strftime("%d/%b/%Y"))
+                        patterns.append(dt.strftime("%d/%m/%Y"))
                     except Exception:
                         pass
                     break
@@ -61,6 +63,7 @@ class AgentEngine:
                     try:
                         dt = datetime(year, m_num, day)
                         patterns.append(dt.strftime("%d/%b/%Y"))
+                        patterns.append(dt.strftime("%d/%m/%Y"))
                     except Exception:
                         pass
                     break
@@ -70,10 +73,12 @@ class AgentEngine:
             dt = datetime.now()
             patterns.append(dt.strftime("%Y-%m-%d"))
             patterns.append(dt.strftime("%d/%b/%Y"))
+            patterns.append(dt.strftime("%d/%m/%Y"))
         elif "yesterday" in query.lower():
             dt = datetime.now() - timedelta(days=1)
             patterns.append(dt.strftime("%Y-%m-%d"))
             patterns.append(dt.strftime("%d/%b/%Y"))
+            patterns.append(dt.strftime("%d/%m/%Y"))
             
         return list(set(patterns))
 
