@@ -99,7 +99,13 @@ The video is the most critical part of your submission. Judges will skim the tex
 When judges score the **Product/Market Potential**, they are looking for a real business model. 
 1.  **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads. They hate that developers are stuck doing support. ZeroTicket gives them their developers back and reduces support resolution times from days to seconds.
 2.  **Why buy this over Intercom's AI?** Intercom AI just reads static FAQ documents and Notion pages. ZeroTicket reads the *actual live database records, server logs, and codebase logic* safely. 
-3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 4 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.APIs cannot touch.
+3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 4 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.
+
+### 🦄 Unicorn Track Judging Criteria Mappings:
+*   **Product/Market Potential:** Reclaims up to 20% of engineering bandwidth for B2B SaaS firms, charged at a predictable flat licensing rate ($499/mo/project) that enterprises prefer over metered tokens.
+*   **Creativity & Originality:** Introduces a mathematically isolated SQL Security Guard compiler wrapping Text-to-SQL, and uses AST Tree-sitter parsers to understand codebase rules natively.
+*   **Completeness:** A fully functional, double-themed app containing schema discovery onboarding, vector ingestion syncing, and a debugger sandbox console simulating JWT claims.
+*   **Use of AMD Platforms:** Built to run on-premise on AMD developer clouds and GPU cards using Google's open-weights Gemma 4 via ROCm, unlocking high-compliance markets.
 
 ## 6. 🔥 Pro-Tips for Submission Day
 *   **Make sure the repo is public** when you submit, or the judges will instantly dock points.

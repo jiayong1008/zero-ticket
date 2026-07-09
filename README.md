@@ -183,6 +183,32 @@ zeroticket/
 
 ---
 
+## 🦄 Unicorn Track Judging Criteria Mappings
+
+This project is built for the **Unicorn Track** of the AMD Developer Hackathon. Below is how ZeroTicket aligns with the core evaluation criteria:
+
+### 1. 💼 Product/Market Potential (The B2B SaaS Moat)
+*   **The Problem:** B2B SaaS companies burn significant engineering hours escalating technical client tickets (e.g., payment failures, permissions) to software developers.
+*   **The Customer:** VPs of Engineering and CTOs who want to reclaim up to 20% of their developers' weekly capacity.
+*   **The Competitors:** Existing AI agents (like Intercom's Fin) only read static FAQs or support docs. ZeroTicket queries the actual codebase rules and database records securely.
+*   **Business Model:** Flat per-project self-hosted licensing (e.g., $499/month/project) rather than usage-metered API tokens, giving predictable, budget-friendly costs to enterprise scale clients.
+
+### 2. 💡 Creativity & Originality
+*   **AST Ingestion:** Interprets code files as functional syntax trees (routes, models, controllers) rather than raw text blocks.
+*   **Secure SQL Security Guard:** Resolves database queries in a multi-tenant SaaS environment by intercepting and rewriting SQL queries at compile-time to guarantee cross-tenant isolation.
+*   **Version-Controlled AI Tuning:** Corrections are processed instantly and saved directly as version-controlled code rules, keeping configurations light and secure.
+
+### 3. ⚙️ Completeness (Fully Runnable Sandbox Console)
+*   A fully realized Next.js client and FastAPI python backend.
+*   Interactive **Setup Discovery** Onboarding wizard to discover and map schemas.
+*   Interactive **Sandbox Emulator** supporting user JWT context simulation, live server log tracer, codebase rules viewer, and dynamic SQL Security Guard sanitization.
+
+### 4. ⚡ Use of AMD Platforms & Air-Gapped Privacy
+*   **Hardware Compatibility:** Fully optimized to run Google's open-weights **Gemma 4** locally on AMD GPUs with ROCm support.
+*   **Compliance Moat:** In high-compliance sectors (Healthcare, FinTech, GovTech), sending proprietary source code or database schemas to external cloud LLM APIs is a compliance violation. Self-hosting ZeroTicket on AMD developer clouds guarantees data privacy and GDPR/HIPAA compliance out-of-the-box.
+
+---
+
 ## 📦 Demo Active Connections
 * **Repository Path:** `playground/zero-billing-demo`
 * **Local Database:** MySQL replica `zero_billing_replica` (Host: `127.0.0.1:3306`)
