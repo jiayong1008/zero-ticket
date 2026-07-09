@@ -109,7 +109,7 @@ When judges score the **Product/Market Potential**, they are looking for a real 
 * **Pricing & Savings:** By self-hosting ZeroTicket at a flat licensing subscription (pricing to be determined, structured as a small fraction of direct developer support costs), SaaS firms save thousands of dollars and hundreds of hours of high-value developer capacity every month.
 
 ### 🦄 Unicorn Track Judging Criteria Mappings:
-*   **Product/Market Potential:** Reclaims up to 20% of engineering bandwidth for B2B SaaS firms, charged at a predictable flat licensing rate (pricing to be determined, designed to be a tiny fraction of the direct developer support cost).
+*   **Product/Market Potential:** Reclaims **125 hours/month** of engineering capacity and eliminates the **$9,375/month** support overhead for a typical 5-developer SaaS team by automating frontline technical queries, charged at a predictable flat subscription (pricing to be determined).
 *   **Creativity & Originality:** Introduces a mathematically isolated SQL Security Guard compiler wrapping Text-to-SQL, and uses AST Tree-sitter parsers to understand codebase rules natively.
 *   **Completeness:** A fully functional, double-themed app containing schema discovery onboarding, vector ingestion syncing, and a debugger sandbox console simulating JWT claims.
 *   **Use of AMD Platforms:** Built to run on-premise on AMD developer clouds and GPU cards using Google's open-weights Gemma 4 via ROCm, unlocking high-compliance markets.

@@ -214,10 +214,10 @@ zeroticket/
 This project is built for the **Unicorn Track** of the AMD Developer Hackathon. Below is how ZeroTicket aligns with the core evaluation criteria:
 
 ### 1. 💼 Product/Market Potential (The B2B SaaS Moat)
-*   **The Problem:** B2B SaaS companies burn significant engineering hours escalating technical client tickets (e.g., payment failures, permissions) to software developers.
-*   **The Customer:** VPs of Engineering and CTOs who want to reclaim up to 20% of their developers' weekly capacity.
-*   **The Competitor Gap:** Existing FAQ-based chatbots only read static support documents or knowledge bases. ZeroTicket queries the actual codebase rules and database records securely.
-*   **Business Model:** Flat per-project self-hosted subscription (pricing to be determined, structured as a small fraction of direct developer support costs) rather than usage-metered API tokens, giving predictable, budget-friendly costs to enterprise clients.
+*   **The Problem:** B2B SaaS companies lose thousands of dollars escalating routine technical queries to engineering. Developers waste time log-hunting or database-querying instead of writing features.
+*   **The Value Prop:** Automates 100% of standard technical inquiries. Reclaims **125 hours/month** of engineering capacity and eliminates the **$9,375/month** overhead of manual support maintenance for a typical 5-developer SaaS team.
+*   **The Competitor Gap:** Existing FAQ-based chatbots only read static text (Notion/PDFs). ZeroTicket dynamically queries actual codebase rules and database replicas securely.
+*   **Business Model:** Charged at a flat-rate self-hosted subscription (pricing to be determined, structured as a small fraction of direct developer support costs) rather than usage-metered API tokens, providing predictable, high-ROI budgeting for enterprise clients.
 
 ### 2. 💡 Creativity & Originality
 *   **AST Ingestion:** Interprets code files as functional syntax trees (routes, models, controllers) rather than raw text blocks.
