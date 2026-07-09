@@ -13,6 +13,9 @@ __pycache__/
 backend/chroma_db/
 backend/chroma_db_test/
 backend/zeroticket.db
+backend/zeroticket.db-shm
+backend/zeroticket.db-wal
+backend/zeroticket.db-journal
 backend/ingestion_error.log
 backend/models.log
 backend/models_err.log
