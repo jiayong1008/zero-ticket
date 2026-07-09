@@ -90,8 +90,8 @@ zeroticket/
 ```
 
 💡 **Sub-project Documentation:**
-* 🔌 **Backend API Details:** See the [backend/README.md](file:///Users/jiayong/GitHub/zeroticket/backend/README.md) for endpoint breakdowns, environment variables, and local database/vector directory mappings.
-* 🎨 **Frontend Client Details:** See the [frontend/README.md](file:///Users/jiayong/GitHub/zeroticket/frontend/README.md) for theme swapping setups, page directories, and client routes.
+* 🔌 **Backend API Details:** See the [backend/README.md](./backend/README.md) for endpoint breakdowns, environment variables, and local database/vector directory mappings.
+* 🎨 **Frontend Client Details:** See the [frontend/README.md](./frontend/README.md) for theme swapping setups, page directories, and client routes.
 
 ---
 
@@ -185,7 +185,7 @@ This will launch the FastAPI backend on `http://localhost:8088` and the Next.js 
 
 ---
 
-## 📦 Current Active Connections
-* **Repository Path:** `/Users/jiayong/GitHub/edukids-web` (Branch: `dev`)
-* **Local Database:** MySQL replica `edukids` (Host: `127.0.0.1:3306`, User: `root`)
+## 📦 Demo Active Connections
+* **Repository Path:** `playground/zero-billing-demo`
+* **Local Database:** MySQL replica `zero_billing_replica` (Host: `127.0.0.1:3306`)
 
