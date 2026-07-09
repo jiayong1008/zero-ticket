@@ -16,14 +16,77 @@ class AgentEngine:
         self._llm_base_url = llm_base_url
         self.chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id, llm_base_url=llm_base_url)
 
-    def _get_live_logs(self, company_id: str, repository_id: str, jwt_claims: dict) -> tuple[str, list[str]]:
+    def _extract_date_patterns(self, query: str) -> list[str]:
+        import re
+        from datetime import datetime, timedelta
+        
+        patterns = []
+        # 1. Look for YYYY-MM-DD (e.g., 2026-07-02 or 2026/07/02)
+        iso_match = re.search(r'\b(20\d{2})[-/](0[1-9]|1[0-2])[-/](0[1-9]|[12]\d|3[01])\b', query)
+        if iso_match:
+            year, month, day = iso_match.groups()
+            patterns.append(f"{year}-{month}-{day}")
+            try:
+                dt = datetime(int(year), int(month), int(day))
+                patterns.append(dt.strftime("%d/%b/%Y")) # e.g. 02/Jul/2026
+            except Exception:
+                pass
+                
+        # 2. Look for Month DD (e.g., July 2, Jul 2, July 2nd, July 02)
+        months_str = "january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec"
+        month_match = re.search(rf'\b({months_str})\s+(0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\b', query, re.IGNORECASE)
+        if month_match:
+            m_name, day_str = month_match.groups()
+            day = int(day_str)
+            for m_num, m_short in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1):
+                if m_name.lower().startswith(m_short):
+                    year = 2026
+                    patterns.append(f"{year}-{m_num:02d}-{day:02d}")
+                    try:
+                        dt = datetime(year, m_num, day)
+                        patterns.append(dt.strftime("%d/%b/%Y"))
+                    except Exception:
+                        pass
+                    break
+                    
+        # 3. Look for DD Month (e.g., 2 July, 2nd July, 2 Jul, 02 July)
+        day_month_match = re.search(rf'\b(0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\s+({months_str})\b', query, re.IGNORECASE)
+        if day_month_match:
+            day_str, m_name = day_month_match.groups()
+            day = int(day_str)
+            for m_num, m_short in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1):
+                if m_name.lower().startswith(m_short):
+                    year = 2026
+                    patterns.append(f"{year}-{m_num:02d}-{day:02d}")
+                    try:
+                        dt = datetime(year, m_num, day)
+                        patterns.append(dt.strftime("%d/%b/%Y"))
+                    except Exception:
+                        pass
+                    break
+                    
+        # 4. Handle relative dates: today, yesterday
+        if "today" in query.lower():
+            dt = datetime.now()
+            patterns.append(dt.strftime("%Y-%m-%d"))
+            patterns.append(dt.strftime("%d/%b/%Y"))
+        elif "yesterday" in query.lower():
+            dt = datetime.now() - timedelta(days=1)
+            patterns.append(dt.strftime("%Y-%m-%d"))
+            patterns.append(dt.strftime("%d/%b/%Y"))
+            
+        return list(set(patterns))
+
+    def _get_live_logs(self, company_id: str, repository_id: str, jwt_claims: dict, query: str = "") -> tuple[str, list[str]]:
         """
         Scans for .log files in the repository directory, reads from the bottom up,
-        filters for rows containing jwt_claims (user_id/tenant_id), and returns a formatted
-        log string and a list of thought logs.
+        filters for rows containing jwt_claims (user_id/tenant_id) and optional date/keyword filters,
+        and returns a formatted log string and a list of thought logs.
         """
         import os
         from app.db import Repository
+        from collections import deque
+        import re
         
         # 1. Resolve repository path
         repo = None
@@ -52,7 +115,7 @@ class AgentEngine:
         if not log_files:
             return "No server log files (.log) found in the repository.", ["No local log files discovered in repository path."]
             
-        # 3. Resolve user identifiers to filter
+        # 3. Resolve user identifiers to filter (for secure isolation)
         search_terms = []
         for key in ["user_id", "tenant_id", "company_id", "customer_id", "client_id"]:
             val = jwt_claims.get(key)
@@ -62,25 +125,58 @@ class AgentEngine:
         if not search_terms:
             return "No secure user identifier claims provided in JWT context. Logs omitted for security.", ["Logs omitted: missing user/tenant ID in JWT context."]
             
-        # 4. Read and filter logs
+        # 4. Extract dates and keyword patterns from query
+        date_patterns = self._extract_date_patterns(query) if query else []
+        
+        # Extract UUIDs or high-value transaction patterns
+        keyword_patterns = []
+        if query:
+            uuids = re.findall(r'\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b', query, re.IGNORECASE)
+            keyword_patterns.extend(uuids)
+            errors = re.findall(r'\b[A-Z]{3,}-[A-Z]{3,}-\d{3,}\b', query)
+            keyword_patterns.extend(errors)
+            
+        # Determine scan limit: expand scan size if searching for historical logs/keywords
+        has_filter = bool(date_patterns or keyword_patterns)
+        scan_limit = 25000 if has_filter else 1000
+        
+        # 5. Read and filter logs
         matching_lines = []
         thought_logs = [
             f"Scanning log files: {[os.path.basename(f) for f in log_files]}",
+            f"Scanning depth: {scan_limit} lines",
             f"Filtering securely for identifiers: {search_terms}"
         ]
+        if date_patterns:
+            thought_logs.append(f"Applying date patterns: {date_patterns}")
+        if keyword_patterns:
+            thought_logs.append(f"Applying keyword patterns: {keyword_patterns}")
+            
+        secure_patterns = [re.compile(r'\b' + re.escape(term) + r'\b') for term in search_terms]
+        filter_terms = date_patterns + keyword_patterns
+        filter_regexes = [re.compile(re.escape(term), re.IGNORECASE) for term in filter_terms]
         
         try:
             for log_path in log_files:
                 try:
                     with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        import re
-                        patterns = [re.compile(r'\b' + re.escape(term) + r'\b') for term in search_terms]
-                        lines = f.readlines()
-                        for line in reversed(lines[-1000:]):
-                            if any(pattern.search(line) for pattern in patterns):
-                                matching_lines.append(f"[{os.path.basename(log_path)}] {line.strip()}")
-                                if len(matching_lines) >= 100:
-                                    break
+                        lines = deque(f, maxlen=scan_limit)
+                        
+                        for line in reversed(lines):
+                            # Must match at least one secure user identifier
+                            has_secure_match = any(pat.search(line) for pat in secure_patterns)
+                            if not has_secure_match:
+                                continue
+                                
+                            # If date/keyword filters are specified, it must also match at least one filter pattern
+                            if filter_regexes:
+                                has_filter_match = any(fpat.search(line) for fpat in filter_regexes)
+                                if not has_filter_match:
+                                    continue
+                                    
+                            matching_lines.append(f"[{os.path.basename(log_path)}] {line.strip()}")
+                            if len(matching_lines) >= 100:
+                                break
                 except Exception as ex:
                     thought_logs.append(f"Failed to read file {os.path.basename(log_path)}: {str(ex)}")
                 if len(matching_lines) >= 100:
@@ -88,7 +184,7 @@ class AgentEngine:
         except Exception as e:
             return f"Error reading log files: {str(e)}", thought_logs + [f"Error reading log: {str(e)}"]
             
-        # 5. Format results
+        # 6. Format results
         if matching_lines:
             log_context = "LIVE LOG ENTRIES MATCHING USER CONTEXT:\n" + "\n".join(reversed(matching_lines))
             thought_logs.append(f"Matched {len(matching_lines)} secure log lines.")
@@ -124,7 +220,10 @@ class AgentEngine:
         key = api_key or settings.GEMINI_API_KEY
         if not key:
             raise ValueError("GEMINI_API_KEY is not configured.")
-        return genai.Client(api_key=key)
+        return genai.Client(
+            api_key=key,
+            http_options={'timeout': 30000}
+        )
 
     def _generate_llm_content(self, provider: str, model: str, api_key: str, prompt: str, image_data: str = None, stream: bool = False):
         """
@@ -336,7 +435,7 @@ class AgentEngine:
             chroma = self.chroma
         
         # Ingest live logs context and custom guidelines
-        log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims)
+        log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims, query)
         custom_guidelines = self._get_custom_guidelines(company_id, repository_id)
         guideline_context = f"\nCUSTOM REPOSITORY CONFIGURATION & RULES:\n{custom_guidelines}\n" if custom_guidelines else ""
         
@@ -591,7 +690,7 @@ INSTRUCTIONS:
             chroma = self.chroma
             
         # Ingest live logs context and custom guidelines
-        log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims)
+        log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims, query)
         custom_guidelines = self._get_custom_guidelines(company_id, repository_id)
         guideline_context = f"\nCUSTOM REPOSITORY CONFIGURATION & RULES:\n{custom_guidelines}\n" if custom_guidelines else ""
         
