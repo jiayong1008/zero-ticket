@@ -306,6 +306,13 @@ export default function SandboxPage() {
   const [lastQuery, setLastQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
 
+  // Hydration / SSR layout shift prevention
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const DEMO_SCENARIOS = [
     {
       name: "1. ACH Clearing (Alice)",
@@ -992,6 +999,17 @@ export default function SandboxPage() {
       abortControllerRef.current = null;
     }
   };
+
+  if (!isMounted) {
+    return (
+      <div className="w-full h-screen bg-[#0b0f19] flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+          <span className="text-xs text-slate-400 font-medium font-sans">Loading Sandbox...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`w-full flex flex-col h-[100dvh] min-h-0 overflow-hidden transition-colors duration-300 ${isLightMode ? "bg-slate-100" : "bg-[#0b0f19]"}`}>

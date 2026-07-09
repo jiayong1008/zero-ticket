@@ -47,7 +47,7 @@ class ChromaStore:
             raise ValueError("GEMINI_API_KEY is not configured.")
         return genai.Client(
             api_key=key, 
-            http_options={'retryOptions': {'attempts': 1}}
+            http_options={'timeout': 30000, 'retryOptions': {'attempts': 1}}
         )
 
     def _generate_embeddings(self, texts: list[str], api_key: str = "", provider: str = "gemini") -> list[list[float]]:
