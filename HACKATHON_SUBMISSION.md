@@ -11,9 +11,18 @@ ZeroTicket: AI Support-as-Code
 An autonomous AI Tier-3 support engineer that automates technical SaaS operations by securely reasoning over codebases, database records, server logs, and recent Git history using a secure SQL Security Guard and AMD-optimized local LLMs.
 
 **Long Description:** 
-In B2B SaaS, customer support gets bottlenecked by complex technical inquiries like, "Why did my payment fail yesterday?" or "Why was my payment charged incorrectly?" Resolving these require software engineers to stop coding, dig through codebase rules, query production replicas, and trace server log files. This process is slow, expensive, and takes engineers away from building features.
+Most customer service bots (like Intercom's Fin) only read static FAQs, Notion pages, and manuals. But they are completely blind to your codebase logic, developer comments, system bugs, or live database records. Because of this, software companies are forced to run expensive, high-friction **IT customer support & system maintenance operations** just to answer technical client inquiries.
 
-ZeroTicket solves this. It is a self-hosted AI engine that ingests an enterprise codebase, extracts the database schema, parses server logs, and indexes recent Git history. When a customer asks a complex technical question, the AI reasons over the actual code rules and live data to provide a precise explanation. Crucially, before executing any database query or log lookup, our proprietary **SQL Security Guard** wraps requests in JWT-based tenant constraints (e.g., `tenant_id = 123`), ensuring absolute multi-tenant data isolation and preventing data leakage.
+ZeroTicket shifts this paradigm from manual escalations to **Support-as-Code**:
+*   **Old Flow:** End User ➔ Ask technical question ➔ Support agent escalates ➔ IT/Developer stops building features ➔ Developer digs through server logs, codebase routing, and production replica DBs ➔ Developer writes explanation.
+*   **New Flow:** End User ➔ Ask technical question ➔ ZeroTicket checks the code rules, live logs, and database replica securely ➔ Explains instantly ➔ IT/Developers focus strictly on coding new features and resolving real system bugs.
+
+ZeroTicket is a self-contained support-as-code engine. It ingests your codebase, connects to a read-only database replica, and parses live logs. When a user asks a complex technical question, the AI reasons over actual code rules and live data to resolve the ticket in seconds. 
+
+Key benefits include:
+*   **Hands-Off Automated Syncing:** Every time you push updates to GitHub, ZeroTicket automatically re-ingests and updates its vector index via webhook integrations—zero manual configuration required.
+*   **Self-Improving AI Loop:** Administrators can "teach" the bot or add custom instructions on the spot. The AI instantly adapts without rebuilding the codebase or database indexes.
+*   **Multi-Model & Self-Hosted Privacy:** Supports multiple LLM backends (Gemini, Qwen, Fireworks AI) and completely air-gapped local setups (Gemma 4 running on AMD GPUs) for high-compliance enterprise privacy. Crucially, before executing any database query or log lookup, our proprietary **SQL Security Guard** wraps requests in JWT-based tenant constraints (e.g., `tenant_id = 123`), ensuring absolute multi-tenant data isolation and preventing data leakage.
 
 ### 🌟 Key Innovations & Standout Features:
 1. **The SQL Security Guard:** Our proprietary compiler safety layer parses AI-generated SQL queries and intercepts mutations. It automatically wraps queries in tenant-isolation constraints at runtime based on the user's secure JWT context. It is mathematically impossible for one client to access another client's data.
