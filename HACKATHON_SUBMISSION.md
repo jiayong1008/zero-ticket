@@ -11,7 +11,7 @@ ZeroTicket: AI Support-as-Code
 An autonomous AI Tier-3 support engineer that automates technical SaaS operations by securely reasoning over codebases, database records, server logs, and recent Git history using a secure SQL Security Guard and AMD-optimized local LLMs.
 
 **Long Description:** 
-Most customer service bots (like Intercom's Fin) only read static FAQs, Notion pages, and manuals. But they are completely blind to your codebase logic, developer comments, system bugs, or live database records. Because of this, software companies are forced to run expensive, high-friction **IT customer support & system maintenance operations** just to answer technical client inquiries.
+Most customer service bots only read static FAQs, Notion pages, and manuals. But they are completely blind to your codebase logic, developer comments, system bugs, or live database records. Because of this, software companies are forced to run expensive, high-friction **IT customer support & system maintenance operations** just to answer technical client inquiries.
 
 ZeroTicket shifts this paradigm from manual escalations to **Support-as-Code**:
 *   **Old Flow:** End User ➔ Ask technical question ➔ Support agent escalates ➔ IT/Developer stops building features ➔ Developer digs through server logs, codebase routing, and production replica DBs ➔ Developer writes explanation.
@@ -99,7 +99,7 @@ The video is the most critical part of your submission. Judges will skim the tex
 When judges score the **Product/Market Potential**, they are looking for a real business model. 
 
 1.  **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads. They hate that developers are stuck doing support. ZeroTicket gives them their developers back.
-2.  **Why buy this over Intercom's AI?** Intercom AI just reads static FAQ documents and Notion pages. ZeroTicket reads the *actual live database records, server logs, and codebase logic* safely. 
+2.  **Why buy this over traditional support bots?** Traditional bots just read static FAQ documents and Notion pages. ZeroTicket reads the *actual live database records, server logs, and codebase logic* safely. 
 3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 4 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.
 
 ### 📈 The Business Math (ROI)
@@ -192,14 +192,14 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 *   **Headline:** Capturing the High-Compliance Enterprise SaaS Market
 *   **Bullet Points:**
     *   **The Target Buyer:** CTOs, VPs of Engineering, and VPs of Customer Operations at B2B SaaS firms.
-    *   **The Competitors:** Existing AI customer support bots (like Intercom's Fin) only read static PDFs and help docs. ZeroTicket queries code logic and live database states safely.
+    *   **The Competitor Gap:** Existing AI customer support bots only read static PDFs and help docs. ZeroTicket queries code logic and live database states safely.
     *   **Market Moat:** Healthcare, FinTech, and GovTech firms cannot use cloud-based AI due to privacy mandates. Our air-gapped AMD-powered Docker agent provides a secure solution.
 
 ### 🛝 Slide 9: Business Model & Profitability
 *   **Headline:** Flat B2B Enterprise Licensing
 *   **Bullet Points:**
     *   **Go-To-Market:** Self-hosted Docker deployment.
-    *   **Pricing Structure:** Flat per-project flat fee model (e.g. $499/month/project) rather than token-metered billing, giving predictable costs to enterprises.
+    *   **Pricing Structure:** Predictable flat per-project subscription model rather than token-metered billing, giving predictable costs to enterprises.
     *   **High Margin:** Companies run it on their own cloud infrastructure (using AMD droplet instances), keeping ZeroTicket's operational costs at near-zero margins.
 
 ### 🛝 Slide 10: Conclusion & Call to Action

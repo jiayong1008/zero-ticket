@@ -9,7 +9,7 @@ An autonomous AI Tier-3 support engineer that securely answers complex technical
 ## 💡 The Pain Point & Solution
 
 ### Why Typical Customer Support Bots Fail
-Most customer service bots (like Intercom's Fin) only read static FAQs, Notion pages, and manuals. But they are completely blind to your codebase logic, developer comments, system bugs, or live database records. Because of this, software companies are forced to run expensive, high-friction **IT customer support & system maintenance operations** just to answer technical client inquiries.
+Most customer service bots only read static FAQs, Notion pages, and manuals. But they are completely blind to your codebase logic, developer comments, system bugs, or live database records. Because of this, software companies are forced to run expensive, high-friction **IT customer support & system maintenance operations** just to answer technical client inquiries.
 
 ### The Hidden Cost: Context-Switching & Developer Burnout
 Answering repetitive technical support queries doesn't just waste engineering time—it destroys developer flow state and leads to burnout. Because developers are constantly interrupted to dig through replica DB tables or grep server logs for support staff, they lose their momentum. Research shows that it takes an average of **23 minutes** to refocus on a complex coding task after a single support interruption. ZeroTicket protects your developers' focus so they can stay in the zone.
@@ -216,7 +216,7 @@ This project is built for the **Unicorn Track** of the AMD Developer Hackathon. 
 ### 1. 💼 Product/Market Potential (The B2B SaaS Moat)
 *   **The Problem:** B2B SaaS companies burn significant engineering hours escalating technical client tickets (e.g., payment failures, permissions) to software developers.
 *   **The Customer:** VPs of Engineering and CTOs who want to reclaim up to 20% of their developers' weekly capacity.
-*   **The Competitors:** Existing AI agents (like Intercom's Fin) only read static FAQs or support docs. ZeroTicket queries the actual codebase rules and database records securely.
+*   **The Competitor Gap:** Existing FAQ-based chatbots only read static support documents or knowledge bases. ZeroTicket queries the actual codebase rules and database records securely.
 *   **Business Model:** Flat per-project self-hosted subscription (pricing to be determined, structured as a small fraction of direct developer support costs) rather than usage-metered API tokens, giving predictable, budget-friendly costs to enterprise clients.
 
 ### 2. 💡 Creativity & Originality
