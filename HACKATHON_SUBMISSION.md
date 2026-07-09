@@ -106,7 +106,7 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 ### 🛝 Slide 1: Title Slide
 *   **Headline:** ZeroTicket
 *   **Sub-headline:** Autonomous AI Tier-3 Support Engineer for B2B SaaS
-*   **Visual:** ZeroTicket Logo and the generated [Cover Image](file:///Users/jiayong/GitHub/zeroticket/zeroticket_cover_image.png).
+*   **Visual:** ZeroTicket Logo and the generated [Cover Image](./zeroticket_cover_image.png).
 *   **Key Message:** Introducing an AMD ROCm-optimized, self-hosted AI agent that resolves complex technical customer tickets by securely querying codebase rules, database replicas, and live logs.
 
 ### 🛝 Slide 2: The Pain Point (Developer Burnout)
