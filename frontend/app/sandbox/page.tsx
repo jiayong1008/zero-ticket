@@ -909,19 +909,65 @@ export default function SandboxPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Agent failed to process inquiry.");
-      const data = await res.json();
-
+      if (!res.ok || !res.body) throw new Error("Agent failed to process inquiry.");
+      
+      // Initialize the assistant message
       setMessages((prev) => [
         ...prev,
         {
           sender: "assistant",
-          content: data.answer,
-          thoughtLog: data.thought_log,
+          content: "",
+          thoughtLog: "",
         },
       ]);
-      
-      setActiveThoughtLog(data.thought_log);
+      setActiveThoughtLog("");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let answerText = "";
+      let thoughtText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        let eventEnd = buffer.indexOf("\n\n");
+        while (eventEnd !== -1) {
+          const eventString = buffer.substring(0, eventEnd);
+          buffer = buffer.substring(eventEnd + 2);
+          
+          if (eventString.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(eventString.substring(6));
+              if (data.type === "thought") {
+                thoughtText += data.content;
+                setActiveThoughtLog(thoughtText);
+              } else if (data.type === "error") {
+                thoughtText += data.content;
+                setActiveThoughtLog(thoughtText);
+                answerText += "\n\n" + data.content;
+              } else if (data.type === "answer") {
+                answerText += data.content;
+              }
+              
+              setMessages((prev) => {
+                const newMessages = [...prev];
+                const lastMsg = { ...newMessages[newMessages.length - 1] };
+                lastMsg.content = answerText;
+                lastMsg.thoughtLog = thoughtText;
+                newMessages[newMessages.length - 1] = lastMsg;
+                return newMessages;
+              });
+            } catch (e) {
+              console.error("Failed to parse SSE event:", e);
+            }
+          }
+          eventEnd = buffer.indexOf("\n\n");
+        }
+      }
     } catch (err: any) {
       if (err.name === 'AbortError') {
         setMessages((prev) => [
