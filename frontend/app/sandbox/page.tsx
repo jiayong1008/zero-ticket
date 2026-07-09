@@ -1211,7 +1211,7 @@ export default function SandboxPage() {
                   </div>
                 )}
 
-                {(msg.sender === "system" || msg.content.startsWith("Error:")) && i === messages.length - 1 && (
+                {(msg.sender === "system" || msg.content.trim().startsWith("Error:") || msg.content.includes("Error: Failed to generate")) && i === messages.length - 1 && (
                   <button
                     onClick={() => handleRetryMessage(lastQuery)}
                     disabled={loading}
