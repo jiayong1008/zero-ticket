@@ -105,7 +105,7 @@ Your task is to merge a new user-provided correction or codebase rule into the e
             # Fallback to Gemini
             if not api_key:
                 raise ValueError("No Gemini API key available for learning loop optimization.")
-            client = genai.Client(api_key=api_key)
+            client = genai.Client(api_key=api_key, http_options={'timeout': 30000})
             response = client.models.generate_content(
                 model=model_name or "gemini-2.5-flash",
                 contents=[prompt]
@@ -131,5 +131,23 @@ Your task is to merge a new user-provided correction or codebase rule into the e
             f.write(cleaned_output)
     except Exception as e:
         raise RuntimeError(f"Failed to write updated guidelines to disk: {str(e)}")
+
+    # 7. Git commit the changes if it is a git repo
+    git_dir = os.path.join(repository_path, ".git")
+    if os.path.exists(git_dir):
+        import subprocess
+        try:
+            subprocess.run(["git", "add", "ai_context_rules.txt"], cwd=repository_path, check=True, capture_output=True)
+            commit_msg = "chore(ai): auto-update context guidelines via teach loop"
+            # Set author details to avoid error if git config user.name is missing in some server envs
+            env = os.environ.copy()
+            env["GIT_AUTHOR_NAME"] = "ZeroTicket AI Engine"
+            env["GIT_AUTHOR_EMAIL"] = "engine@zeroticket.ai"
+            env["GIT_COMMITTER_NAME"] = "ZeroTicket AI Engine"
+            env["GIT_COMMITTER_EMAIL"] = "engine@zeroticket.ai"
+            subprocess.run(["git", "commit", "-m", commit_msg], cwd=repository_path, check=True, capture_output=True, env=env)
+        except Exception as git_err:
+            # Safe fallback: don't crash the API response if git commit fails (e.g. no changes, lock, etc.)
+            print(f"Git auto-commit failed: {str(git_err)}")
 
     return cleaned_output
