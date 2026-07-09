@@ -121,6 +121,8 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 
 ### 🛝 Slide 2: The Pain Point (Developer Burnout)
 *   **Headline:** The B2B SaaS Support Bottleneck
+*   **Visual:** Comparison flowchart of the Support-as-Code Workflow Shift:
+    ![ZeroTicket Support Workflow Shift](./screenshots/support_workflow_shift.png)
 *   **Bullet Points:**
     *   **Level 2/3 Escalations:** Complex customer inquiries (e.g., payment discrepancies, webhook failures) require engineers to stop coding and investigate.
     *   **The Cost:** High-value software engineers waste up to 20% of their work week digging through raw server logs, checking database tables, and tracing codebase routes.
