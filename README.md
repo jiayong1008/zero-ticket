@@ -8,6 +8,12 @@ An autonomous AI Tier-3 support engineer that securely answers complex technical
 
 ## 💡 The Pain Point & Solution
 
+> [!NOTE]
+> **Behind the Idea: The Founder's Pain**
+> As a developer managing multiple client projects over long periods, I faced this friction daily. Clients would constantly ask: *"Why can't my user see this button today?"* 
+> 
+> Answering this is exhausting. First, no developer remembers the exact conditional rules of a codebase they wrote months ago—forcing them to open the IDE and dig through routes or controller permissions. Second, they have to query the replica database to verify that specific user's database role state. This manual look-up loop is incredibly annoying, derails engineering flow, and blocks actual product progress. ZeroTicket was built to delegate this tedious technical archaeology directly to AI.
+
 ### Why Typical Customer Support Bots Fail
 Most customer service bots only read static FAQs, Notion pages, and manuals. But they are completely blind to your codebase logic, developer comments, system bugs, or live database records. Because of this, software companies are forced to run expensive, high-friction **IT customer support & system maintenance operations** just to answer technical client inquiries.
 
