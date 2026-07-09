@@ -104,11 +104,12 @@ When judges score the **Product/Market Potential**, they are looking for a real 
 
 ### 📈 The Business Math (ROI)
 * **The Cost of Escalations:** Tracing a single technical support ticket manually takes a senior developer **20 - 30 minutes** (ssh, log grepping, running queries, context switching). Context switching alone steals **23 minutes & 15 seconds** of focus after the interruption.
+* **The ZeroTicket Solution:** Requires **0 seconds of developer time** for automated queries (since they are resolved autonomously by the AI engine directly at the client interface). Developers only get involved if ZeroTicket flags a genuine system bug or feature request that needs a code change.
 * **Monthly Dev Leakage:** For a small team of **5 developers** receiving **10 technical tickets a day**, that amounts to **125 hours / month** of developer capacity wasted on support, which at a $75/hr loaded developer cost equates to **$9,375 / month** ($112,500/year) lost.
-* **The Pitch Solution:** By self-hosting ZeroTicket at a flat licensing rate of **$499 / month**, SaaS firms save **$8,876/month** from day one, resulting in a clear **18x ROI**.
+* **Pricing & Savings:** By self-hosting ZeroTicket at a flat licensing subscription (pricing to be determined, structured as a small fraction of direct developer support costs), SaaS firms save thousands of dollars and hundreds of hours of high-value developer capacity every month.
 
 ### 🦄 Unicorn Track Judging Criteria Mappings:
-*   **Product/Market Potential:** Reclaims up to 20% of engineering bandwidth for B2B SaaS firms, charged at a predictable flat licensing rate ($499/mo/project) that enterprises prefer over metered tokens.
+*   **Product/Market Potential:** Reclaims up to 20% of engineering bandwidth for B2B SaaS firms, charged at a predictable flat licensing rate (pricing to be determined, designed to be a tiny fraction of the direct developer support cost).
 *   **Creativity & Originality:** Introduces a mathematically isolated SQL Security Guard compiler wrapping Text-to-SQL, and uses AST Tree-sitter parsers to understand codebase rules natively.
 *   **Completeness:** A fully functional, double-themed app containing schema discovery onboarding, vector ingestion syncing, and a debugger sandbox console simulating JWT claims.
 *   **Use of AMD Platforms:** Built to run on-premise on AMD developer clouds and GPU cards using Google's open-weights Gemma 4 via ROCm, unlocking high-compliance markets.

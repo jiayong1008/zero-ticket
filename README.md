@@ -28,22 +28,24 @@ Most customer service bots (like Intercom's Fin) only read static FAQs, Notion p
 
 ## 📈 The Business Math: Time & Money Saved
 
-Escalating a single technical L3 support ticket (e.g., diagnosing a database state discrepancy or log trace) costs a software company significant resources. Here is the realistic math:
+Escalating a single technical L3 support ticket (e.g., diagnosing a database state discrepancy or log trace) costs a software company significant engineering resources. Here is the realistic math:
 
 | Metrics | Manual IT Support Loop | ZeroTicket Shift |
 | :--- | :--- | :--- |
-| **Resolution Time** | **20 - 30 minutes** / ticket | **< 5 seconds** / ticket |
-| **Developer Cost** | **$37.50** / ticket (at $75/hr loaded cost) | **$0.00** / ticket (fully automated) |
+| **Resolution Time** | **20 - 30 minutes** / ticket | **Instant (< 5 seconds)** / ticket |
+| **Developer Cost** | **$37.50** / ticket (at $75/hr loaded cost) | **$0.00** / ticket (0 seconds of dev time needed)* |
 | **Context Switch Loss** | **23 minutes & 15 seconds** of lost focus | **Zero distraction** (developer stays in the zone) |
+
+*\* Note: Devs only get involved if the issue represents a genuine system bug or feature request, which ZeroTicket flags and escalates.*
 
 ### 💵 Real-World Monthly ROI Example
 Suppose a SaaS startup with **5 developers** receives a modest **10 technical tickets per day** (300 tickets/month):
 * **Answering Time:** 300 tickets × 25 mins = **125 hours / month** of developer time wasted.
 * **Direct Cost:** 125 hours × $75/hr = **$9,375 / month** ($112,500/year) spent on support maintenance.
-* **ZeroTicket Cost:** A flat license of **$499 / month**.
+* **ZeroTicket Cost:** A flat, predictable SaaS licensing fee (pricing to be determined, structured as a small fraction of the direct developer support costs).
 
 > [!IMPORTANT]
-> By deploying ZeroTicket, the startup saves **$8,876 per month**—yielding an **18x Return on Investment (ROI)** on day one.
+> By deploying ZeroTicket to automate frontend technical customer queries, SaaS companies completely eliminate the overhead of routine support maintenance, saving thousands of dollars and hundreds of hours of high-value developer capacity every month.
 
 ---
 
@@ -212,7 +214,7 @@ This project is built for the **Unicorn Track** of the AMD Developer Hackathon. 
 *   **The Problem:** B2B SaaS companies burn significant engineering hours escalating technical client tickets (e.g., payment failures, permissions) to software developers.
 *   **The Customer:** VPs of Engineering and CTOs who want to reclaim up to 20% of their developers' weekly capacity.
 *   **The Competitors:** Existing AI agents (like Intercom's Fin) only read static FAQs or support docs. ZeroTicket queries the actual codebase rules and database records securely.
-*   **Business Model:** Flat per-project self-hosted licensing (e.g., $499/month/project) rather than usage-metered API tokens, giving predictable, budget-friendly costs to enterprise scale clients.
+*   **Business Model:** Flat per-project self-hosted subscription (pricing to be determined, structured as a small fraction of direct developer support costs) rather than usage-metered API tokens, giving predictable, budget-friendly costs to enterprise clients.
 
 ### 2. 💡 Creativity & Originality
 *   **AST Ingestion:** Interprets code files as functional syntax trees (routes, models, controllers) rather than raw text blocks.
