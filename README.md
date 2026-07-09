@@ -1,15 +1,44 @@
 # ZeroTicket: AI-Powered Support-as-Code Platform
 
-ZeroTicket is an autonomous AI customer support platform that integrates directly with a tenant's git repository and a read-only database replica. It resolves the "Why can't User X see Y?" support loophole by answering customer support inquiries using real-time database schema information and codebase logic, while enforcing strict tenant data isolation via a secure SQL Security Guard.
+An autonomous AI Tier-3 support engineer that securely answers complex technical customer tickets by reasoning over codebase rules, database records, server logs, and Git history.
 
 ![ZeroTicket Cover Image](./zeroticket_cover_image.png)
+
+---
+
+## 💡 The Pain Point & Solution
+
+In B2B SaaS, customer support gets bottlenecked by complex technical questions (e.g., *"Why did my payment fail yesterday?"* or *"Why was I charged $900 instead of $1,000?"*). 
+
+Resolving these requires software engineers to stop writing code, dig through codebase rules, query production replica databases, and trace server logs. This process is slow, expensive, and takes engineers away from building features.
+
+**ZeroTicket solves this.** It acts as a secure virtual Tier-3 support engineer. It ingests your enterprise codebase, extracts the database schema, parses server logs, and indexes recent Git commits. When a customer asks a complex technical question, the AI reasons over the actual code rules and live data to provide a precise, real-time explanation.
+
+---
+
+## 🌟 Key Innovations & Technical Moats
+
+### 1. 🛡️ The SQL Security Guard
+Traditional Text-to-SQL LLM integrations risk SQL injection and cross-tenant data leaks. ZeroTicket features a proprietary compiler safety layer that parses AI-generated SQL queries and intercepts mutations. It automatically wraps all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = X`) matching the user's secure JWT context. It is mathematically impossible for Tenant A to leak data to Tenant B.
+
+### 2. 🌲 Multi-Language AST Ingestion
+Rather than basic keyword or generic text search, our ingestion pipeline uses Tree-sitter and abstract syntax tree (AST) parsers to scan classes, endpoints, database relations, and policies. It natively supports Node.js (Express, Next.js), Python (FastAPI, Django), PHP (Laravel), and Prisma schemas.
+
+### 3. ⏱️ Timeline-Aware Log Scanning
+ZeroTicket integrates with server log files (e.g., `server.log`) and database audit logs. By scanning recent Git commits (specifically targeted to the last 20 commits to avoid token bloat), it cross-references log timelines with code updates. It can instantly tell a user: *"Your checkout failed yesterday due to a database clearing timeout, but commit `a8f3b2c` resolved this issue 2 hours ago."*
+
+### 4. 🧠 Context-as-Code & Teach-AI Loop
+Support managers can edit custom guidelines in real-time from the Developer Dashboard, or correct the AI on the spot using a "Teach AI" feedback modal. ZeroTicket autonomously synthesizes these corrections and commits them back to the repository's `ai_context_rules.txt` file in Git, establishing a version-controlled, token-aware "Context-as-Code" loop.
+
+### 5. 100% Private & Air-Gapped (AMD GPU + Gemma 2)
+To meet strict enterprise compliance (SOC2/HIPAA), the entire stack can be run on-premise on AMD GPUs using Google's open-weights Gemma 2, preventing proprietary corporate code or database schemas from leaking to third-party public cloud APIs.
 
 ---
 
 ## 🎨 User Interface & Console Tour
 
 ### 🖥️ Main Developer Dashboard
-Configure git repositories, monitor code ingestion/indexing (incremental syncing), verify database replica connections, and manage version-controlled custom AI instructions.
+Configure multiple git repositories, monitor code ingestion/indexing (incremental syncing), verify database replica connections, and manage version-controlled custom AI instructions.
 ![ZeroTicket Dashboard](./screenshots/zeroticket_dashboard.png)
 
 ### 🛝 AI Sandbox Emulator & Secure Debugger
@@ -57,9 +86,63 @@ Data and API flow tracing client requests, vector store matching, local LLM eval
 
 ---
 
-## 🛠️ Project Structure
+## 🚀 Setup & How to Run
 
-The project consists of a Python FastAPI backend and a Next.js (React) frontend, designed to be deployed as a secure, self-hosted commercial SaaS.
+### Option 1: Docker (One-Click Compose)
+ZeroTicket comes with a full `docker-compose` configuration for one-click setup.
+```bash
+# From the project root directory
+docker compose up -d --build
+```
+* Renders Next.js Dashboard: `http://localhost:3000`
+* Runs FastAPI Backend Server: `http://localhost:8088`
+
+---
+
+### Option 2: Local Development
+
+#### 1. Backend Setup
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Setup virtual environment & dependencies:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. Configure environment variables in `backend/.env`:
+   ```env
+   DATABASE_URL=sqlite:///./zeroticket.db
+   ENCRYPTION_KEY=your-32-byte-base64-string-here
+   LICENSE_KEY=zt_license_trial_key
+   ADMIN_PASSWORD=your_secure_password
+   CUSTOM_LLM_BASE_URL=http://localhost:11434/v1
+   ```
+4. Launch Uvicorn development server:
+   ```bash
+   .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8088 --reload
+   ```
+
+#### 2. Frontend Setup
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install npm modules:
+   ```bash
+   npm install
+   ```
+3. Run development client:
+   ```bash
+   npm run dev
+   ```
+   *(Access frontend locally at `http://localhost:3000`)*
+
+---
+
+## 🛠️ Repository Directory Map
 
 ```
 zeroticket/
@@ -67,7 +150,7 @@ zeroticket/
 │   ├── app/
 │   │   ├── main.py          # API Endpoints (Ingestion, Sandbox, Chat Session, Admin Security)
 │   │   ├── parser/
-│   │   │   ├── code_parser.py       # Scans repo and chunks Laravel models & controllers
+│   │   │   ├── code_parser.py       # Scans repo and chunks models & controllers
 │   │   │   └── schema_extractor.py  # Connects to MySQL/PostgreSQL replica and extracts tables/schemas
 │   │   ├── vector/
 │   │   │   └── chroma_store.py      # Embeds chunks incrementally using Multi-LLM providers
@@ -75,9 +158,8 @@ zeroticket/
 │   │   │   ├── agent.py             # Generates SQL queries and answers support tickets
 │   │   │   └── security.py          # SQL Security Guard to wrap/intercept queries for safety
 │   │   └── db.py            # Local SQLite database configurations
-│   ├── zeroticket.db        # Backend SQLite metadata DB (ignored by git)
-│   ├── chroma_db/           # Local Vector database (ignored by git)
-│   └── .env                 # Environment variables (ADMIN_PASSWORD, LICENSE_KEY, etc.)
+│   ├── zeroticket.db        # Backend SQLite metadata DB (gitignored)
+│   └── chroma_db/           # Local Vector database (gitignored)
 │
 └── frontend/                 # Next.js Web Client
     ├── app/
@@ -89,103 +171,8 @@ zeroticket/
     │   └── globals.css      # Design system, CSS variables, and light/dark styling overrides
 ```
 
-💡 **Sub-project Documentation:**
-* 🔌 **Backend API Details:** See the [backend/README.md](./backend/README.md) for endpoint breakdowns, environment variables, and local database/vector directory mappings.
-* 🎨 **Frontend Client Details:** See the [frontend/README.md](./frontend/README.md) for theme swapping setups, page directories, and client routes.
-
----
-
-## 🚀 How to Run the Applications
-
-### Option 1: Docker (Recommended for Production)
-ZeroTicket comes with a full `docker-compose` setup for one-click deployment.
-```bash
-docker compose up -d --build
-```
-This will launch the FastAPI backend on `http://localhost:8088` and the Next.js frontend on `http://localhost:3000`.
-
----
-
-### Option 2: Local Development
-
-#### 1. Backend Setup
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-2. Activate virtual environment and launch uvicorn:
-   ```bash
-   .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8088 --reload
-   ```
-
-#### 2. Frontend Setup
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-2. Run development server:
-   ```bash
-   npm run dev
-   ```
-   *(Running locally on `http://localhost:3000`)*
-
----
-
-## 💡 Important Context for Future AI Coding Sessions
-
-### 1. Rate Limit & Chunk Optimization (Free Tier Friendly)
-* **The Problem:** Gemini's free embedding model API (`gemini-embedding-001`) enforces a strict daily limit of **1,000 embedding requests**. Scans of larger directories will trigger `RESOURCE_EXHAUSTED` 429 exceptions.
-* **The Optimization:** `code_parser.py` is configured to detect Laravel codebases (looking for the `artisan` file) and scope indexing strictly to `app/Models`, `app/Http/Controllers`, and `routes`. Additionally, it parses Laravel Eloquent models as single files instead of line-by-line helper splits. This successfully reduced total chunks for the `edukids-web` repository from **2,220 to 649 chunks**.
-* **Incremental Ingestion:** Embedding generation is run asynchronously using FastAPI's `BackgroundTasks`. The vector database caches indexed chunk hashes and checks for duplicates. If a sync fails or gets rate-limited, clicking the **"Sync Repository Code"** button on the dashboard will skip already-embedded files and resume indexing without starting from scratch.
-
-### 2. Dual-Theme Support (Light / Dark Mode)
-* The entire project features a dynamic Light Mode toggle (saved in `localStorage` as `"theme"`).
-* Layout and card borders transition smoothly by altering core variables (`--background`, `--foreground`, `--card-bg`, `--border-color`) in `globals.css` on the `body.light` selector.
-* All dashboard cards, inputs, buttons, chat widget headers, and bubble styling elements switch using React inline class bindings based on the client `isLightMode` state.
-
-### 3. Support Ingestion & SQL Security Guard
-* The AI engine translates user inquiries (e.g. *"why is my payment still pending?"*) into SQL queries against the local MySQL or PostgreSQL database.
-* The **SQL Security Guard** (`backend/app/engine/security.py`) automatically rewrites generated SQL queries before executing them. It parses the statements and injects tenant constraints (e.g., `WHERE tenant_id = 'X'`) based on the JWT claims context, guaranteeing that a user from Company A can never view data belonging to Company B.
-
----
-
-## 🆕 Features Added (June 2026)
-
-### Multi-Project Support
-* A single ZeroTicket installation supports **multiple project repositories** under one company account.
-* During onboarding Step 2, you can give each project a friendly **Project Name** (e.g., "EduKids Web Portal") separate from the repo folder path.
-* A **Project Switcher** dropdown appears on the dashboard header (after the first project is registered). Switching projects instantly updates the active `repository_id` in `localStorage` — all future sandbox queries and sync operations target the selected project.
-* The backend endpoint `GET /api/company/projects?company_id=...` returns all registered repositories with their sync statuses and linked DB type.
-
-### Per-Project Vector Collection Isolation
-* Switched ChromaDB indexing from a single global `codebase_chunks` collection to isolated, repository-scoped collections: `repo_<repository_id>`.
-* This prevents search context pollution and cross-project leakage.
-* Includes an automatic fallback to the global legacy collection if a repository has no per-project vector data yet, ensuring backward compatibility.
-
-### Database Type Toggle (MySQL & PostgreSQL Support)
-* Onboarding Step 3 includes a **Database Type selector** (MySQL / PostgreSQL).
-* Schema extraction has been upgraded to natively support PostgreSQL:
-  - Correctly handles PostgreSQL schema tables and relationship metadata query joins.
-  - Appropriately wraps PostgreSQL identifiers in double quotes `"` instead of MySQL backticks `` ` ``.
-  - Automatically loads the `psycopg2` driver for PostgreSQL connections.
-
-### Granular Sync Progress & Error Reporting
-* Both onboarding Step 4 and the Dashboard codebase card now pull real-time numerical ingestion progress (e.g., `Embedding (120/649)`) and render a sleek animated progress bar.
-* Specific backend-level failures (like invalid API keys or quota exhaustion errors) are cached in `Repository.sync_message` and rendered directly as active warning labels instead of generic error alerts.
-* Includes auto-recovery on backend startup: any stuck indexing jobs (e.g., due to a crash or reload during parsing/cloning) are safely reset to a `pending` state.
-
-### Inline LLM Configuration Editor
-* The Dashboard's **Developer API Keys** card features an inline **"Edit LLM Config"** editor.
-* Allows updating the LLM API Key or switching LLM providers (including Gemini, OpenAI, Anthropic, DeepSeek, Qwen, Fireworks AI, and Custom Local LLMs like Gemma 2) on the fly without wiping existing project connections or resetting the dashboard.
-
-### Stateful Conversational Memory & Prompt Caching
-* The AI engine now inherently supports chat history, seamlessly handling conversational follow-ups and pronoun resolutions (e.g., *"What about my user ID?"*).
-* Features a **Dynamic Token-Aware Sliding Window** that truncates history safely to a 3000-character budget to protect LLM token limits and API costs.
-* Restructured prompts strictly place static contexts (Database Schema and Chat History) at the absolute top of the request, and volatile contexts (RAG Code Chunks and SQL Execution Results) at the bottom, maximizing **Prompt Caching** discounts for modern LLMs (like Gemini 1.5 and Claude 3.5).
-
 ---
 
 ## 📦 Demo Active Connections
 * **Repository Path:** `playground/zero-billing-demo`
 * **Local Database:** MySQL replica `zero_billing_replica` (Host: `127.0.0.1:3306`)
-
