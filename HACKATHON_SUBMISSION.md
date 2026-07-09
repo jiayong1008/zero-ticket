@@ -149,17 +149,7 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 ### 🛝 Slide 6: Technical Innovation: SQL Security Guard
 *   **Headline:** Mathematically Isolated Multi-Tenancy
 *   **Visual:** High-contrast rewrite flow:
-    ```mermaid
-    graph TD
-        InsecureSQL[AI Drafted Insecure SQL: <br><code>SELECT * FROM payments WHERE status = 'pending'</code>]
-        JWT[JWT tenant_id = 1]
-        Compiler[SQL Security Guard Compiler]
-        SecureSQL[Sanitized Tenant-Isolated SQL: <br><code>SELECT * FROM payments WHERE tenant_id = 1 AND status = 'pending'</code>]
-
-        InsecureSQL --> Compiler
-        JWT --> Compiler
-        Compiler --> SecureSQL
-    ```
+    ![SQL Security Guard Rewrite Process](./screenshots/sql_security_guard_flow.png)
 *   **Bullet Points:**
     *   **The Vulnerability:** Text-to-SQL LLMs are prone to SQL injection and data leakage across tenants.
     *   **Our Solution:** The SQL Security Guard compiles raw AI-generated SQL and wraps all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = X`) matching the user's secure JWT context.
@@ -168,19 +158,7 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 ### 🛝 Slide 7: Tech Stack & AMD Gemma 2 Integration
 *   **Headline:** 100% Air-Gapped, Privacy-First Architecture
 *   **Visual:** Flowchart showing data flow:
-    ```mermaid
-    graph LR
-        subgraph User Browser
-            JWT_Context[User secure JWT context] --> NextJS[Next.js App Client]
-        end
-        subgraph Self-Hosted Enterprise Network (AMD ROCm / GPU)
-            NextJS --> FastAPI[FastAPI Backend Server]
-            FastAPI --> ChromaDB[(ChromaDB Vector Store)]
-            FastAPI --> Gemma[Local Gemma 2 / Fireworks AI]
-            FastAPI --> SQLGuard[SQL Security Guard Compiler]
-            SQLGuard --> MySQL[(MySQL / PostgreSQL Replica)]
-        end
-    ```
+    ![ZeroTicket System Architecture Flow](./screenshots/zeroticket_architecture_flow.png)
 *   **Bullet Points:**
     *   **Frontend:** React / Next.js with styled Tailwind CSS.
     *   **Backend:** FastAPI / Python + SQLite for metadata + ChromaDB for AST vector indexing.

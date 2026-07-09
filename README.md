@@ -28,6 +28,14 @@ Onboard new codebases seamlessly. ZeroTicket scans code structures and prompts s
 Directly edit AI guidelines within the chat widget. Corrections are compiled and committed directly back to `ai_context_rules.txt` in the source repository.
 ![Human-in-the-Loop AI Tuning](./screenshots/emulator_teach_ai.png)
 
+### 🛡️ SQL Security Guard Rewrite Pipeline
+Intercepts AI-generated SQL query syntax trees at compile-time and dynamically injects tenant constraints to prevent cross-tenant data leaks.
+![SQL Security Guard Rewrite Process](./screenshots/sql_security_guard_flow.png)
+
+### 🌐 System Architecture
+Data and API flow tracing client requests, vector store matching, local LLM evaluation (AMD ROCm), and safe database replica queries.
+![ZeroTicket System Architecture Flow](./screenshots/zeroticket_architecture_flow.png)
+
 ---
 
 ## 💡 Runtime Walkthrough (How it Answers a Question)
