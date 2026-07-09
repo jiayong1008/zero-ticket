@@ -97,9 +97,15 @@ The video is the most critical part of your submission. Judges will skim the tex
 ## 5. 💼 How to Sell It (The Startup Angle)
  
 When judges score the **Product/Market Potential**, they are looking for a real business model. 
-1.  **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads. They hate that developers are stuck doing support. ZeroTicket gives them their developers back and reduces support resolution times from days to seconds.
+
+1.  **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads. They hate that developers are stuck doing support. ZeroTicket gives them their developers back.
 2.  **Why buy this over Intercom's AI?** Intercom AI just reads static FAQ documents and Notion pages. ZeroTicket reads the *actual live database records, server logs, and codebase logic* safely. 
 3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 4 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.
+
+### 📈 The Business Math (ROI)
+* **The Cost of Escalations:** Tracing a single technical support ticket manually takes a senior developer **20 - 30 minutes** (ssh, log grepping, running queries, context switching). Context switching alone steals **23 minutes & 15 seconds** of focus after the interruption.
+* **Monthly Dev Leakage:** For a small team of **5 developers** receiving **10 technical tickets a day**, that amounts to **125 hours / month** of developer capacity wasted on support, which at a $75/hr loaded developer cost equates to **$9,375 / month** ($112,500/year) lost.
+* **The Pitch Solution:** By self-hosting ZeroTicket at a flat licensing rate of **$499 / month**, SaaS firms save **$8,876/month** from day one, resulting in a clear **18x ROI**.
 
 ### 🦄 Unicorn Track Judging Criteria Mappings:
 *   **Product/Market Potential:** Reclaims up to 20% of engineering bandwidth for B2B SaaS firms, charged at a predictable flat licensing rate ($499/mo/project) that enterprises prefer over metered tokens.
