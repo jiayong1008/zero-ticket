@@ -36,7 +36,7 @@ Fireworks AI, Python, FastAPI, Next.js, React, TailwindCSS, ChromaDB, MySQL, Pos
 ## 2. Media Uploads
 
 **Cover Image:** 
-*(Upload a visually appealing cover image - 16:9 ratio. Tip: Use a screenshot of the ZeroTicket Sandbox dashboard!)*
+![ZeroTicket Cover Image](./zeroticket_cover_image.png)
 
 **Video Presentation:** 
 *(Insert link to your video presentation - ensure it is under 300MB and max 5 minutes)*
@@ -106,7 +106,8 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 ### 🛝 Slide 1: Title Slide
 *   **Headline:** ZeroTicket
 *   **Sub-headline:** Autonomous AI Tier-3 Support Engineer for B2B SaaS
-*   **Visual:** ZeroTicket Logo and the generated [Cover Image](./zeroticket_cover_image.png).
+*   **Visual:** ZeroTicket Logo and the generated [Cover Image](./zeroticket_cover_image.png):
+    ![ZeroTicket Cover Image](./zeroticket_cover_image.png)
 *   **Key Message:** Introducing an AMD ROCm-optimized, self-hosted AI agent that resolves complex technical customer tickets by securely querying codebase rules, database replicas, and live logs.
 
 ### 🛝 Slide 2: The Pain Point (Developer Burnout)
@@ -122,11 +123,13 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
     *   **Codebase Ingestion:** ZeroTicket parses project syntax trees (FastAPI, Django, Laravel, Express) to understand business rules.
     *   **Live Context Retrieval:** Instantly correlates live server logs, database replica records, and Git commit histories to trace the exact root cause of an issue.
     *   **No Codebase Bloat:** Rules are written automatically in Git (`ai_context_rules.txt`) as version-controlled configurations.
+    *   **Visual - Main Developer Dashboard:**
+        ![ZeroTicket Developer Dashboard](./screenshots/zeroticket_dashboard.png)
 
 ### 🛝 Slide 4: Interactive Developer Onboarding (Setup Discovery)
 *   **Headline:** Zero-Configuration Setup: Self-Tuning Context Loop
 *   **Visual:** Screenshot of the **ZeroTicket Setup Discovery Card Deck** on the dashboard:
-    ![Onboarding Setup](./screenshots/dashboard.png)
+    ![Onboarding Setup](./screenshots/onboarding_discovery.png)
 *   **Bullet Points:**
     *   **Auto-Ambiguity Discovery:** Right after ingestion, an AI agent scans codebase schemas and log files to identify setup gaps.
     *   **Question Wizard:** Presents support engineers with step-by-step multiple choice cards to specify primary server log paths, main transaction tables, or status code maps.
@@ -135,10 +138,13 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 ### 🛝 Slide 5: Product Demo: AI Sandbox Emulator
 *   **Headline:** AI Sandbox: The Troubleshooting Console
 *   **Visual:** Screenshot of the **AI Sandbox Emulator** with active chat log traces:
-    ![Sandbox Emulator](./screenshots/sandbox.png)
-*   **Bullet Points:**
-    *   **Chat Simulator:** Test how the support widget responds to customer inquiries in real-time.
     *   **Thought Trace Debugger:** Displays the agent's step-by-step reasoning, including the raw SQL queries drafted and the server logs parsed.
+    *   **Visual - Interactive Sandbox Emulator (ACH Clearing Scenario):**
+        ![Sandbox Emulator - ACH Clearing](./screenshots/sandbox_emulator_ach.png)
+    *   **Visual - Multimodal OCR Failure Diagnostics:**
+        ![Sandbox Emulator - Multimodal OCR](./screenshots/emulator_ocr_demo.png)
+    *   **Visual - Human-in-the-Loop AI Tuning ("Teach AI" modal):**
+        ![Teach AI / Correct Response Modal](./screenshots/emulator_teach_ai.png)
 
 ### 🛝 Slide 6: Technical Innovation: SQL Security Guard
 *   **Headline:** Mathematically Isolated Multi-Tenancy

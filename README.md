@@ -2,6 +2,32 @@
 
 ZeroTicket is an autonomous AI customer support platform that integrates directly with a tenant's git repository and a read-only database replica. It resolves the "Why can't User X see Y?" support loophole by answering customer support inquiries using real-time database schema information and codebase logic, while enforcing strict tenant data isolation via a secure SQL Security Guard.
 
+![ZeroTicket Cover Image](./zeroticket_cover_image.png)
+
+---
+
+## 🎨 User Interface & Console Tour
+
+### 🖥️ Main Developer Dashboard
+Configure git repositories, monitor code ingestion/indexing (incremental syncing), verify database replica connections, and manage version-controlled custom AI instructions.
+![ZeroTicket Dashboard](./screenshots/zeroticket_dashboard.png)
+
+### 🛝 AI Sandbox Emulator & Secure Debugger
+Test custom queries, simulate user JWT contexts, inspect live server log scanning, and watch the **SQL Security Guard** dynamically rewrite SQL queries to enforce compile-time multi-tenant isolation.
+![Sandbox Emulator - ACH Clearing](./screenshots/sandbox_emulator_ach.png)
+
+### 📂 Multimodal Image OCR Diagnostics
+Upload billing failure images or payment errors. ZeroTicket extracts error details via OCR and automatically queries the code models for resolutions.
+![Sandbox Emulator - Multimodal OCR](./screenshots/emulator_ocr_demo.png)
+
+### ⚙️ Auto-Ambiguity Setup Discovery
+Onboard new codebases seamlessly. ZeroTicket scans code structures and prompts support developers with interactive setup questions.
+![Onboarding Setup Discovery](./screenshots/onboarding_discovery.png)
+
+### 🧠 Human-in-the-Loop AI Tuning ("Teach AI")
+Directly edit AI guidelines within the chat widget. Corrections are compiled and committed directly back to `ai_context_rules.txt` in the source repository.
+![Human-in-the-Loop AI Tuning](./screenshots/emulator_teach_ai.png)
+
 ---
 
 ## 💡 Runtime Walkthrough (How it Answers a Question)
