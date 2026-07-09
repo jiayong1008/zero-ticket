@@ -125,7 +125,8 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 
 ### 🛝 Slide 4: Interactive Developer Onboarding (Setup Discovery)
 *   **Headline:** Zero-Configuration Setup: Self-Tuning Context Loop
-*   **Visual:** Screenshot of the **ZeroTicket Setup Discovery Card Deck** on the dashboard.
+*   **Visual:** Screenshot of the **ZeroTicket Setup Discovery Card Deck** on the dashboard:
+    ![Onboarding Setup](./screenshots/dashboard.png)
 *   **Bullet Points:**
     *   **Auto-Ambiguity Discovery:** Right after ingestion, an AI agent scans codebase schemas and log files to identify setup gaps.
     *   **Question Wizard:** Presents support engineers with step-by-step multiple choice cards to specify primary server log paths, main transaction tables, or status code maps.
@@ -133,7 +134,8 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 
 ### 🛝 Slide 5: Product Demo: AI Sandbox Emulator
 *   **Headline:** AI Sandbox: The Troubleshooting Console
-*   **Visual:** Screenshot of the **AI Sandbox Emulator** with active chat log traces.
+*   **Visual:** Screenshot of the **AI Sandbox Emulator** with active chat log traces:
+    ![Sandbox Emulator](./screenshots/sandbox.png)
 *   **Bullet Points:**
     *   **Chat Simulator:** Test how the support widget responds to customer inquiries in real-time.
     *   **Thought Trace Debugger:** Displays the agent's step-by-step reasoning, including the raw SQL queries drafted and the server logs parsed.
