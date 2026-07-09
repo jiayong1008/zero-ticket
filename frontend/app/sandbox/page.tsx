@@ -360,13 +360,13 @@ export default function SandboxPage() {
       desc: "Loads a mock screenshot of a billing failure. AI extracts 'ERR-ACH-502' via OCR, checks PaymentController.php and gives routing/ACH solutions."
     },
     {
-      name: "6. Intent Debugger (Alice)",
-      query: "Why did the chatbot classify the intent for 140668869587155 on June 25th?",
-      userId: "101",
+      name: "6. DuitNow Fail Trace (Edukids)",
+      query: "Why did my DuitNow payment fail on July 6th?",
+      userId: "322",
       tenantId: "1",
       customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
       loadImage: false,
-      desc: "Alice queries a chatbot classification discrepancy. ZeroTicket inspects the live server.log, extracts the June 25th date, and maps the IntentClassifier trigger rule."
+      desc: "Queries a failed DuitNow payment. ZeroTicket scans laravel.log, extracts the July 6th date, filters securely for user/student 322, and finds the system-logged timeout."
     }
   ];
 
