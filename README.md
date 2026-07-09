@@ -12,26 +12,28 @@ In B2B SaaS, customer support gets bottlenecked by complex technical questions (
 
 Resolving these requires software engineers to stop writing code, dig through codebase rules, query production replica databases, and trace server logs. This process is slow, expensive, and takes engineers away from building features.
 
-**ZeroTicket solves this.** It acts as a secure virtual Tier-3 support engineer. It ingests your enterprise codebase, extracts the database schema, parses server logs, and indexes recent Git commits. When a customer asks a complex technical question, the AI reasons over the actual code rules and live data to provide a precise, real-time explanation.
+**ZeroTicket solves this.** It acts as a secure virtual Tier-3 support engineer. It ingests your enterprise codebase, extracts the database schema, parses server logs, and indexes recent Git commits. When a customer asks a complex technical question, the AI reasons over the actual code rules and live data to provide a precise, real-time explanation. 
+
+**Best of all, the AI gets smarter over time.** Using the interactive developer tuning interface, administrators can teach the bot on the spot or add custom instructions when they notice gaps. The AI dynamically adapts to these rules, resolving future inquiries correctly without needing manual codebase changes or tedious re-indexing.
 
 ---
 
 ## 🌟 Key Innovations & Technical Moats
 
-### 1. 🛡️ The SQL Security Guard
-Traditional Text-to-SQL LLM integrations risk SQL injection and cross-tenant data leaks. ZeroTicket features a proprietary compiler safety layer that parses AI-generated SQL queries and intercepts mutations. It automatically wraps all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = X`) matching the user's secure JWT context. It is mathematically impossible for Tenant A to leak data to Tenant B.
+### 1. 🧠 Self-Improving "Teach-AI" Tuning (Context-as-Code)
+ZeroTicket is designed to evolve. When support managers or developers correct an AI response or input a custom business rule, the system automatically digests the feedback and saves it as version-controlled configurations. The bot gets smarter on the fly, instantly tuning its reasoning for future customer support queries.
 
-### 2. 🌲 Multi-Language AST Ingestion
-Rather than basic keyword or generic text search, our ingestion pipeline uses Tree-sitter and abstract syntax tree (AST) parsers to scan classes, endpoints, database relations, and policies. It natively supports Node.js (Express, Next.js), Python (FastAPI, Django), PHP (Laravel), and Prisma schemas.
+### 2. ⏱️ Timeline-Aware Log & Code Diagnostics
+Traditional RAG models only read static files. ZeroTicket live-scans replica databases and correlates recent server logs and Git updates to trace the exact root cause of customer issues. It instantly explains the technical result to the customer (e.g., *"Your clearing transfer is pending due to a standard bank processing timeout"*), avoiding manual support ticket lookups.
 
-### 3. ⏱️ Timeline-Aware Log Scanning
-ZeroTicket integrates with server log files (e.g., `server.log`) and database audit logs. By scanning recent Git commits (specifically targeted to the last 20 commits to avoid token bloat), it cross-references log timelines with code updates. It can instantly tell a user: *"Your checkout failed yesterday due to a database clearing timeout, but commit `a8f3b2c` resolved this issue 2 hours ago."*
+### 3. 🛡️ The SQL Security Guard
+Traditional database AI integrations risk cross-tenant data leaks. ZeroTicket features a compiler safety layer that intercepts AI-generated SQL queries and rejects mutations. It automatically wraps all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = X`) matching the user's secure JWT context. It is mathematically impossible for one client to access another client's data.
 
-### 4. 🧠 Context-as-Code & Teach-AI Loop
-Support managers can edit custom guidelines in real-time from the Developer Dashboard, or correct the AI on the spot using a "Teach AI" feedback modal. ZeroTicket autonomously synthesizes these corrections and commits them back to the repository's `ai_context_rules.txt` file in Git, establishing a version-controlled, token-aware "Context-as-Code" loop.
+### 4. 🌲 AST Codebase Ingestion
+Rather than generic keyword search, our ingestion pipeline uses AST parsers (supporting FastAPI, Node.js, Laravel, and Prisma schemas) to build structured representations of endpoints, models, and controllers so the AI understands your business logic rules natively.
 
-### 5. 100% Private & Air-Gapped (AMD GPU + Gemma 2)
-To meet strict enterprise compliance (SOC2/HIPAA), the entire stack can be run on-premise on AMD GPUs using Google's open-weights Gemma 2, preventing proprietary corporate code or database schemas from leaking to third-party public cloud APIs.
+### 5. 🔒 100% Private, On-Premise (AMD GPU + Gemma 4)
+Built for high-compliance enterprise B2B SaaS (FinTech, Healthcare, GovTech). The entire stack can be run on-premise on AMD GPUs using Google's open-weights **Gemma 4**, ensuring that proprietary code and customer records never leave the company's private cloud network.
 
 ---
 

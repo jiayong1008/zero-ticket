@@ -17,11 +17,11 @@ ZeroTicket solves this. It is a self-hosted AI engine that ingests an enterprise
 
 ### 🌟 Key Innovations & Standout Features:
 1. **The SQL Security Guard:** Our proprietary compiler safety layer parses AI-generated SQL queries and intercepts mutations. It automatically wraps queries in tenant-isolation constraints at runtime based on the user's secure JWT context. It is mathematically impossible for one client to access another client's data.
-2. **Multi-Language AST Ingestion Engine:** Rather than generic text search, our ingestion pipeline uses Tree-sitter and abstract syntax tree (AST) parsers to scan classes, endpoints, database relations, and policies. It natively supports Node.js (Express, Next.js), Python (FastAPI, Django), PHP (Laravel), and Prisma schemas.
-3. **Log & Timeline-Aware Troubleshooting:** ZeroTicket integrates with server log files (e.g., `server.log`) and database audit logs. By scanning recent Git commits (specifically targeted to the last 20 commits to avoid token bloat), it cross-references log timelines with code updates. It can instantly tell a user: *"Your payment failed yesterday due to a database timeout, but commit `a8f3b2c` resolved this 2 hours ago."*
-4. **Context-as-Code & Self-Improving Feedback Loop:** Support managers can view and edit custom guidelines in real-time from the Developer Dashboard Context Editor, or teach the AI on the spot using a "Teach AI" feedback loop. ZeroTicket autonomously synthesizes these corrections and commits them back to the repository's `ai_context_rules.txt` file in Git, establishing a version-controlled, token-aware "Context-as-Code" loop.
-5. **Model-Agnostic & 100% Private (AMD GPU + Gemma 2):** Built to meet strict enterprise compliance (SOC2/HIPAA). The entire stack can be run on-premise on AMD GPUs using Google's open-weights Gemma 2, preventing proprietary corporate code or database schemas from leaking to third-party public cloud APIs.
-6. **Token-Budgeted Conversational Memory:** Features a sliding contextual window and dynamic prompt construction optimized specifically for prompt caching discounts, providing sub-second AI response times at a fraction of the cost.
+2. **Self-Improving Feedback Loop:** When support managers or developers correct an AI response or input a custom business rule, the system automatically digests the feedback and saves it as version-controlled configurations. The bot gets smarter on the fly, instantly tuning its reasoning for future customer support queries.
+3. **Log & Timeline-Aware Troubleshooting:** ZeroTicket live-scans replica databases and correlates recent server logs and Git updates to trace the exact root cause of customer issues. It instantly explains the technical result to the customer (e.g. why their invoice is pending or why a payment failed), avoiding manual support ticket lookups.
+4. **The SQL Security Guard:** ZeroTicket features a compiler safety layer that intercepts AI-generated SQL queries and rejects mutations. It automatically wraps all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = X`) matching the user's secure JWT context. It is mathematically impossible for Tenant A to leak data to Tenant B.
+5. **Model-Agnostic & 100% Private (AMD GPU + Gemma 4):** Built to meet strict enterprise compliance (SOC2/HIPAA). The entire stack can be run on-premise on AMD GPUs using Google's open-weights Gemma 4, preventing proprietary corporate code or database schemas from leaking to third-party public cloud APIs.
+6. **🌲 AST Codebase Ingestion:** Rather than basic keyword search, our ingestion pipeline uses AST parsers (supporting FastAPI, Node.js, Laravel, and Prisma schemas) to build structured representations of endpoints, models, and controllers so the AI understands your business logic rules natively.
 
 We built this using FastAPI, Next.js, ChromaDB, and Tree-sitter. ZeroTicket proves that AI can securely execute dynamic SQL and parse production logs in a multi-tenant environment without compromising data security or corporate IP.
 
@@ -29,7 +29,7 @@ We built this using FastAPI, Next.js, ChromaDB, and Tree-sitter. ZeroTicket prov
 Unicorn Track
 
 **Technologies:** 
-Fireworks AI, Python, FastAPI, Next.js, React, TailwindCSS, ChromaDB, MySQL, PostgreSQL, Gemma 2, Llama 3
+Fireworks AI, Python, FastAPI, Next.js, React, TailwindCSS, ChromaDB, MySQL, PostgreSQL, Gemma 4, Llama 3
 
 ---
 
@@ -77,20 +77,20 @@ The video is the most critical part of your submission. Judges will skim the tex
     
     Finally, watch what happens when Alice queries: 'Show me all invoices.'. Before it hits our MySQL database, our proprietary **SQL Security Guard** intercepts the raw SQL, and dynamically wraps it in tenant-isolation constraints. Alice only sees her own invoice, proving it is mathematically impossible for Tenant A to leak data to Tenant B.
     
-    If the AI ever makes an error or lacks context, support engineers can click 'Teach AI' to correct it on the fly. ZeroTicket's token-aware feedback optimizer synthesizes the correction and commits it back to the repository's `ai_context_rules.txt` file in Git, establishing a self-improving Context-as-Code loop."
+    If the AI ever makes an error or lacks context, support engineers can click 'Teach AI' to correct it on the fly. ZeroTicket's feedback optimizer automatically synthesizes the correction into version-controlled configurations, establishing a self-improving loop where the bot gets smarter over time."
 *   **2:30 - 3:30 | The Tech Stack & Fireworks AI / AMD Angle**
     *   **Visual:** Show a quick architecture diagram (React -> FastAPI -> ChromaDB -> Fireworks AI/MySQL).
-    *   **Script:** "To do this securely, enterprises demand on-premise data privacy. That's why we built this for the Unicorn Track using **Fireworks AI** and **Gemma 2**. Instead of sending proprietary source code or database schemas to OpenAI, ZeroTicket can be deployed on AMD GPUs running Google's open-weights Gemma 2 locally. This proves that a 100% air-gapped, privacy-first AI support agent is possible today."
+    *   **Script:** "To do this securely, enterprises demand on-premise data privacy. That's why we built this for the Unicorn Track using **Fireworks AI** and **Gemma 4**. Instead of sending proprietary source code or database schemas to OpenAI, ZeroTicket can be deployed on AMD GPUs running Google's open-weights Gemma 4 locally. This proves that a 100% air-gapped, privacy-first AI support agent is possible today."
 *   **3:30 - 4:00 | The Business Model (Selling it)**
     *   **Visual:** Slide showing "B2B SaaS Licensing".
     *   **Script:** "Our go-to-market is B2B enterprise software companies. We charge a flat per-project licensing fee for the self-hosted Docker deployment, saving companies hundreds of engineering hours every month. Thank you."
-
+ 
 ## 5. 💼 How to Sell It (The Startup Angle)
-
+ 
 When judges score the **Product/Market Potential**, they are looking for a real business model. 
 1.  **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads. They hate that developers are stuck doing support. ZeroTicket gives them their developers back and reduces support resolution times from days to seconds.
 2.  **Why buy this over Intercom's AI?** Intercom AI just reads static FAQ documents and Notion pages. ZeroTicket reads the *actual live database records, server logs, and codebase logic* safely. 
-3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 2 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.
+3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 4 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.APIs cannot touch.
 
 ## 6. 🔥 Pro-Tips for Submission Day
 *   **Make sure the repo is public** when you submit, or the judges will instantly dock points.
@@ -155,14 +155,14 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
     *   **Our Solution:** The SQL Security Guard compiles raw AI-generated SQL and wraps all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = X`) matching the user's secure JWT context.
     *   **Zero Leakage:** Prevents Tenant A from ever accessing Tenant B's data at the compiler level.
 
-### 🛝 Slide 7: Tech Stack & AMD Gemma 2 Integration
+### 🛝 Slide 7: Tech Stack & AMD Gemma 4 Integration
 *   **Headline:** 100% Air-Gapped, Privacy-First Architecture
 *   **Visual:** Flowchart showing data flow:
     ![ZeroTicket System Architecture Flow](./screenshots/zeroticket_architecture_flow.png)
 *   **Bullet Points:**
     *   **Frontend:** React / Next.js with styled Tailwind CSS.
     *   **Backend:** FastAPI / Python + SQLite for metadata + ChromaDB for AST vector indexing.
-    *   **AMD GPU Optimization:** Powered by Google's open-weights **Gemma 2 (9B)** running locally on AMD GPUs with ROCm support. No source code or customer data ever leaves the company's private cloud network.
+    *   **AMD GPU Optimization:** Powered by Google's open-weights **Gemma 4** running locally on AMD GPUs with ROCm support. No source code or customer data ever leaves the company's private cloud network.
 
 ### 🛝 Slide 8: Market Potential & Target Audience
 *   **Headline:** Capturing the High-Compliance Enterprise SaaS Market

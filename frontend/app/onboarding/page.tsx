@@ -563,7 +563,7 @@ function OnboardingPageContent() {
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. EduKids Web Portal"
+                placeholder="e.g. ZeroTicket Web Portal"
                 className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                 required
               />
@@ -600,7 +600,7 @@ function OnboardingPageContent() {
                   type="text"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="e.g. EduKids Web Portal"
+                  placeholder="e.g. ZeroTicket Web Portal"
                   className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                 />
                 <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
@@ -619,7 +619,7 @@ function OnboardingPageContent() {
                   type="text"
                   value={repoPath}
                   onChange={(e) => setRepoPath(e.target.value)}
-                  placeholder="e.g. /Users/jiayong/GitHub/edukids-web"
+                  placeholder="e.g. /Users/jiayong/GitHub/zeroticket"
                   className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                   required
                 />
@@ -821,7 +821,7 @@ function OnboardingPageContent() {
                       type="text"
                       value={dbName}
                       onChange={(e) => setDbName(e.target.value)}
-                      placeholder="e.g. edukids_db"
+                      placeholder="e.g. zeroticket_db"
                       className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                       required
                     />
