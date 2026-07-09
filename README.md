@@ -12,7 +12,7 @@ An autonomous AI Tier-3 support engineer that securely answers complex technical
 > **Behind the Idea: The Founder's Pain**
 > As a developer managing multiple client projects over long periods, I faced this friction daily. Clients would constantly ask: *"Why can't my user see this button today?"* 
 > 
-> Answering this is exhausting. First, no developer remembers the exact conditional rules of a codebase they wrote months ago—forcing them to open the IDE and dig through routes or controller permissions. Second, they have to query the replica database to verify that specific user's database role state. This manual look-up loop is incredibly annoying, derails engineering flow, and blocks actual product progress. ZeroTicket was built to delegate this tedious technical archaeology directly to AI.
+> Answering this is exhausting. First, no developer remembers the exact conditional rules of a codebase they wrote months ago—forcing them to open the IDE and dig through routes or controller permissions. Second, they have to query the database to verify that specific user's database state. This manual look-up loop is incredibly annoying, derails engineering flow, and blocks actual product progress. ZeroTicket was built to delegate this tedious technical archaeology directly to AI.
 
 ### Why Typical Customer Support Bots Fail
 Most customer service bots only read static FAQs, Notion pages, and manuals. But they are completely blind to your codebase logic, developer comments, system bugs, or live database records. Because of this, software companies are forced to run expensive, high-friction **IT customer support & system maintenance operations** just to answer technical client inquiries.
@@ -60,20 +60,20 @@ Suppose a SaaS startup with **5 developers** receives a modest **10 technical ti
 
 ## 🌟 Key Innovations & Technical Moats
 
-### 1. 🧠 Self-Improving "Teach-AI" Tuning (Context-as-Code)
-ZeroTicket is designed to evolve. When support managers or developers correct an AI response or input a custom business rule, the system automatically digests the feedback and saves it as version-controlled configurations. The bot gets smarter on the fly, instantly tuning its reasoning for future customer support queries.
+### 1. 🔄 Git-as-Source "Human-in-the-Loop" Context Tuning
+Instead of requiring expensive vector re-indexing or model fine-tuning when business rules change, ZeroTicket manages support rules as version-controlled code configurations (`ai_context_rules.txt`). When a developer corrects the AI's reasoning via the "Teach AI" dashboard, the system commits a Git patch directly to the source repository. The agent digests these guidelines instantly in-memory, keeping adjustments transparent, versioned, and audit-friendly.
 
-### 2. ⏱️ Timeline-Aware Log & Code Diagnostics
-Traditional RAG models only read static files. ZeroTicket live-scans replica databases and correlates recent server logs and Git updates to trace the exact root cause of customer issues. It instantly explains the technical result to the customer (e.g., *"Your clearing transfer is pending due to a standard bank processing timeout"*), avoiding manual support ticket lookups.
+### 2. ⏱️ AST-to-DB Temporal Correlation (Multi-Dimensional RAG)
+Traditional RAG models only search static text files. ZeroTicket correlates the codebase **Abstract Syntax Tree (AST)**, server logs, and live relational replica database states along a single chronological timeline. This allows the AI to answer complex debugging queries like: *"Why couldn't User A see the billing button yesterday?"* by correlating recent git commits, system error logs, and the database status of User A at that specific time.
 
-### 3. 🛡️ The SQL Security Guard
-Traditional database AI integrations risk cross-tenant data leaks. ZeroTicket features a compiler safety layer that intercepts AI-generated SQL queries and rejects mutations. It automatically wraps all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = X`) matching the user's secure JWT context. It is mathematically impossible for one client to access another client's data.
+### 3. 🛡️ Compiler-Level SQL Security Guard (Mathematical Tenant Isolation)
+Traditional database agents rely on prompt instructions (e.g., *"Only access tenant 123"*), which are highly vulnerable to prompt injection attacks. ZeroTicket solves this by intercepting AI-generated SQL query syntax trees at compile-time. It uses a secure AST rewriter to dynamically inject strict tenant-isolation constraints (e.g., `WHERE tenant_id = ?`) bound to the cryptographically verified JWT context. Mutation commands (`DROP`, `DELETE`, `UPDATE`) are rejected at the compiler level. It is mathematically impossible for one client to access another client's data.
 
-### 4. 🌲 AST Codebase Ingestion
-Rather than generic keyword search, our ingestion pipeline uses AST parsers (supporting FastAPI, Node.js, Laravel, and Prisma schemas) to build structured representations of endpoints, models, and controllers so the AI understands your business logic rules natively.
+### 4. 🌲 Tree-Sitter AST Structural Ingestion
+Standard file chunking loses semantic code context (e.g., which route maps to which controller layer). ZeroTicket parses the codebase using **Tree-Sitter** to construct a syntax dependency graph. It indexes routes, middleware layers, controller actions, and database schemas natively. This allows the AI to follow the exact execution path of a customer request and verify permission logic.
 
-### 5. 🔒 100% Private, On-Premise (AMD GPU + Gemma 4)
-Built for high-compliance enterprise B2B SaaS (FinTech, Healthcare, GovTech). The entire stack can be run on-premise on AMD GPUs using Google's open-weights **Gemma 4**, ensuring that proprietary code and customer records never leave the company's private cloud network.
+### 5. ⚡ Local Air-Gapped ROCm Compute Engine (AMD + Gemma 4)
+Built for high-compliance industries (FinTech, Healthcare, GovTech) that cannot expose source code or database records to public cloud LLM APIs. ZeroTicket compiles natively with AMD ROCm to run optimized, low-latency local inference on Google's open-weights **Gemma 4**, providing a 100% private, on-premise deployment.
 
 ---
 
