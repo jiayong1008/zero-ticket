@@ -86,6 +86,11 @@ export default function DashboardPage() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [showLlmKey, setShowLlmKey] = useState(false);
 
+  // Rename company modal state
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameInput, setRenameInput] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+
   // Confirm Modal state
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -705,19 +710,28 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [syncing, companyId, activeRepoId]);
 
-  const handleResetSettings = () => {
-    setConfirmModal({
-      isOpen: true,
-      title: "Reset Settings",
-      message: "Are you sure you want to reset ZeroTicket onboarding details? This will clear local configurations.",
-      confirmText: "Reset",
-      isDestructive: true,
-      onConfirm: () => {
-        localStorage.clear();
-        router.push("/onboarding");
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      }
-    });
+  const handleRenameCompany = async () => {
+    const newName = renameInput.trim();
+    if (!newName || !companyId) return;
+    setIsRenaming(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/company/rename`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-Admin-Passphrase": adminToken || localStorage.getItem("admin_token") || "" },
+        body: JSON.stringify({ company_id: companyId, name: newName }),
+      });
+      if (!res.ok) throw new Error("Rename failed");
+      setCompanyName(newName);
+      localStorage.setItem("company_name", newName);
+      setShowRenameModal(false);
+      setRenameInput("");
+      setSuccess("Company renamed successfully!");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (e) {
+      setError("Failed to rename company. Please try again.");
+    } finally {
+      setIsRenaming(false);
+    }
   };
 
   if (!mounted || !companyId) {
@@ -930,10 +944,14 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
           </button>
 
           <button
-            onClick={handleResetSettings}
-            className={`px-3 py-2 transition-colors text-xs rounded-lg ${isLightMode ? "bg-slate-200 hover:bg-slate-300 text-slate-700" : "bg-white/5 hover:bg-white/10 text-slate-300"}`}
+            onClick={() => { setRenameInput(companyName); setShowRenameModal(true); }}
+            title="Rename Company"
+            className={`px-3 py-2 transition-colors text-xs rounded-lg flex items-center gap-1.5 ${isLightMode ? "bg-slate-200 hover:bg-slate-300 text-slate-700" : "bg-white/5 hover:bg-white/10 text-slate-300"}`}
           >
-            Reset Settings
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Rename
           </button>
         </div>
       </div>
@@ -1720,6 +1738,42 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
       </div>
 
       {/* Confirm Modal */}
+      {/* Rename Company Modal */}
+      {showRenameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className={`w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border ${isLightMode ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"}`}>
+            <div className={`p-5 border-b ${isLightMode ? "border-slate-100" : "border-slate-800"}`}>
+              <h3 className={`text-lg font-bold ${isLightMode ? "text-slate-900" : "text-white"}`}>Rename Company</h3>
+              <p className={`text-xs mt-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>Only changes the display name — nothing else is affected.</p>
+            </div>
+            <div className="p-5">
+              <input
+                type="text"
+                value={renameInput}
+                onChange={e => setRenameInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleRenameCompany()}
+                placeholder="New company name"
+                autoFocus
+                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-blue-500/50 ${isLightMode ? "bg-white border-slate-300 text-slate-900" : "bg-slate-800 border-slate-700 text-white"}`}
+              />
+            </div>
+            <div className={`p-4 flex justify-end gap-3 border-t ${isLightMode ? "bg-slate-50 border-slate-100" : "bg-slate-800/50 border-slate-800"}`}>
+              <button
+                onClick={() => { setShowRenameModal(false); setRenameInput(""); }}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${isLightMode ? "text-slate-600 hover:bg-slate-200/50" : "text-slate-300 hover:bg-slate-800"}`}
+              >Cancel</button>
+              <button
+                onClick={handleRenameCompany}
+                disabled={isRenaming || !renameInput.trim()}
+                className="px-4 py-2 text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+              >
+                {isRenaming ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border transform transition-all scale-100 ${

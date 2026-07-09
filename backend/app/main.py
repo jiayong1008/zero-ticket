@@ -210,6 +210,19 @@ def save_llm_config(data: LLMConfigRequest, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success", "message": "LLM Configuration saved securely."}
 
+@app.patch("/api/company/rename", dependencies=[Depends(verify_admin_passphrase)])
+def rename_company(data: dict, db: Session = Depends(get_db)):
+    company_id = data.get("company_id")
+    new_name = (data.get("name") or "").strip()
+    if not company_id or not new_name:
+        raise HTTPException(status_code=400, detail="company_id and name are required.")
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    company.name = new_name
+    db.commit()
+    return {"status": "success", "name": company.name}
+
 @app.post("/api/company/register", dependencies=[Depends(verify_admin_passphrase)])
 def register_company(data: CompanyCreate, db: Session = Depends(get_db)):
     company_id = str(uuid.uuid4())
