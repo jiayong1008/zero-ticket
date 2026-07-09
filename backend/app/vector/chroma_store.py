@@ -118,6 +118,9 @@ class ChromaStore:
                 
         if not pending_chunks:
             return
+        
+        # Track offset so progress counter is cumulative (already-indexed + newly indexed)
+        already_indexed_count = len(existing_ids)
             
         # 2. Batch generate embeddings and add incrementally
         # Gemini Free Tier limits embeddings to 15 Requests Per Minute.
@@ -157,7 +160,7 @@ class ChromaStore:
                         status_msg = f"Rate limit hit. Retrying in {backoff}s..."
                         if on_progress:
                             try:
-                                on_progress(i, status_msg)
+                                on_progress(already_indexed_count + i, status_msg)
                             except Exception as ex:
                                 if "Sync cancelled by user" in str(ex):
                                     raise ex
@@ -179,7 +182,7 @@ class ChromaStore:
                 )
                 if on_progress:
                     try:
-                        on_progress(i + len(batch))
+                        on_progress(already_indexed_count + i + len(batch))
                     except Exception as ex:
                         if "Sync cancelled by user" in str(ex):
                             raise ex

@@ -346,7 +346,9 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             raise ValueError(f"No scanable code files (PHP, Python, JS, TS) found in directory: '{repo.repo_name}'")
         
         repo.chunks_total = len(chunks)
-        repo.chunks_indexed = 0
+        # Only reset indexed count when doing a clean resync; preserve progress on resume
+        if force_resync:
+            repo.chunks_indexed = 0
         db.commit()
         
         # Step 2: Index Code Chunks in Vector DB using selected provider
