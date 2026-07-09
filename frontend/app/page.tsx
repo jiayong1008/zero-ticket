@@ -122,7 +122,12 @@ export default function DashboardPage() {
         return r.json();
       })
       .then((data: any[]) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
+          // Always sync company_name from backend to fix stale localStorage
+          if (data[0].company_name) {
+            setCompanyName(data[0].company_name);
+            localStorage.setItem("company_name", data[0].company_name);
+          }
           const mapped = data.map((p) => ({
             id: p.repository_id,
             name: p.project_name || p.repo_path?.split("/").pop() || "Unnamed",
