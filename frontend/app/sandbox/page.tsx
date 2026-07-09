@@ -354,12 +354,12 @@ export default function SandboxPage() {
     },
     {
       name: "6. Intent Debugger (Alice)",
-      query: "Why did the chatbot classify my intent as cobroke yesterday?",
+      query: "Why did the chatbot classify the intent for 140668869587155 on June 25th?",
       userId: "101",
       tenantId: "1",
       customClaims: '{\n  "role": "user",\n  "plan": "premium"\n}',
       loadImage: false,
-      desc: "Alice queries a chatbot classification discrepancy. ZeroTicket inspects the live server.log and matches the IntentClassifier trigger rule."
+      desc: "Alice queries a chatbot classification discrepancy. ZeroTicket inspects the live server.log, extracts the June 25th date, and maps the IntentClassifier trigger rule."
     }
   ];
 
