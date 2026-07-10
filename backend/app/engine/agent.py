@@ -309,7 +309,14 @@ class AgentEngine:
                 base_url = self._llm_base_url or settings.CUSTOM_LLM_BASE_URL
                 model_name = model or "llama3"
                 
-            client = OpenAI(api_key=api_key or "noop", base_url=base_url)
+            if prov == "custom":
+                client = OpenAI(
+                    api_key=api_key or "noop",
+                    base_url=base_url,
+                    default_headers={"Bypass-Tunnel-Reminder": "true"}
+                )
+            else:
+                client = OpenAI(api_key=api_key or "noop", base_url=base_url)
             content_list = [{"type": "text", "text": prompt}]
             if image_data:
                 content_list.append({"type": "image_url", "image_url": {"url": image_data}})
@@ -359,7 +366,7 @@ class AgentEngine:
             )
             return response.text or ""
 
-    def execute_inquiry(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "", chat_history: list = None, image_data: str = None) -> dict:
+    def execute_inquiry(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "", chat_history: list = None, image_data: str = None, llm_base_url: str = "") -> dict:
         """
         Coordinates the full execution loop:
         1. Retrieves relevant codebase context from Chroma.
@@ -372,15 +379,25 @@ class AgentEngine:
         start_time = time.time()
         
         # 0. Resolve LLM Configuration
-        if not api_key:
-            from app.db import Company, decrypt_password
-            company = self.db.query(Company).filter(Company.id == company_id).first()
-            if company and company.encrypted_llm_api_key:
-                api_key = decrypt_password(company.encrypted_llm_api_key)
-                provider = company.llm_provider or provider
-                model_name = company.llm_model or model_name
-        
-        if not api_key:
+        from app.db import Company, decrypt_password
+        company = self.db.query(Company).filter(Company.id == company_id).first()
+        if company:
+            if not api_key and company.encrypted_llm_api_key:
+                try:
+                    api_key = decrypt_password(company.encrypted_llm_api_key)
+                except Exception:
+                    pass
+            # Set values from database company record if they exist
+            provider = company.llm_provider or provider
+            model_name = company.llm_model or model_name
+            if company.llm_base_url:
+                self._llm_base_url = company.llm_base_url
+                
+        if llm_base_url:
+            self._llm_base_url = llm_base_url
+            
+        prov = (provider or "gemini").lower()
+        if not api_key and prov != "custom":
             return {
                 "answer": "Error: Failed to generate SQL draft using LLM: LLM API Key is not configured. Please save your API key in the Developer Dashboard.",
                 "thought_log": "LLM API Key missing in request and database."
@@ -391,7 +408,16 @@ class AgentEngine:
         if image_data:
             ocr_prompt = f"Analyze this image in the context of the user's inquiry: '{query}'. Extract any visible text, error messages, IDs, or relevant UI state that might be useful for a database lookup. Keep it concise."
             try:
-                extracted_text = self._generate_llm_content(provider, model_name, api_key, ocr_prompt, image_data=image_data)
+                ocr_provider = provider
+                ocr_model = model_name
+                ocr_key = api_key
+                # Fallback to Gemini if custom provider is used (no vision support) and Gemini API Key is available.
+                if prov == "custom" and settings.GEMINI_API_KEY:
+                    ocr_provider = "gemini"
+                    ocr_model = "gemini-2.5-flash"
+                    ocr_key = settings.GEMINI_API_KEY
+                    thought_log.append("--- [Image OCR Local-to-Cloud Fallback] ---\nUsing Gemini for vision analysis (local Gemma is text-only).\n")
+                extracted_text = self._generate_llm_content(ocr_provider, ocr_model, ocr_key, ocr_prompt, image_data=image_data)
                 query = f"{query}\n\n[Extracted Image Context]: {extracted_text}"
                 thought_log.append(f"--- [Extracted Image Context] ---\n{extracted_text}\n")
             except Exception as e:
@@ -622,7 +648,7 @@ INSTRUCTIONS:
         }
 
 
-    def execute_inquiry_stream(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "", chat_history: list = None, image_data: str = None):
+    def execute_inquiry_stream(self, company_id: str, query: str, jwt_claims: dict, api_key: str = "", repository_id: str = "", provider: str = "gemini", model_name: str = "", chat_history: list = None, image_data: str = None, llm_base_url: str = ""):
         import json
         
         def yield_event(event_type: str, content_data: str):
@@ -632,15 +658,25 @@ INSTRUCTIONS:
         start_time = time.time()
         
         # 0. Resolve LLM Configuration
-        if not api_key:
-            from app.db import Company, decrypt_password
-            company = self.db.query(Company).filter(Company.id == company_id).first()
-            if company and company.encrypted_llm_api_key:
-                api_key = decrypt_password(company.encrypted_llm_api_key)
-                provider = company.llm_provider or provider
-                model_name = company.llm_model or model_name
-        
-        if not api_key:
+        from app.db import Company, decrypt_password
+        company = self.db.query(Company).filter(Company.id == company_id).first()
+        if company:
+            if not api_key and company.encrypted_llm_api_key:
+                try:
+                    api_key = decrypt_password(company.encrypted_llm_api_key)
+                except Exception:
+                    pass
+            # Set values from database company record if they exist
+            provider = company.llm_provider or provider
+            model_name = company.llm_model or model_name
+            if company.llm_base_url:
+                self._llm_base_url = company.llm_base_url
+                
+        if llm_base_url:
+            self._llm_base_url = llm_base_url
+            
+        prov = (provider or "gemini").lower()
+        if not api_key and prov != "custom":
             yield yield_event("error", "Error: Failed to generate SQL draft using LLM: LLM API Key is not configured.")
             return
 
@@ -649,7 +685,16 @@ INSTRUCTIONS:
             yield yield_event("thought", "--- [Image OCR Extraction] ---\nExtracting text from image...\n")
             ocr_prompt = f"Analyze this image in the context of the user's inquiry: '{query}'. Extract any visible text, error messages, IDs, or relevant UI state that might be useful for a database lookup. Keep it concise."
             try:
-                extracted_text = self._generate_llm_content(provider, model_name, api_key, ocr_prompt, image_data=image_data)
+                ocr_provider = provider
+                ocr_model = model_name
+                ocr_key = api_key
+                # Fallback to Gemini if custom provider is used (no vision support) and Gemini API Key is available.
+                if prov == "custom" and settings.GEMINI_API_KEY:
+                    ocr_provider = "gemini"
+                    ocr_model = "gemini-2.5-flash"
+                    ocr_key = settings.GEMINI_API_KEY
+                    yield yield_event("thought", "Using Gemini for vision analysis (local Gemma is text-only).\n")
+                extracted_text = self._generate_llm_content(ocr_provider, ocr_model, ocr_key, ocr_prompt, image_data=image_data)
                 query = f"{query}\n\n[Extracted Image Context]: {extracted_text}"
                 yield yield_event("thought", f"Extracted text:\n{extracted_text}\n\n")
             except Exception as e:

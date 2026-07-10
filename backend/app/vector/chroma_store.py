@@ -73,12 +73,33 @@ class ChromaStore:
         elif prov == "custom":
             from openai import OpenAI
             base_url = self._llm_base_url or settings.CUSTOM_LLM_BASE_URL
-            client = OpenAI(api_key=api_key or "noop", base_url=base_url)
-            response = client.embeddings.create(
-                model="nomic-embed-text",
-                input=texts
-            )
-            return [data.embedding for data in response.data]
+            try:
+                client = OpenAI(
+                    api_key=api_key or "noop",
+                    base_url=base_url,
+                    default_headers={"Bypass-Tunnel-Reminder": "true"}
+                )
+                response = client.embeddings.create(
+                    model="nomic-embed-text",
+                    input=texts
+                )
+                return [data.embedding for data in response.data]
+            except Exception as e:
+                print(f"[embeddings] Local nomic-embed-text at {base_url} failed: {e}")
+                if settings.GEMINI_API_KEY:
+                    print("[embeddings] Falling back to cloud Gemini embedding model.")
+                    client = self._get_gemini_client(settings.GEMINI_API_KEY)
+                    response = client.models.embed_content(
+                        model="gemini-embedding-001",
+                        contents=texts
+                    )
+                    return [e.values for e in response.embeddings]
+                else:
+                    raise ValueError(
+                        f"Local embedding generation failed: {str(e)}. "
+                        "Please verify that Ollama is running and you have run 'ollama pull nomic-embed-text' "
+                        "on your AMD server, or configure a GEMINI_API_KEY in the backend for automated hybrid fallback."
+                    )
         else:
             # Fall back to Gemini using the backend's environment key for embeddings,
             # since Claude/DeepSeek/Qwen keys cannot be used for Google GenAI embedding.

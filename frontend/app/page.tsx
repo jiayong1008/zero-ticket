@@ -49,7 +49,8 @@ export default function DashboardPage() {
 
   const geminiPresets = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro", "gemini-1.5-pro"];
   const openaiPresets = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"];
-  const customPresets = ["gemma2", "llama3", "mistral"];
+  const customPresets = ["gemma4", "gemma4:12b", "gemma4:31b", "gemma2", "llama3"];
+  const [rocmStatus, setRocmStatus] = useState<"checking" | "online" | "offline" | "idle">("idle");
 
   const [isEditingLLM, setIsEditingLLM] = useState(false);
   const [error, setError] = useState("");
@@ -185,8 +186,8 @@ export default function DashboardPage() {
     fetch("http://localhost:8088/api/admin/status")
       .then((r) => r.json())
       .then((statusData) => {
+        const savedToken = localStorage.getItem("admin_token") || "";
         if (statusData.login_required) {
-          const savedToken = localStorage.getItem("admin_token");
           if (!savedToken) {
             setLoginRequired(true);
           } else {
@@ -196,6 +197,30 @@ export default function DashboardPage() {
         } else {
           loadProjects(savedCompanyId, "");
         }
+        
+        // Fetch LLM config from backend database to sync state
+        const headers: Record<string, string> = {};
+        if (savedToken) headers["X-Admin-Token"] = savedToken;
+        fetch(`http://localhost:8088/api/company/llm_config?company_id=${savedCompanyId}`, { headers })
+          .then((r) => {
+            if (!r.ok) throw new Error("Failed to load LLM config");
+            return r.json();
+          })
+          .then((data) => {
+            if (data.llm_provider) {
+              setLlmProvider(data.llm_provider);
+              localStorage.setItem("llm_provider", data.llm_provider);
+            }
+            if (data.llm_model) {
+              setLlmModel(data.llm_model);
+              localStorage.setItem("llm_model", data.llm_model);
+            }
+            if (data.llm_base_url) {
+              setLlmBaseUrl(data.llm_base_url);
+              localStorage.setItem("llm_base_url", data.llm_base_url);
+            }
+          })
+          .catch(() => {});
       })
       .catch(() => {
         loadProjects(savedCompanyId, "");
@@ -483,13 +508,42 @@ export default function DashboardPage() {
       if (customPresets.includes(llmModel)) {
         setSelectedPresetModel(llmModel);
       } else if (!llmModel) {
-        setSelectedPresetModel("gemma2");
-        setLlmModel("gemma2");
+        setSelectedPresetModel("gemma4");
+        setLlmModel("gemma4");
       } else {
         setSelectedPresetModel("other");
       }
     }
   }, [llmProvider, llmModel, mounted]);
+
+  useEffect(() => {
+    if (llmProvider !== "custom" || !llmBaseUrl) {
+      setRocmStatus("idle");
+      return;
+    }
+    setRocmStatus("checking");
+    const checkUrl = llmBaseUrl.endsWith("/v1") 
+      ? llmBaseUrl.substring(0, llmBaseUrl.length - 3)
+      : llmBaseUrl;
+      
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 1800));
+    
+    Promise.race([
+      fetch(checkUrl + "/api/tags", { headers: { "Bypass-Tunnel-Reminder": "true" } })
+        .catch(() => fetch(llmBaseUrl + "/models", { headers: { "Bypass-Tunnel-Reminder": "true" } })),
+      timeoutPromise
+    ])
+      .then((res: any) => {
+        if (res.ok) {
+          setRocmStatus("online");
+        } else {
+          setRocmStatus("offline");
+        }
+      })
+      .catch(() => {
+        setRocmStatus("offline");
+      });
+  }, [llmProvider, llmBaseUrl, isEditingLLM]);
 
   const handlePresetModelChange = (modelName: string) => {
     setSelectedPresetModel(modelName);
@@ -523,7 +577,8 @@ export default function DashboardPage() {
         company_id: companyId,
         llm_provider: llmProvider,
         api_key: llmApiKey,
-        llm_model: llmModel
+        llm_model: llmModel,
+        llm_base_url: llmBaseUrl
       };
       
       const res = await fetch(`${BACKEND_URL}/api/company/save_llm_config`, {
@@ -1226,7 +1281,10 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   >
                     <option value="gemini">Gemini</option>
                     <option value="openai">OpenAI</option>
-                    <option value="custom">Custom / Ollama</option>
+                    <option value="anthropic">Claude</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="qwen">Qwen</option>
+                    <option value="custom">AMD GPU (Local Gemma)</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -1302,11 +1360,33 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                           <option value="gpt-4-turbo">GPT-4 Turbo</option>
                         </>
                       )}
+                      {llmProvider === "anthropic" && (
+                        <>
+                          <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Default)</option>
+                          <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+                          <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                        </>
+                      )}
+                      {llmProvider === "deepseek" && (
+                        <>
+                          <option value="deepseek-chat">DeepSeek Chat (Default)</option>
+                          <option value="deepseek-coder">DeepSeek Coder</option>
+                        </>
+                      )}
+                      {llmProvider === "qwen" && (
+                        <>
+                          <option value="qwen-plus">Qwen Plus (Default)</option>
+                          <option value="qwen-turbo">Qwen Turbo</option>
+                          <option value="qwen-max">Qwen Max</option>
+                        </>
+                      )}
                       {llmProvider === "custom" && (
                         <>
-                          <option value="gemma2">Gemma 2 (Default)</option>
+                          <option value="gemma4">Gemma 4 (Default)</option>
+                          <option value="gemma4:12b">Gemma 4 12B (Multimodal)</option>
+                          <option value="gemma4:31b">Gemma 4 31B (Reasoning)</option>
+                          <option value="gemma2">Gemma 2 9B</option>
                           <option value="llama3">Llama 3</option>
-                          <option value="mistral">Mistral</option>
                         </>
                       )}
                       <option value="other">Custom Model Name...</option>
@@ -1369,9 +1449,30 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
                 <p>API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{apiKey.substring(0, 8)}...</code></p>
                 <p>Company ID: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{companyId.substring(0, 8)}...</code></p>
-                <p>AI Provider: <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{llmProvider}</span></p>
+                <p>
+                  AI Provider:{" "}
+                  {llmProvider === "custom" ? (
+                    <>
+                      <span className={`font-semibold capitalize text-orange-400`}>AMD GPU (Local)</span>
+                      {rocmStatus === "checking" && (
+                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 animate-ping" title="Checking ROCm..." />
+                      )}
+                      {rocmStatus === "online" && (
+                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="ROCm Online" />
+                      )}
+                      {rocmStatus === "offline" && (
+                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="ROCm Offline" />
+                      )}
+                    </>
+                  ) : (
+                    <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{llmProvider}</span>
+                  )}
+                </p>
                 {llmProvider === "custom" ? (
-                  <p>Custom Model: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmModel || "llama3"}</code></p>
+                  <>
+                    <p>Custom Model: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmModel || "gemma4"}</code></p>
+                    <p>Base URL: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmBaseUrl}</code></p>
+                  </>
                 ) : (
                   <p>LLM API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>
                     {llmApiKey ? (llmApiKey.length > 12 ? `${llmApiKey.substring(0, 6)}...${llmApiKey.substring(llmApiKey.length - 4)}` : `${llmApiKey.substring(0, 4)}...`) : "None"}

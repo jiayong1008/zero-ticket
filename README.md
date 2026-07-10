@@ -77,7 +77,7 @@ Traditional database agents rely on prompt instructions (e.g., *"Only access ten
 Standard file chunking loses semantic code context (e.g., which route maps to which controller layer). ZeroTicket parses the codebase using **Tree-Sitter** to construct a syntax dependency graph. It indexes routes, middleware layers, controller actions, and database schemas natively. This allows the AI to follow the exact execution path of a customer request and verify permission logic.
 
 ### 5. ⚡ Local Air-Gapped ROCm Compute Engine (AMD + Gemma 4)
-Built for high-compliance industries (FinTech, Healthcare, GovTech) that cannot expose source code or database records to public cloud LLM APIs. ZeroTicket compiles natively with AMD ROCm to run optimized, low-latency local inference on Google's open-weights **Gemma 4**, providing a 100% private, on-premise deployment.
+Built for high-compliance industries (FinTech, Healthcare, GovTech) that cannot expose source code or database records to public cloud LLM APIs. ZeroTicket compiles natively with AMD ROCm to run optimized, low-latency local inference on Google's open-weights **Gemma 4**, providing a 100% private, on-premise deployment. It natively supports **Ollama** for low-overhead local testing and **vLLM** for scaling up to high-throughput, concurrent multi-user production serving.
 
 ---
 
@@ -185,6 +185,52 @@ docker compose up -d --build
    npm run dev
    ```
    *(Access frontend locally at `http://localhost:3000`)*
+
+---
+
+### ⚡ Local AMD GPU & Gemma 4 Integration
+
+To host Google's open-weights **Gemma 4** model locally on your AMD GPU-powered server using ROCm, follow these setup options:
+
+#### Option A: Running with Ollama
+1. Install Ollama on your AMD server:
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ```
+2. Pull and launch the model:
+   ```bash
+   ollama run gemma4
+   ```
+   *(By default, Ollama serves the OpenAI-compatible API on port `11434`)*
+
+#### Option B: Running with vLLM & ROCm
+1. Build or pull the vLLM Docker container optimized for AMD ROCm:
+   ```bash
+   docker pull vllm/vllm-openai:rocm
+   ```
+2. Launch the vLLM OpenAI-compatible server:
+   ```bash
+   python3 -m vllm.entrypoints.openai.api_server \
+     --model google/gemma-4-9b-it \
+     --port 8000
+   ```
+
+#### Option C: Local Embeddings
+To compute vector embeddings completely locally without cloud API keys:
+```bash
+ollama pull nomic-embed-text
+```
+*(If the local embeddings request fails, ZeroTicket automatically triggers a cloud Gemini fallback if an API key is saved).*
+
+#### Dashboard Configuration
+In the ZeroTicket Developer Dashboard onboarding flow:
+1. Select **AMD GPU (Local Gemma)** as your AI provider.
+2. Set the **Custom Base URL** to your local Ollama/vLLM address (e.g. `http://localhost:11434/v1` or `http://localhost:8000/v1`).
+3. Set the **Model Name** to `gemma4` or `google/gemma-4-9b-it`.
+4. A **ROCm Connection Status indicator** (online/offline) will automatically light up green in your dashboard sidebar to verify GPU node connection health.
+
+> [!TIP]
+> For a detailed, step-by-step developer walkthrough on manual installation, configuring persistent storage, bypassing cloud VM firewalls (via Bore/Localtunnel), and running verification tests, refer to our comprehensive [AMD GPU Integration Guide](file:///Users/jiayong/GitHub/zeroticket/AMD_GEMMA_INTEGRATION.md).
 
 ---
 

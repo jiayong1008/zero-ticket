@@ -126,6 +126,7 @@ class LLMConfigRequest(BaseModel):
     llm_provider: str
     api_key: Optional[str] = ""
     llm_model: Optional[str] = ""
+    llm_base_url: Optional[str] = ""
 
 class GenerateJWTRequest(BaseModel):
     company_id: str
@@ -206,9 +207,23 @@ def save_llm_config(data: LLMConfigRequest, db: Session = Depends(get_db)):
     if data.api_key:
         company.encrypted_llm_api_key = encrypt_password(data.api_key)
     company.llm_model = data.llm_model
+    company.llm_base_url = data.llm_base_url
     
     db.commit()
     return {"status": "success", "message": "LLM Configuration saved securely."}
+
+@app.get("/api/company/llm_config", dependencies=[Depends(verify_admin_passphrase)])
+def get_llm_config(company_id: str, db: Session = Depends(get_db)):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+        
+    return {
+        "llm_provider": company.llm_provider or "gemini",
+        "llm_model": company.llm_model or "",
+        "llm_base_url": company.llm_base_url or "",
+        "has_api_key": bool(company.encrypted_llm_api_key)
+    }
 
 @app.patch("/api/company/rename", dependencies=[Depends(verify_admin_passphrase)])
 def rename_company(data: dict, db: Session = Depends(get_db)):
@@ -320,7 +335,7 @@ def connect_db(data: DBConnectRequest, db: Session = Depends(get_db)):
     
     return {"status": "connected", "connection_id": conn.id}
 
-def start_ingestion_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session_factory, force_resync: bool = False):
+def start_ingestion_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session_factory, force_resync: bool = False, llm_base_url: str = ""):
     # We open a new database session in the background task to avoid session thread sharing issues
     from app.db import SessionLocal
     db = SessionLocal()
@@ -365,7 +380,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         db.commit()
         
         # Step 2: Index Code Chunks in Vector DB using selected provider
-        chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id)
+        chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id, llm_base_url=llm_base_url)
         
         if force_resync:
             repo.sync_status = "parsing"
@@ -406,7 +421,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         
         # Step 4: Generate onboarding clarification questions
         try:
-            generate_onboarding_questions_task(company_id, repository_id, api_key, provider, db)
+            generate_onboarding_questions_task(company_id, repository_id, api_key, provider, db, llm_base_url=llm_base_url)
         except Exception as e_onboarding:
             print(f"[onboarding] Failed to trigger onboarding questions: {e_onboarding}")
     except Exception as e:
@@ -425,7 +440,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
 _ingestion_in_progress: set = set()
 
 
-def generate_onboarding_questions_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session=None):
+def generate_onboarding_questions_task(company_id: str, repository_id: str, api_key: str, provider: str, db_session=None, llm_base_url: str = ""):
     """
     Background discovery agent that scans the repository files and database schema,
     uses the LLM to identify 3-4 configuration/context ambiguities, and saves them
@@ -434,12 +449,12 @@ def generate_onboarding_questions_task(company_id: str, repository_id: str, api_
     from app.db import SessionLocal
     db = db_session or SessionLocal()
     try:
-        _execute_onboarding_discovery(company_id, repository_id, api_key, provider, db)
+        _execute_onboarding_discovery(company_id, repository_id, api_key, provider, db, llm_base_url=llm_base_url)
     finally:
         if not db_session:
             db.close()
 
-def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: str, provider: str, db):
+def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: str, provider: str, db, llm_base_url: str = ""):
     from app.db import Repository, DBConnection, OnboardingQuestion, get_target_db_conn
     from app.parser.schema_extractor import SchemaExtractor
     from app.engine.agent import AgentEngine
@@ -536,7 +551,7 @@ Example JSON output format:
     
     # 5. Invoke LLM via AgentEngine helper
     try:
-        agent = AgentEngine(db)
+        agent = AgentEngine(db, repository_id=repository_id, llm_base_url=llm_base_url)
         from app.db import Company
         company = db.query(Company).filter(Company.id == company_id).first()
         model_name = company.llm_model if company else "gemini-2.5-flash"
@@ -646,7 +661,8 @@ def run_ingestion(
         data.api_key, 
         data.llm_provider or "gemini", 
         None,
-        data.force_resync or False
+        data.force_resync or False,
+        data.llm_base_url or ""
     )
     
     return {

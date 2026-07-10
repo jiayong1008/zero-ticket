@@ -884,7 +884,7 @@ function OnboardingPageContent() {
                   { id: "anthropic", label: "Claude", sub: "Anthropic" },
                   { id: "deepseek", label: "DeepSeek", sub: "DeepSeek AI" },
                   { id: "qwen", label: "Qwen", sub: "Alibaba" },
-                  { id: "custom", label: "Custom", sub: "Ollama / vLLM" },
+                  { id: "custom", label: "AMD GPU (Gemma)", sub: "Ollama / vLLM (ROCm)" },
                 ] as const).map((p) => (
                   <button
                     key={p.id}
@@ -892,7 +892,9 @@ function OnboardingPageContent() {
                     onClick={() => setLlmProvider(p.id)}
                     className={`py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all text-left ${
                       llmProvider === p.id
-                        ? "bg-blue-600/20 border-blue-500/60 text-blue-400"
+                        ? p.id === "custom"
+                          ? "bg-gradient-to-br from-amber-600/20 to-rose-600/20 border-orange-500/60 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.15)] animate-pulse-slow"
+                          : "bg-blue-600/20 border-blue-500/60 text-blue-400"
                         : isLightMode
                         ? "border-slate-300 text-slate-500 hover:border-slate-400"
                         : "border-white/10 text-slate-400 hover:border-white/20"
@@ -919,7 +921,7 @@ function OnboardingPageContent() {
                 type="text"
                 value={llmModel}
                 onChange={(e) => setLlmModel(e.target.value)}
-                placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : llmProvider === "custom" ? "llama3" : "gemini-2.5-flash"}
+                placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : llmProvider === "custom" ? "gemma4" : "gemini-2.5-flash"}
                 className={`w-full px-4 py-3 rounded-lg text-sm transition-colors ${
                   isLightMode 
                     ? "bg-white border-slate-300 text-slate-700" 
@@ -932,24 +934,46 @@ function OnboardingPageContent() {
             </div>
 
             {llmProvider === "custom" && (
-              <div>
-                <label htmlFor="llmBaseUrl" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                  isLightMode ? "text-slate-600" : "text-slate-400"
-                }`}>
-                  Custom Base URL
-                </label>
-                <input
-                  id="llmBaseUrl"
-                  type="text"
-                  value={llmBaseUrl}
-                  onChange={(e) => setLlmBaseUrl(e.target.value)}
-                  placeholder="http://localhost:11434/v1"
-                  className={`w-full px-4 py-3 rounded-lg text-sm transition-colors ${
-                    isLightMode 
-                      ? "bg-white border-slate-300 text-slate-700" 
-                      : "glass-input"
-                  }`}
-                />
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="llmBaseUrl" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                    isLightMode ? "text-slate-600" : "text-slate-400"
+                  }`}>
+                    Custom Base URL
+                  </label>
+                  <input
+                    id="llmBaseUrl"
+                    type="text"
+                    value={llmBaseUrl}
+                    onChange={(e) => setLlmBaseUrl(e.target.value)}
+                    placeholder="http://localhost:11434/v1"
+                    className={`w-full px-4 py-3 rounded-lg text-sm transition-colors ${
+                      isLightMode 
+                        ? "bg-white border-slate-300 text-slate-700" 
+                        : "glass-input"
+                    }`}
+                  />
+                </div>
+
+                <div className="rounded-lg border border-orange-500/20 bg-gradient-to-br from-orange-950/20 to-rose-950/20 p-4 space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-orange-400">
+                    <svg className="w-4 h-4 text-orange-400 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>AMD ROCm Local Compute Configuration Guide</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
+                    <p>To qualify for the **AMD GPU Track**, run Google's **Gemma 4** model locally on your GPU node:</p>
+                    <div className="bg-black/40 border border-white/5 rounded p-2 font-mono text-[10px] text-orange-300 select-all space-y-1">
+                      <div># 1. Run Ollama on the server:</div>
+                      <div>curl -fsSL https://ollama.com/install.sh | sh</div>
+                      <div>ollama run gemma4</div>
+                      <div># 2. Or launch vLLM with ROCm:</div>
+                      <div>python -m vllm.entrypoints.openai.api_server --model google/gemma-4-9b-it</div>
+                    </div>
+                    <p className="text-[10px] opacity-75">Ensure the server's API is exposed globally or port-forwarded (default Ollama port: 11434, vLLM port: 8000).</p>
+                  </div>
+                </div>
               </div>
             )}
 
