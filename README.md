@@ -66,8 +66,12 @@ Instead of requiring expensive vector re-indexing or model fine-tuning when busi
 ### 2. ⏱️ AST-to-DB Temporal Correlation (Multi-Dimensional RAG)
 Traditional RAG models only search static text files. ZeroTicket correlates the codebase **Abstract Syntax Tree (AST)**, server logs, and live relational replica database states along a single chronological timeline. This allows the AI to answer complex debugging queries like: *"Why couldn't User A see the billing button yesterday?"* by correlating recent git commits, system error logs, and the database status of User A at that specific time.
 
+![Multi-Dimensional Temporal RAG Fusion](./screenshots/temporal_rag_fusion.png)
+
 ### 3. 🛡️ Compiler-Level SQL Security Guard (Mathematical Tenant Isolation)
 Traditional database agents rely on prompt instructions (e.g., *"Only access tenant 123"*), which are highly vulnerable to prompt injection attacks. ZeroTicket solves this by intercepting AI-generated SQL query syntax trees at compile-time. It uses a secure AST rewriter to dynamically inject strict tenant-isolation constraints (e.g., `WHERE tenant_id = ?`) bound to the cryptographically verified JWT context. Mutation commands (`DROP`, `DELETE`, `UPDATE`) are rejected at the compiler level. It is mathematically impossible for one client to access another client's data.
+
+![SQL Security Guard Rewrite Process](./screenshots/sql_security_guard_flow.png)
 
 ### 4. 🌲 Tree-Sitter AST Structural Ingestion
 Standard file chunking loses semantic code context (e.g., which route maps to which controller layer). ZeroTicket parses the codebase using **Tree-Sitter** to construct a syntax dependency graph. It indexes routes, middleware layers, controller actions, and database schemas natively. This allows the AI to follow the exact execution path of a customer request and verify permission logic.

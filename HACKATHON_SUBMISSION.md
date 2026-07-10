@@ -30,7 +30,9 @@ Key benefits include:
 
 ### 🌟 Key Innovations & Standout Features:
 1. **Compiler-Level SQL Security Guard (Mathematical Tenant Isolation):** Traditional database agents rely on prompt instructions, which are highly vulnerable to prompt injection. ZeroTicket solves this by intercepting AI-generated SQL query syntax trees at compile-time and dynamically wrapping all queries in tenant-isolation constraints (e.g., `WHERE tenant_id = ?`) bound to cryptographically verified JWT context. Mutation commands (`DROP`, `DELETE`, `UPDATE`) are rejected at the compiler level.
+   ![SQL Security Guard Rewrite Process](./screenshots/sql_security_guard_flow.png)
 2. **AST-to-DB Temporal Correlation (Multi-Dimensional RAG):** Traditional RAG models only search static files. ZeroTicket correlates the codebase **Abstract Syntax Tree (AST)**, server logs, and live relational replica database states along a single chronological timeline to resolve complex debugging queries (e.g., *"Why couldn't User A see the billing button yesterday?"*) instantly.
+   ![Multi-Dimensional Temporal RAG Fusion](./screenshots/temporal_rag_fusion.png)
 3. **Git-as-Source "Human-in-the-Loop" Context Tuning:** ZeroTicket manages support rules as version-controlled configurations (`ai_context_rules.txt`). When a developer corrects the AI's reasoning via the dashboard, the system commits a Git patch directly to the source repository. The agent digests these guidelines instantly in-memory, keeping adjustments transparent and audit-friendly.
 4. **Tree-Sitter AST Structural Ingestion:** Standard file chunking loses semantic code context (e.g., which route maps to which controller). ZeroTicket parses the codebase using **Tree-Sitter** to construct a syntax dependency graph. It indexes routes, middleware layers, controller actions, and database schemas natively to trace the exact execution path of client requests.
 5. **Local Air-Gapped ROCm Compute Engine (AMD + Gemma 4):** Built for high-compliance enterprise B2B SaaS (FinTech, Healthcare, GovTech) that cannot expose source code or database records to public cloud LLM APIs. ZeroTicket compiles natively with AMD ROCm to run optimized, low-latency local inference on Google's open-weights **Gemma 4** on AMD hardware.
@@ -146,6 +148,8 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 
 ### 🛝 Slide 3: The ZeroTicket Solution
 *   **Headline:** Secure, Autonomous Tier-3 Operations
+*   **Visual - Multi-Dimensional RAG Fusion:**
+    ![ZeroTicket Temporal RAG Fusion](./screenshots/temporal_rag_fusion.png)
 *   **Bullet Points:**
     *   **Codebase Ingestion:** ZeroTicket parses project syntax trees (FastAPI, Django, Laravel, Express) to understand business rules.
     *   **Live Context Retrieval:** Instantly correlates live server logs, database replica records, and Git commit histories to trace the exact root cause of an issue.
