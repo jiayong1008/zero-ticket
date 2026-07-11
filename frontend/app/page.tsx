@@ -1418,21 +1418,26 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                     </select>
 
                     {selectedPresetModel === "other" && (
-                      <input
-                        type="text"
-                        value={llmModel}
-                        onChange={(e) => {
-                          setLlmModel(e.target.value);
-                          localStorage.setItem("llm_model", e.target.value);
-                        }}
-                        placeholder="Type custom model name (e.g. models/gemini-2.5-flash)..."
-                        className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
-                          isLightMode 
-                            ? "bg-slate-50 border-slate-200 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
-                            : "bg-slate-950/60 border-white/5 text-slate-300 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
-                        }`}
-                        required
-                      />
+                      <div className="mt-1.5 animate-fadeIn">
+                        <label className={`block text-[9px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                          Custom Model Identifier
+                        </label>
+                        <input
+                          type="text"
+                          value={llmModel}
+                          onChange={(e) => {
+                            setLlmModel(e.target.value);
+                            localStorage.setItem("llm_model", e.target.value);
+                          }}
+                          placeholder="e.g. accounts/fireworks/models/gemma2-9b-it"
+                          className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                            isLightMode 
+                              ? "bg-slate-50 border-slate-300 text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" 
+                              : "bg-slate-900 border-white/20 text-slate-200 placeholder-slate-500 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          }`}
+                          required
+                        />
+                      </div>
                     )}
                   </div>
 
