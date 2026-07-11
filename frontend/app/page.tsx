@@ -1279,9 +1279,11 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   </select>
                 </div>
                 <div className="space-y-2">
-                  {llmProvider !== "custom" && (
+                  {true && (
                     <div>
-                      <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>LLM API Key</label>
+                      <label className={`block text-[10px] font-bold uppercase mb-1 ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                        {llmProvider === "custom" ? "LLM API Key (Optional)" : "LLM API Key"}
+                      </label>
                       <div className="relative">
                         <input
                           type={showLlmKey ? "text" : "password"}
@@ -1463,6 +1465,11 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   <>
                     <p>Custom Model: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmModel || "gemma4"}</code></p>
                     <p>Base URL: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{llmBaseUrl}</code></p>
+                    {llmApiKey && (
+                      <p>LLM API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>
+                        {llmApiKey.length > 12 ? `${llmApiKey.substring(0, 6)}...${llmApiKey.substring(llmApiKey.length - 4)}` : `${llmApiKey.substring(0, 4)}...`}
+                      </code></p>
+                    )}
                   </>
                 ) : (
                   <p>LLM API Key: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>
