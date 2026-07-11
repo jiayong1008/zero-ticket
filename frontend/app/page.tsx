@@ -522,19 +522,10 @@ export default function DashboardPage() {
       return;
     }
     setRocmStatus("checking");
-    const checkUrl = llmBaseUrl.endsWith("/v1") 
-      ? llmBaseUrl.substring(0, llmBaseUrl.length - 3)
-      : llmBaseUrl;
-      
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 1800));
-    
-    Promise.race([
-      fetch(checkUrl + "/api/tags", { headers: { "Bypass-Tunnel-Reminder": "true" } })
-        .catch(() => fetch(llmBaseUrl + "/models", { headers: { "Bypass-Tunnel-Reminder": "true" } })),
-      timeoutPromise
-    ])
-      .then((res: any) => {
-        if (res.ok) {
+    fetch(`/api/admin/check_gpu?base_url=${encodeURIComponent(llmBaseUrl)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === "online") {
           setRocmStatus("online");
         } else {
           setRocmStatus("offline");

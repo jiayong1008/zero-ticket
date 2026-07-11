@@ -798,6 +798,26 @@ def get_company_projects(company_id: str, db: Session = Depends(get_db)):
         })
     return result
 
+@app.get("/api/admin/check_gpu")
+def check_gpu(base_url: str):
+    import requests
+    check_url = base_url.replace("/v1", "") if base_url.endswith("/v1") else base_url
+    try:
+        r = requests.get(f"{check_url}/api/tags", headers={"Bypass-Tunnel-Reminder": "true"}, timeout=2.0)
+        if r.status_code == 200:
+            return {"status": "online"}
+    except Exception:
+        pass
+        
+    try:
+        r = requests.get(f"{base_url}/models", headers={"Bypass-Tunnel-Reminder": "true"}, timeout=2.0)
+        if r.status_code == 200:
+            return {"status": "online"}
+    except Exception:
+        pass
+        
+    return {"status": "offline"}
+
 @app.post("/api/chat/session")
 def create_chat_session(jwt_claims: dict = Depends(verify_jwt_token), db: Session = Depends(get_db)):
     company_id = jwt_claims.get("company_id") or jwt_claims.get("iss")
