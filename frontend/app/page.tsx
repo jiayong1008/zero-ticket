@@ -175,8 +175,18 @@ export default function DashboardPage() {
     setDbHost(localStorage.getItem("db_host") || "");
     setDbName(localStorage.getItem("db_name") || "");
     setDbType(localStorage.getItem("db_type") || "mysql");
-    setLlmProvider(localStorage.getItem("llm_provider") || "gemini");
-    setLlmApiKey(localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "");
+    const activeProvider = localStorage.getItem("llm_provider") || "gemini";
+    setLlmProvider(activeProvider);
+    const keyMap: Record<string, string> = {
+      gemini: "gemini_api_key",
+      openai: "openai_api_key",
+      anthropic: "anthropic_api_key",
+      deepseek: "deepseek_api_key",
+      qwen: "qwen_api_key",
+      custom: "custom_api_key"
+    };
+    const storageKey = keyMap[activeProvider] || "llm_api_key";
+    setLlmApiKey(localStorage.getItem(storageKey) || localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key") || "");
     setLlmModel(localStorage.getItem("llm_model") || "llama3");
     setLlmBaseUrl(localStorage.getItem("llm_base_url") || "http://localhost:11434/v1");
     const savedRepoId = localStorage.getItem("repository_id") || "";
@@ -1261,8 +1271,20 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   <select
                     value={llmProvider}
                     onChange={(e) => {
-                      setLlmProvider(e.target.value);
-                      localStorage.setItem("llm_provider", e.target.value);
+                      const newProvider = e.target.value;
+                      setLlmProvider(newProvider);
+                      localStorage.setItem("llm_provider", newProvider);
+                      const keyMap: Record<string, string> = {
+                        gemini: "gemini_api_key",
+                        openai: "openai_api_key",
+                        anthropic: "anthropic_api_key",
+                        deepseek: "deepseek_api_key",
+                        qwen: "qwen_api_key",
+                        custom: "custom_api_key"
+                      };
+                      const storageKey = keyMap[newProvider] || "llm_api_key";
+                      const savedKey = localStorage.getItem(storageKey) || "";
+                      setLlmApiKey(savedKey);
                     }}
                     className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
                       isLightMode 
@@ -1289,9 +1311,19 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                           type={showLlmKey ? "text" : "password"}
                           value={llmApiKey}
                           onChange={(e) => {
-                            setLlmApiKey(e.target.value);
-                            localStorage.setItem("llm_api_key", e.target.value);
-                            localStorage.setItem("gemini_api_key", e.target.value);
+                            const val = e.target.value;
+                            setLlmApiKey(val);
+                            localStorage.setItem("llm_api_key", val);
+                            const keyMap: Record<string, string> = {
+                              gemini: "gemini_api_key",
+                              openai: "openai_api_key",
+                              anthropic: "anthropic_api_key",
+                              deepseek: "deepseek_api_key",
+                              qwen: "qwen_api_key",
+                              custom: "custom_api_key"
+                            };
+                            const storageKey = keyMap[llmProvider] || "llm_api_key";
+                            localStorage.setItem(storageKey, val);
                           }}
                           placeholder={llmProvider === "gemini" ? "AIzaSy..." : "sk-..."}
                           className={`w-full pl-2 pr-8 py-1 text-xs rounded border transition-colors ${
