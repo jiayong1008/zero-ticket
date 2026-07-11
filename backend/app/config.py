@@ -5,8 +5,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./zeroticket.db"
     GEMINI_API_KEY: str = ""
     # Fernet key for encrypting DB passwords at rest. Must be 32 URL-safe base64-encoded bytes.
-    # We generate a temporary fallback if not provided, but in production this must be stable.
-    ENCRYPTION_KEY: str = "tVv5F3a7-wM7o79P56s4lCq8z46p9u8r5y6_1A3B-CE=" 
+    # No insecure default here on purpose -- see the guardrail below. Every deployment
+    # (local dev included) must set its own via the ENCRYPTION_KEY env var / .env file.
+    ENCRYPTION_KEY: str = ""
     ADMIN_PASSWORD: str = ""
     LICENSE_KEY: str = ""
     CUSTOM_LLM_BASE_URL: str = "http://localhost:11434/v1"
@@ -30,3 +31,38 @@ if os.getenv("LICENSE_KEY"):
     settings.LICENSE_KEY = os.getenv("LICENSE_KEY")
 if os.getenv("CUSTOM_LLM_BASE_URL"):
     settings.CUSTOM_LLM_BASE_URL = os.getenv("CUSTOM_LLM_BASE_URL")
+
+# --- Security guardrails -------------------------------------------------
+# 1. Refuse to boot without a real encryption key. The old behavior silently
+#    fell back to a key hardcoded in this file -- which is committed to a
+#    public repo, so "encryption at rest" for stored DB passwords was
+#    meaningless to anyone who read the source. Every environment, including
+#    local dev, must now set its own ENCRYPTION_KEY.
+if not settings.ENCRYPTION_KEY:
+    raise RuntimeError(
+        "ENCRYPTION_KEY is not set. Refusing to start: database passwords "
+        "cannot be safely stored without a real, secret encryption key.\n\n"
+        "Generate one with:\n"
+        "  python3 -c \"import secrets, base64; "
+        "print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())\"\n\n"
+        "Then set it as ENCRYPTION_KEY in backend/.env (local dev) or in your "
+        "host's project environment variables (e.g. Vercel/Railway settings)."
+    )
+
+# 2. Vercel automatically sets VERCEL=1 on every deployment. If we're running
+#    there with no ADMIN_PASSWORD, every admin/onboarding endpoint -- including
+#    the one that stores database credentials -- is reachable with zero
+#    authentication. That's acceptable for pure local development only.
+if os.getenv("VERCEL") and not settings.ADMIN_PASSWORD:
+    raise RuntimeError(
+        "ADMIN_PASSWORD is not set. Refusing to start on Vercel with all "
+        "admin endpoints unauthenticated. Set ADMIN_PASSWORD in your Vercel "
+        "project's Environment Variables before deploying."
+    )
+elif not settings.ADMIN_PASSWORD:
+    print(
+        "\n⚠️  WARNING: ADMIN_PASSWORD is not set. All admin/onboarding "
+        "endpoints (including database credential storage) are running "
+        "WITHOUT AUTHENTICATION. This is fine for local development only -- "
+        "never expose this configuration publicly.\n"
+    )

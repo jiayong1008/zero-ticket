@@ -30,7 +30,9 @@ function OnboardingPageContent() {
 
   // LLM Provider
   const [llmProvider, setLlmProvider] = useState("gemini");
+  const [selectedLlmOption, setSelectedLlmOption] = useState("gemini");
   const [llmModel, setLlmModel] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [llmBaseUrl, setLlmBaseUrl] = useState("http://localhost:11434/v1");
   const [llmApiKey, setLlmApiKey] = useState("");
   const [companyApiKey, setCompanyApiKey] = useState("");
@@ -102,12 +104,24 @@ function OnboardingPageContent() {
 
     // Always try to load saved LLM settings if they exist
     const savedLlmProvider = localStorage.getItem("llm_provider");
-    if (savedLlmProvider) setLlmProvider(savedLlmProvider);
     const savedLlmModel = localStorage.getItem("llm_model");
-    if (savedLlmModel) setLlmModel(savedLlmModel);
     const savedLlmBaseUrl = localStorage.getItem("llm_base_url");
-    if (savedLlmBaseUrl) setLlmBaseUrl(savedLlmBaseUrl);
     const savedLlmApiKey = localStorage.getItem("llm_api_key") || localStorage.getItem("gemini_api_key");
+
+    if (savedLlmProvider) {
+      setLlmProvider(savedLlmProvider);
+      if (savedLlmProvider === "custom") {
+        if (savedLlmBaseUrl && savedLlmBaseUrl.includes("fireworks.ai")) {
+          setSelectedLlmOption("fireworks");
+        } else {
+          setSelectedLlmOption("custom");
+        }
+      } else {
+        setSelectedLlmOption(savedLlmProvider);
+      }
+    }
+    if (savedLlmModel) setLlmModel(savedLlmModel);
+    if (savedLlmBaseUrl) setLlmBaseUrl(savedLlmBaseUrl);
     if (savedLlmApiKey) setLlmApiKey(savedLlmApiKey);
 
     if (savedCompanyId) {
@@ -302,8 +316,35 @@ function OnboardingPageContent() {
     setSyncStatus("cloning");
 
     try {
+      // 1. Save LLM Config to Company
+      const saveRes = await fetch(`${BACKEND_URL}/api/company/save_llm_config`, {
+        method: "POST",
+        headers: getAdminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          company_id: companyId,
+          llm_provider: llmProvider,
+          api_key: llmApiKey,
+          llm_model: llmModel,
+          llm_base_url: llmBaseUrl
+        })
+      });
+      if (!saveRes.ok) {
+        throw new Error("Failed to save LLM configuration securely.");
+      }
+
+      // 2. Sync to localStorage
       if (llmApiKey.trim()) {
-        localStorage.setItem("gemini_api_key", llmApiKey);
+        const keyMap: Record<string, string> = {
+          gemini: "gemini_api_key",
+          openai: "openai_api_key",
+          anthropic: "anthropic_api_key",
+          deepseek: "deepseek_api_key",
+          qwen: "qwen_api_key",
+          fireworks: "fireworks_api_key",
+          custom: "custom_api_key"
+        };
+        const storageKey = keyMap[selectedLlmOption] || "llm_api_key";
+        localStorage.setItem(storageKey, llmApiKey);
         localStorage.setItem("llm_api_key", llmApiKey);
       } else {
         localStorage.removeItem("gemini_api_key");
@@ -311,6 +352,7 @@ function OnboardingPageContent() {
       }
       localStorage.setItem("llm_provider", llmProvider);
       localStorage.setItem("llm_model", llmModel);
+      localStorage.setItem("llm_base_url", llmBaseUrl);
       
       const res = await fetch(`${BACKEND_URL}/api/ingest`, {
         method: "POST",
@@ -612,19 +654,19 @@ function OnboardingPageContent() {
                 <label htmlFor="repoPath" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
                   isLightMode ? "text-slate-600" : "text-slate-400"
                 }`}>
-                  Local Repository Absolute Path
+                  Repository Path or GitHub URL
                 </label>
                 <input
                   id="repoPath"
                   type="text"
                   value={repoPath}
                   onChange={(e) => setRepoPath(e.target.value)}
-                  placeholder="e.g. /Users/jiayong/GitHub/zeroticket"
+                  placeholder="e.g. /Users/jiayong/GitHub/zeroticket or owner/repo"
                   className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                   required
                 />
                 <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Input the folder path of the software project code on your machine.
+                  Input either the local folder path on your machine, or a public GitHub repository (e.g. https://github.com/owner/repo or owner/repo).
                 </p>
               </div>
 
@@ -884,16 +926,47 @@ function OnboardingPageContent() {
                   { id: "anthropic", label: "Claude", sub: "Anthropic" },
                   { id: "deepseek", label: "DeepSeek", sub: "DeepSeek AI" },
                   { id: "qwen", label: "Qwen", sub: "Alibaba" },
+                  { id: "fireworks", label: "Fireworks AI", sub: "Serverless LLMs" },
                   { id: "custom", label: "AMD GPU (Gemma)", sub: "Ollama / vLLM (ROCm)" },
                 ] as const).map((p) => (
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setLlmProvider(p.id)}
+                    onClick={() => {
+                      setSelectedLlmOption(p.id);
+                      if (p.id === "fireworks") {
+                        setLlmProvider("custom");
+                        setLlmBaseUrl("https://api.fireworks.ai/inference/v1");
+                        setLlmModel("accounts/fireworks/models/qwen3p7-plus");
+                      } else if (p.id === "custom") {
+                        setLlmProvider("custom");
+                        setLlmBaseUrl("http://localhost:11434/v1");
+                        setLlmModel("gemma4");
+                      } else {
+                        setLlmProvider(p.id);
+                        setLlmBaseUrl("");
+                        setLlmModel("");
+                      }
+                      
+                      const keyMap: Record<string, string> = {
+                        gemini: "gemini_api_key",
+                        openai: "openai_api_key",
+                        anthropic: "anthropic_api_key",
+                        deepseek: "deepseek_api_key",
+                        qwen: "qwen_api_key",
+                        fireworks: "fireworks_api_key",
+                        custom: "custom_api_key"
+                      };
+                      const storageKey = keyMap[p.id] || "llm_api_key";
+                      const savedKey = localStorage.getItem(storageKey) || "";
+                      setLlmApiKey(savedKey);
+                    }}
                     className={`py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all text-left ${
-                      llmProvider === p.id
+                      selectedLlmOption === p.id
                         ? p.id === "custom"
                           ? "bg-gradient-to-br from-amber-600/20 to-rose-600/20 border-orange-500/60 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.15)] animate-pulse-slow"
+                          : p.id === "fireworks"
+                          ? "bg-gradient-to-br from-blue-600/20 to-violet-600/20 border-indigo-500/60 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
                           : "bg-blue-600/20 border-blue-500/60 text-blue-400"
                         : isLightMode
                         ? "border-slate-300 text-slate-500 hover:border-slate-400"
@@ -921,7 +994,7 @@ function OnboardingPageContent() {
                 type="text"
                 value={llmModel}
                 onChange={(e) => setLlmModel(e.target.value)}
-                placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : llmProvider === "custom" ? "gemma4" : "gemini-2.5-flash"}
+                placeholder={llmProvider === "openai" ? "gpt-4o" : llmProvider === "anthropic" ? "claude-3-5-sonnet-20241022" : llmProvider === "deepseek" ? "deepseek-chat" : llmProvider === "qwen" ? "qwen-plus" : selectedLlmOption === "fireworks" ? "accounts/fireworks/models/qwen3p7-plus" : llmProvider === "custom" ? "gemma4" : "gemini-2.5-flash"}
                 className={`w-full px-4 py-3 rounded-lg text-sm transition-colors ${
                   isLightMode 
                     ? "bg-white border-slate-300 text-slate-700" 
@@ -955,25 +1028,27 @@ function OnboardingPageContent() {
                   />
                 </div>
 
-                <div className="rounded-lg border border-orange-500/20 bg-gradient-to-br from-orange-950/20 to-rose-950/20 p-4 space-y-2.5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-orange-400">
-                    <svg className="w-4 h-4 text-orange-400 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span>AMD ROCm Local Compute Configuration Guide</span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
-                    <p>To qualify for the **AMD GPU Track**, run Google's **Gemma 4** model locally on your GPU node:</p>
-                    <div className="bg-black/40 border border-white/5 rounded p-2 font-mono text-[10px] text-orange-300 select-all space-y-1">
-                      <div># 1. Run Ollama on the server:</div>
-                      <div>curl -fsSL https://ollama.com/install.sh | sh</div>
-                      <div>ollama run gemma4</div>
-                      <div># 2. Or launch vLLM with ROCm:</div>
-                      <div>python -m vllm.entrypoints.openai.api_server --model google/gemma-4-9b-it</div>
+                {selectedLlmOption === "custom" && (
+                  <div className="rounded-lg border border-orange-500/20 bg-gradient-to-br from-orange-950/20 to-rose-950/20 p-4 space-y-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-orange-400">
+                      <svg className="w-4 h-4 text-orange-400 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span>AMD ROCm Local Compute Configuration Guide</span>
                     </div>
-                    <p className="text-[10px] opacity-75">Ensure the server's API is exposed globally or port-forwarded (default Ollama port: 11434, vLLM port: 8000).</p>
+                    <div className="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
+                      <p>Run Google's **Gemma** model locally on your GPU node:</p>
+                      <div className="bg-black/40 border border-white/5 rounded p-2 font-mono text-[10px] text-orange-300 select-all space-y-1">
+                        <div># 1. Run Ollama on the server:</div>
+                        <div>curl -fsSL https://ollama.com/install.sh | sh</div>
+                        <div>ollama run gemma4</div>
+                        <div># 2. Or launch vLLM with ROCm:</div>
+                        <div>python -m vllm.entrypoints.openai.api_server --model google/gemma-4-9b-it</div>
+                      </div>
+                      <p className="text-[10px] opacity-75">Ensure the server's API is exposed globally or port-forwarded (default Ollama port: 11434, vLLM port: 8000).</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -982,19 +1057,51 @@ function OnboardingPageContent() {
               <label htmlFor="apiKeyInput" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
                 isLightMode ? "text-slate-600" : "text-slate-400"
               }`}>
-                {llmProvider === "gemini" ? "GEMINI_API_KEY" : llmProvider === "openai" ? "OPENAI_API_KEY" : llmProvider === "anthropic" ? "ANTHROPIC_API_KEY" : llmProvider === "deepseek" ? "DEEPSEEK_API_KEY" : "DASHSCOPE_API_KEY"}
+                {selectedLlmOption === "gemini" ? "GEMINI_API_KEY" :
+                 selectedLlmOption === "openai" ? "OPENAI_API_KEY" :
+                 selectedLlmOption === "anthropic" ? "ANTHROPIC_API_KEY" :
+                 selectedLlmOption === "deepseek" ? "DEEPSEEK_API_KEY" :
+                 selectedLlmOption === "qwen" ? "DASHSCOPE_API_KEY" :
+                 selectedLlmOption === "fireworks" ? "FIREWORKS_API_KEY" :
+                 "LLM API Key"}
                 <span className={`normal-case font-normal ml-1 ${
                   isLightMode ? "text-slate-400" : "text-slate-600"
-                }`}>(Leave blank if set in backend environment)</span>
+                }`}>({selectedLlmOption === "custom" ? "Optional" : "Leave blank if set in backend environment"})</span>
               </label>
-              <input
-                id="apiKeyInput"
-                type="password"
-                value={llmApiKey}
-                onChange={(e) => setLlmApiKey(e.target.value)}
-                placeholder={llmProvider === "gemini" ? "AIzaSy..." : llmProvider === "openai" ? "sk-..." : llmProvider === "anthropic" ? "sk-ant-..." : "Enter API key"}
-                className="w-full px-4 py-3 rounded-lg glass-input text-sm"
-              />
+              <div className="relative">
+                <input
+                  id="apiKeyInput"
+                  type={showApiKey ? "text" : "password"}
+                  value={llmApiKey}
+                  onChange={(e) => setLlmApiKey(e.target.value)}
+                  placeholder={
+                    selectedLlmOption === "gemini" ? "AIzaSy..." :
+                    selectedLlmOption === "openai" ? "sk-..." :
+                    selectedLlmOption === "anthropic" ? "sk-ant-..." :
+                    selectedLlmOption === "fireworks" ? "fw-..." :
+                    "Enter API key"
+                  }
+                  className="w-full pl-4 pr-12 py-3 rounded-lg glass-input text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${
+                    isLightMode ? "text-slate-400 hover:text-slate-600" : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {showApiKey ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m0 0a10.05 10.05 0 015.71-1.581c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-1.563 3.029m-5.858-.908a3 3 0 00-4.243-4.243M9.878 9.878L14.12 14.12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
                 Required to generate code embeddings and execute the agent thought processes.
               </p>

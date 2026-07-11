@@ -40,6 +40,33 @@ class Repository(Base):
     db_connection = relationship("DBConnection", back_populates="repository", uselist=False, cascade="all, delete-orphan")
     onboarding_questions = relationship("OnboardingQuestion", back_populates="repository", cascade="all, delete-orphan")
 
+    @property
+    def is_git_url(self) -> bool:
+        val = self.repo_name.strip()
+        if val.startswith(("http://", "https://", "git@", "ssh://")):
+            return True
+        import os
+        if not os.path.isabs(val) and "/" in val and len(val.split("/")) == 2:
+            return True
+        return False
+
+    @property
+    def git_clone_url(self) -> str:
+        val = self.repo_name.strip()
+        if val.startswith(("http://", "https://", "git@", "ssh://")):
+            return val
+        if "/" in val and len(val.split("/")) == 2:
+            return f"https://github.com/{val}.git"
+        return val
+
+    @property
+    def local_path(self) -> str:
+        if self.is_git_url:
+            import os
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            return os.path.join(backend_dir, "cloned_repos", self.id)
+        return self.repo_name
+
 class DBConnection(Base):
     __tablename__ = 'db_connections'
     id = Column(String(36), primary_key=True)
