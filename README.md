@@ -230,6 +230,15 @@ In the ZeroTicket Developer Dashboard onboarding flow:
 4. A **ROCm Connection Status indicator** (online/offline) will automatically light up green in your dashboard sidebar to verify GPU node connection health.
 
 > [!TIP]
+> **Configuring Fireworks AI (Alternative Cloud Provider)**
+> ZeroTicket is natively compatible with Fireworks AI. In the configuration settings:
+> 1. Select **AMD GPU (Local Gemma)** (Custom) as your AI provider.
+> 2. Set the **Custom Base URL** to `https://api.fireworks.ai/inference/v1`.
+> 3. Paste your Fireworks API Key in the **LLM API Key (Optional)** field.
+> 4. Select **Custom Model Name...** and type: `accounts/fireworks/models/qwen2p5-72b-instruct` or `accounts/fireworks/models/gemma2-9b-it`.
+> 5. Save the configuration. The dashboard will dynamically detect it and display **AI Provider: Fireworks AI 🟢**.
+
+> [!TIP]
 > For a detailed, step-by-step developer walkthrough on manual installation, configuring persistent storage, bypassing cloud VM firewalls (via Bore/Localtunnel), and running verification tests, refer to our comprehensive [AMD GPU Integration Guide](file:///Users/jiayong/GitHub/zeroticket/AMD_GEMMA_INTEGRATION.md).
 
 ---
