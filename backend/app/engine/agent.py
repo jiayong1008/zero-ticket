@@ -323,7 +323,7 @@ class AgentEngine:
 
             extra_params = {}
             if max_tokens:
-                extra_params["max_tokens"] = max_tokens
+                extra_params["max_completion_tokens"] = max_tokens
 
             response = client.chat.completions.create(
                 model=model_name,
