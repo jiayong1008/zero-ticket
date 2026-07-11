@@ -1444,7 +1444,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   AI Provider:{" "}
                   {llmProvider === "custom" ? (
                     <>
-                      <span className={`font-semibold capitalize text-orange-400`}>AMD GPU (Local)</span>
+                      <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>AMD GPU (Local)</span>
                       {rocmStatus === "checking" && (
                         <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 animate-ping" title="Checking ROCm..." />
                       )}
