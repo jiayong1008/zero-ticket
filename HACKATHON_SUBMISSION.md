@@ -159,8 +159,10 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
 
 ### 🛝 Slide 4: Interactive Developer Onboarding (Setup Discovery)
 *   **Headline:** Zero-Configuration Setup: Self-Tuning Context Loop
-*   **Visual:** Screenshot of the **ZeroTicket Setup Discovery Card Deck** on the dashboard:
-    ![Onboarding Setup](./screenshots/onboarding_discovery.png)
+*   **Visual - Onboarding Step-by-Step Flow:**
+    | Step 1: Create Company Profile | Step 2: Connect Git Codebase | Step 3: Connect DB Replica & AI |
+    |---|---|---|
+    | ![Onboarding Step 1](./screenshots/Onboarding%201.jpeg) | ![Onboarding Step 2](./screenshots/Onboarding%202.jpeg) | ![Onboarding Step 3](./screenshots/Onboarding%203.jpeg) |
 *   **Bullet Points:**
     *   **Auto-Ambiguity Discovery:** Right after ingestion, an AI agent scans codebase schemas and log files to identify setup gaps.
     *   **Question Wizard:** Presents support engineers with step-by-step multiple choice cards to specify primary server log paths, main transaction tables, or status code maps.
@@ -172,6 +174,8 @@ To submit a competitive project for the **Unicorn Track**, your pitch deck must 
     *   **Thought Trace Debugger:** Displays the agent's step-by-step reasoning, including the raw SQL queries drafted and the server logs parsed.
     *   **Visual - Interactive Sandbox Emulator (ACH Clearing Scenario):**
         ![Sandbox Emulator - ACH Clearing](./screenshots/sandbox_emulator_ach.png)
+    *   **Visual - AI Reasoning Process (Right Panel Trace):**
+        ![AI Reasoning Trace](./screenshots/AI%20Reasoning.jpeg)
     *   **Visual - Multimodal OCR Failure Diagnostics:**
         ![Sandbox Emulator - Multimodal OCR](./screenshots/emulator_ocr_demo.png)
     *   **Visual - Human-in-the-Loop AI Tuning ("Teach AI" modal):**
