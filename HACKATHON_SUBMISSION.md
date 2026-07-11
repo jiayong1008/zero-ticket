@@ -63,13 +63,18 @@ Fireworks AI, Python, FastAPI, Next.js, React, TailwindCSS, ChromaDB, MySQL, Pos
 https://github.com/jiayong1008/zeroticket
 
 **Demo Application Platform:** 
-Self-hosted / Docker (Designed for Enterprise On-Premise Privacy)
+Frontend hosted on Vercel; Backend hosted on-premise and tunneled securely to Vercel (designed for enterprise self-hosted Docker architectures).
 
 **Demo Application URL:** 
-*(Insert URL if hosted, e.g., on Vercel or an AMD VM. If running locally for the demo, mention it is a self-hosted enterprise architecture.)*
+https://zeroticket.vercel.app *(Optional: replace with your Vercel deployment URL if you deploy it)*
 
 **Additional Information:** 
-ZeroTicket is designed specifically for enterprise B2B scaling. By utilizing open-source models via Fireworks AI and AMD GPU infrastructure, it offers a pathway for strict enterprise compliance (HIPAA, SOC2) by ensuring proprietary code and database schemas never leave the company's internal network. In the future, we plan to expand the SQL Security Guard to natively support MongoDB, and introduce automated "fix" PR generation for common bugs identified through repetitive support tickets.
+ZeroTicket is designed specifically for enterprise B2B scaling. By utilizing open-source models via Fireworks AI and AMD GPU infrastructure, it offers a pathway for strict enterprise compliance (HIPAA, SOC2, GDPR) by ensuring proprietary code, logs, and database schemas never leave the company's internal network. 
+
+#### System Scalability Highlights:
+- **Compile-Time Multi-Tenant Safety:** The SQL Security Guard compiler prevents cross-tenant data leaks by automatically rewriting query AST structures.
+- **Git-Native Human-in-the-Loop Tuning:** AI instructions and corrections are automatically stored as version-controlled configurations (`ai_context_rules.txt`) in the source repository itself.
+- **AMD local compute fallback:** Support for Google's open-weights Gemma 4 running locally on AMD GPUs with ROCm, providing a 100% private, air-gapped support agent.
 
 ---
 ---
