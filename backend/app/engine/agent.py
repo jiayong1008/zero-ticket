@@ -253,8 +253,14 @@ class AgentEngine:
             if stream:
                 def stream_gen(c, resp):
                     for chunk in resp:
-                        if chunk.choices and chunk.choices[0].delta.content:
-                            yield chunk.choices[0].delta.content
+                        if chunk.choices:
+                            delta = chunk.choices[0].delta
+                            content = getattr(delta, "content", None) or ""
+                            reasoning = getattr(delta, "reasoning_content", None) or ""
+                            if reasoning:
+                                yield ("reasoning", reasoning)
+                            elif content:
+                                yield ("content", content)
                 return stream_gen(client, response)
             return response.choices[0].message.content or ""
             
@@ -286,7 +292,7 @@ class AgentEngine:
                         temperature=0.0
                     ) as stream_response:
                         for text in stream_response.text_stream:
-                            yield text
+                            yield ("content", text)
                 return stream_gen(client)
                 
             response = client.messages.create(
@@ -335,8 +341,14 @@ class AgentEngine:
             if stream:
                 def stream_gen(c, resp):
                     for chunk in resp:
-                        if chunk.choices and chunk.choices[0].delta.content:
-                            yield chunk.choices[0].delta.content
+                        if chunk.choices:
+                            delta = chunk.choices[0].delta
+                            content = getattr(delta, "content", None) or ""
+                            reasoning = getattr(delta, "reasoning_content", None) or ""
+                            if reasoning:
+                                yield ("reasoning", reasoning)
+                            elif content:
+                                yield ("content", content)
                 return stream_gen(client, response)
             
             return response.choices[0].message.content or ""
@@ -362,7 +374,8 @@ class AgentEngine:
                 )
                 def stream_gen(c, resp):
                     for chunk in resp:
-                        yield chunk.text
+                        if chunk.text:
+                            yield ("content", chunk.text)
                 return stream_gen(client, response)
 
             response = client.models.generate_content(
@@ -554,7 +567,7 @@ INSTRUCTIONS:
             thought_log.append(schema_context)
     
             try:
-                sql_text = self._generate_llm_content(provider, model_name, api_key, sql_draft_prompt, max_tokens=150)
+                sql_text = self._generate_llm_content(provider, model_name, api_key, sql_draft_prompt, max_tokens=1000)
                 
                 # Extract query from markdown code block
                 sql_match = re.search(r"```sql(.*?)```", sql_text, re.DOTALL | re.IGNORECASE)
@@ -835,7 +848,7 @@ INSTRUCTIONS:
             
             sql_text = ""
             try:
-                for chunk in self._generate_llm_content(provider, model_name, api_key, sql_draft_prompt, stream=True, max_tokens=150):
+                for token_type, chunk in self._generate_llm_content(provider, model_name, api_key, sql_draft_prompt, stream=True, max_tokens=1000):
                     sql_text += chunk
                     yield yield_event("thought", chunk)
                 
@@ -916,8 +929,15 @@ INSTRUCTIONS:
 """
         
         try:
-            for chunk in self._generate_llm_content(provider, model_name, api_key, synthesis_prompt, stream=True, max_tokens=800):
-                yield yield_event("answer", chunk)
+            reasoning_started = False
+            for token_type, chunk in self._generate_llm_content(provider, model_name, api_key, synthesis_prompt, stream=True, max_tokens=4000):
+                if token_type == "reasoning":
+                    if not reasoning_started:
+                        reasoning_started = True
+                        yield yield_event("thought", "--- [🧠 AI Reasoning Process] ---\n")
+                    yield yield_event("thought", chunk)
+                else:
+                    yield yield_event("answer", chunk)
         except Exception as e:
             yield yield_event("error", f"Error: Failed to synthesize response. Detail: {str(e)}")
 

@@ -186,11 +186,63 @@ docker compose up -d --build
    ```
    *(Access frontend locally at `http://localhost:3000`)*
 
+
+
+
+## 🧠 Multi-LLM Support — Any Model, Any Provider
+
+ZeroTicket is **model-agnostic by design**. The same codebase RAG pipeline, SQL security guard, and streaming architecture work across every provider below. Simply swap the provider in the dashboard settings — no code changes required.
+
+### 🏎️ Primary Demo Recommendation: Qwen 3.7 Plus (via Fireworks AI)
+
+For live demos and hackathon judging, we recommend **[Qwen 3.7 Plus](https://fireworks.ai/models/fireworks/qwen3p7-plus)** hosted serverlessly on Fireworks AI:
+- ⚡ **Blazing fast** — serverless, no cold starts, streams tokens almost instantly
+- 🧠 **Built-in reasoning** — thinks step-by-step before answering (visible in the right-side Trace Debugger panel)
+- 👁️ **Vision-capable** — supports the multimodal OCR screenshot test scenario
+- 💰 **Ultra cheap** — $0.40/$1.60 per 1M tokens; a typical query costs ~$0.005
+
+**Setup (2 minutes):**
+1. Sign up at [fireworks.ai](https://fireworks.ai) and grab your API key.
+2. In the ZeroTicket dashboard → **Configure** → select **AMD GPU (Local Gemma)** (Custom provider).
+3. Set **Custom Base URL** → `https://api.fireworks.ai/inference/v1`
+4. Set **Custom Model Name** → `accounts/fireworks/models/qwen3p7-plus`
+5. Paste your API key → **Save Config** → the dashboard shows **AI Provider: Fireworks AI 🟢**
+
+> ⚠️ **Note:** All Gemma models on Fireworks AI are **Dedicated-only** (require paid GPU deployment, ~$1.50–$3/hr). Use the serverless models below for instant access.
+
+**Other serverless models you can experiment with on Fireworks AI** ([browse all →](https://fireworks.ai/models?type=serverless)):
+
+| Model | Fireworks Link | Context | Vision | Price (In / Out per 1M) |
+|---|---|---|---|---|
+| 🏆 **Qwen 3.7 Plus** *(Recommended)* | [→](https://fireworks.ai/models/fireworks/qwen3p7-plus) | — | ✅ | $0.40 / $1.60 |
+| **DeepSeek-V4-Pro** *(1M context window)* | [→](https://fireworks.ai/models/fireworks/deepseek-v4-pro) | 1M | ❌ | $1.74 / $3.48 |
+| **DeepSeek-V4-Flash** *(Fastest & cheapest)* | [→](https://fireworks.ai/models/fireworks/deepseek-v4-flash) | 1M | ❌ | $0.14 / $0.28 |
+| **Kimi K2.7 Code** *(Code-optimised + vision)* | [→](https://fireworks.ai/models/fireworks/kimi-k2-7-code) | 262k | ✅ | $0.95 / $4.00 |
+| **GLM 5.2** *(Function calling + 1M context)* | [→](https://fireworks.ai/models/fireworks/glm-5-2) | 1M | ❌ | $1.40 / $4.40 |
+| **Minimax M3** *(Budget-friendly + vision)* | [→](https://fireworks.ai/models/fireworks/minimax-m3) | 512k | ✅ | $0.30 / $1.20 |
+| **NVIDIA Nemotron 3 Ultra NVFP4** | [→](https://fireworks.ai/models/fireworks/nemotron-3-ultra-nvfp4) | 262k | ❌ | $0.60 / $2.40 |
+
+💡 With **$50 credit**, a typical ZeroTicket query costs **$0.004–$0.05** → **1,000–10,000+ test runs**.
+
 ---
 
-### ⚡ Local AMD GPU & Gemma 4 Integration
+### 🔑 Other Supported Providers (Built-in, no custom URL needed)
 
-To host Google's open-weights **Gemma 4** model locally on your AMD GPU-powered server using ROCm, follow these setup options:
+| Provider | Models | Select In Dashboard |
+|---|---|---|
+| **Google Gemini** | Gemini 2.5 Flash, Gemini 2.5 Pro | Select `Gemini (Google)` |
+| **OpenAI** | GPT-4o, GPT-4o-mini, o3 | Select `OpenAI` |
+| **Anthropic** | Claude 3.5 Sonnet, Claude 3.7 Sonnet | Select `Anthropic (Claude)` |
+| **DeepSeek** | DeepSeek Chat, DeepSeek Reasoner | Select `DeepSeek` |
+| **Any OpenAI-compatible API** | Ollama, vLLM, LM Studio, Together AI, Groq… | Select `AMD GPU (Local Gemma)` + set Custom Base URL |
+
+---
+
+### 🖥️ Self-Hosted: AMD GPU + Gemma 4 (Hackathon Showcase)
+
+The core use case for the AMD Hackathon — run ZeroTicket **fully offline** on your AMD GPU hardware with no cloud dependency.
+
+To host Google's open-weights **Gemma 4** model locally on your AMD GPU-powered server using ROCm:
 
 #### Option A: Running with Ollama
 1. Install Ollama on your AMD server:
@@ -201,47 +253,36 @@ To host Google's open-weights **Gemma 4** model locally on your AMD GPU-powered 
    ```bash
    ollama run gemma4
    ```
-   *(By default, Ollama serves the OpenAI-compatible API on port `11434`)*
+   *(Ollama serves the OpenAI-compatible API on port `11434` by default)*
 
 #### Option B: Running with vLLM & ROCm
-1. Build or pull the vLLM Docker container optimized for AMD ROCm:
+1. Pull the vLLM Docker container optimized for AMD ROCm:
    ```bash
    docker pull vllm/vllm-openai:rocm
    ```
-2. Launch the vLLM OpenAI-compatible server:
+2. Launch the OpenAI-compatible server:
    ```bash
    python3 -m vllm.entrypoints.openai.api_server \
      --model google/gemma-4-9b-it \
      --port 8000
    ```
 
-#### Option C: Local Embeddings
-To compute vector embeddings completely locally without cloud API keys:
+#### Option C: Local Embeddings (Fully Air-Gapped)
+To compute vector embeddings locally without any cloud API key:
 ```bash
 ollama pull nomic-embed-text
 ```
-*(If the local embeddings request fails, ZeroTicket automatically triggers a cloud Gemini fallback if an API key is saved).*
+*(If local embeddings fail, ZeroTicket auto-falls back to Gemini embeddings if an API key is configured.)*
 
 #### Dashboard Configuration
-In the ZeroTicket Developer Dashboard onboarding flow:
+In the ZeroTicket onboarding flow:
 1. Select **AMD GPU (Local Gemma)** as your AI provider.
-2. Set the **Custom Base URL** to your local Ollama/vLLM address (e.g. `http://localhost:11434/v1` or `http://localhost:8000/v1`).
-3. Set the **Model Name** to `gemma4` or `google/gemma-4-9b-it`.
-4. A **ROCm Connection Status indicator** (online/offline) will automatically light up green in your dashboard sidebar to verify GPU node connection health.
+2. Set **Custom Base URL** → `http://localhost:11434/v1` (Ollama) or `http://localhost:8000/v1` (vLLM).
+3. Set **Model Name** → `gemma4` or `google/gemma-4-9b-it`.
+4. The **ROCm Connection Status** indicator lights up 🟢 in the dashboard sidebar to confirm the GPU node is reachable.
 
 > [!TIP]
-> **Configuring Fireworks AI (Alternative Cloud Provider)**
-> ZeroTicket is natively compatible with Fireworks AI. In the configuration settings:
-> 1. Select **AMD GPU (Local Gemma)** (Custom) as your AI provider.
-> 2. Set the **Custom Base URL** to `https://api.fireworks.ai/inference/v1`.
-> 3. Paste your Fireworks API Key in the **LLM API Key (Optional)** field.
-> 4. Select **Custom Model Name...** and type: `accounts/fireworks/models/qwen2p5-72b-instruct` or `accounts/fireworks/models/gemma2-9b-it`.
-> 5. Save the configuration. The dashboard will dynamically detect it and display **AI Provider: Fireworks AI 🟢**.
-
-> [!TIP]
-> For a detailed, step-by-step developer walkthrough on manual installation, configuring persistent storage, bypassing cloud VM firewalls (via Bore/Localtunnel), and running verification tests, refer to our comprehensive [AMD GPU Integration Guide](file:///Users/jiayong/GitHub/zeroticket/AMD_GEMMA_INTEGRATION.md).
-
----
+> For a detailed walkthrough on manual installation, persistent storage, bypassing VM firewalls (via Bore/Localtunnel), and running verification tests, see the [AMD GPU Integration Guide](./AMD_GEMMA_INTEGRATION.md).
 
 ## 🛠️ Repository Directory Map
 

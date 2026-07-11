@@ -11,6 +11,40 @@ interface Message {
   imageData?: string;
 }
 
+// Parse inline markdown: **bold**, *italic*, `code`
+const parseInlineMarkdown = (text: string, isLightMode: boolean): React.ReactNode[] => {
+  const parts: React.ReactNode[] = [];
+  // Token regex: captures **bold**, *italic*, `code`, or plain text
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    if (match[2] !== undefined) {
+      // **bold**
+      parts.push(<strong key={key++} className={isLightMode ? 'text-slate-900' : 'text-white'}>{match[2]}</strong>);
+    } else if (match[3] !== undefined) {
+      // *italic*
+      parts.push(<em key={key++} className="opacity-80">{match[3]}</em>);
+    } else if (match[4] !== undefined) {
+      // `code`
+      parts.push(
+        <code key={key++} className={`px-1 py-0.5 rounded text-[10px] font-mono ${isLightMode ? 'bg-slate-200 text-slate-800' : 'bg-slate-800 text-violet-300'}`}>
+          {match[4]}
+        </code>
+      );
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+  return parts;
+};
+
 const ThoughtLogSection = ({ 
   title, 
   content, 
@@ -241,7 +275,66 @@ const ThoughtLogSection = ({
     );
   }
 
-  // 5. Default Section style
+  // Helper: render inline markdown spans (bold, italic, code)
+  const renderMarkdownLine = (line: string, key: number) => {
+    const trimmed = line.trimStart();
+    const indent = line.length - trimmed.length;
+    const indentStyle = { paddingLeft: `${indent * 6}px` };
+
+    // Numbered list: "1. ..."
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    if (numMatch) {
+      return (
+        <div key={key} className="flex gap-2 my-0.5" style={indentStyle}>
+          <span className={`font-bold flex-shrink-0 ${isLightMode ? 'text-violet-700' : 'text-violet-400'}`}>{numMatch[1]}.</span>
+          <span>{parseInlineMarkdown(numMatch[2], isLightMode)}</span>
+        </div>
+      );
+    }
+    // Bullet: "- ..." or "* ..."
+    const bulletMatch = trimmed.match(/^[-*]\s+(.*)/);
+    if (bulletMatch) {
+      return (
+        <div key={key} className="flex gap-2 my-0.5" style={indentStyle}>
+          <span className={`flex-shrink-0 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}>•</span>
+          <span>{parseInlineMarkdown(bulletMatch[1], isLightMode)}</span>
+        </div>
+      );
+    }
+    // Empty line → spacing
+    if (!trimmed) return <div key={key} className="my-1" />;
+    // Normal line
+    return <div key={key} className="my-0.5" style={indentStyle}>{parseInlineMarkdown(trimmed, isLightMode)}</div>;
+  };
+
+  // 5. AI Reasoning Section – rich markdown rendering
+  if (lowerTitle.includes("reasoning process") || lowerTitle.includes("ai reasoning")) {
+    return (
+      <div className="mb-4">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className={`w-full text-left text-sm font-bold border-b pb-1 flex items-center justify-between transition-colors hover:opacity-80 ${isLightMode ? "text-violet-700 border-slate-200" : "text-violet-400 border-white/10"}`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+            🧠 AI Reasoning Process
+          </span>
+          <svg className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {expanded && (
+          <div className={`mt-3 rounded-lg border p-4 text-[11px] leading-relaxed max-h-96 overflow-y-auto ${
+            isLightMode ? 'border-violet-200 bg-violet-50/40 text-slate-700' : 'border-violet-500/20 bg-violet-950/10 text-slate-300'
+          }`}>
+            {content.map((line, idx) => renderMarkdownLine(line, idx))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 6. Default Section style
   return (
     <div className="mb-4">
       <button 
@@ -1420,7 +1513,7 @@ export default function SandboxPage() {
             </div>
           </div>
 
-          <div className={`flex-1 overflow-y-auto min-h-0 p-5 font-mono text-xs leading-relaxed select-text whitespace-pre-wrap break-all transition-colors ${isLightMode ? "text-slate-700 bg-white" : "text-slate-300"}`}>
+          <div className={`flex-1 overflow-y-auto min-h-0 p-5 font-mono text-xs leading-relaxed select-text whitespace-pre-wrap break-words transition-colors ${isLightMode ? "text-slate-700 bg-white" : "text-slate-300"}`}>
             {activeThoughtLog ? (
               (() => {
                 const lines = activeThoughtLog.split("\n");
