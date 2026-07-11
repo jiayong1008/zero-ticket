@@ -646,7 +646,11 @@ INSTRUCTIONS:
             thought_log.append(f"Failed response synthesis: {str(e)}")
 
         total_time_ms = int((time.time() - start_time) * 1000)
-        thought_log.append(f"\n--- [Total Processing Time] ---\n{total_time_ms}ms")
+        minutes = (total_time_ms // 1000) // 60
+        seconds = (total_time_ms // 1000) % 60
+        ms = total_time_ms % 1000
+        time_str = f"{total_time_ms}ms ({minutes}m {seconds}s {ms}ms)" if minutes > 0 else f"{total_time_ms}ms ({seconds}s {ms}ms)"
+        thought_log.append(f"\n--- [Total Processing Time] ---\n{time_str}")
 
         return {
             "answer": answer,
@@ -918,4 +922,8 @@ INSTRUCTIONS:
             yield yield_event("error", f"Error: Failed to synthesize response. Detail: {str(e)}")
 
         total_time_ms = int((time.time() - start_time) * 1000)
-        yield yield_event("thought", f"\n--- [Total Processing Time] ---\n{total_time_ms}ms\n")
+        minutes = (total_time_ms // 1000) // 60
+        seconds = (total_time_ms // 1000) % 60
+        ms = total_time_ms % 1000
+        time_str = f"{total_time_ms}ms ({minutes}m {seconds}s {ms}ms)" if minutes > 0 else f"{total_time_ms}ms ({seconds}s {ms}ms)"
+        yield yield_event("thought", f"\n--- [Total Processing Time] ---\n{time_str}\n")
