@@ -26,7 +26,10 @@ def interruptible_sleep(seconds: int, check_interval: float = 1.0, on_progress=N
 
 class ChromaStore:
     def __init__(self, persist_dir: str = "chroma_db", repository_id: str = "", llm_base_url: str = ""):
-        self.persist_dir = os.path.abspath(persist_dir)
+        if os.getenv("VERCEL") and not os.path.isabs(persist_dir):
+            self.persist_dir = os.path.abspath(os.path.join("/tmp", persist_dir))
+        else:
+            self.persist_dir = os.path.abspath(persist_dir)
         self.client = chromadb.PersistentClient(path=self.persist_dir)
         self._llm_base_url = llm_base_url
         # Use per-repository collection so projects don't share/pollute each other's index.

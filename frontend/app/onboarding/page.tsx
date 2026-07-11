@@ -46,7 +46,7 @@ function OnboardingPageContent() {
   const [syncMessage, setSyncMessage] = useState("");
   const [isLightMode, setIsLightMode] = useState(false);
 
-  const BACKEND_URL = "http://localhost:8088";
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
 
   // Admin lock states
   const [mounted, setMounted] = useState(false);
@@ -68,7 +68,7 @@ function OnboardingPageContent() {
     e.preventDefault();
     setLoginError("");
     try {
-      const res = await fetch(`http://localhost:8088/api/admin/login`, {
+      const res = await fetch(`${BACKEND_URL}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: loginPassphrase }),
@@ -137,7 +137,7 @@ function OnboardingPageContent() {
     }
 
     // Check admin status
-    fetch("http://localhost:8088/api/admin/status")
+    fetch(`${BACKEND_URL}/api/admin/status`)
       .then((r) => r.json())
       .then((statusData) => {
         if (statusData.login_required) {

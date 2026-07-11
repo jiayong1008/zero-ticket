@@ -103,7 +103,7 @@ export default function DashboardPage() {
     onConfirm: () => void;
   }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
-  const BACKEND_URL = "http://localhost:8088";
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
 
   const loadProjects = (targetCompanyId: string, token: string) => {
     const headers: Record<string, string> = {};
@@ -111,7 +111,7 @@ export default function DashboardPage() {
     if (actToken) {
       headers["X-Admin-Token"] = actToken;
     }
-    fetch(`http://localhost:8088/api/company/projects?company_id=${targetCompanyId}`, { headers })
+    fetch(`${BACKEND_URL}/api/company/projects?company_id=${targetCompanyId}`, { headers })
       .then((r) => {
         if (!r.ok) {
           if (r.status === 401) {
@@ -193,7 +193,7 @@ export default function DashboardPage() {
     setActiveRepoId(savedRepoId);
 
     // Check admin status first
-    fetch("http://localhost:8088/api/admin/status")
+    fetch(`${BACKEND_URL}/api/admin/status`)
       .then((r) => r.json())
       .then((statusData) => {
         const savedToken = localStorage.getItem("admin_token") || "";
@@ -211,7 +211,7 @@ export default function DashboardPage() {
         // Fetch LLM config from backend database to sync state
         const headers: Record<string, string> = {};
         if (savedToken) headers["X-Admin-Token"] = savedToken;
-        fetch(`http://localhost:8088/api/company/llm_config?company_id=${savedCompanyId}`, { headers })
+        fetch(`${BACKEND_URL}/api/company/llm_config?company_id=${savedCompanyId}`, { headers })
           .then((r) => {
             if (!r.ok) throw new Error("Failed to load LLM config");
             return r.json();
@@ -700,7 +700,7 @@ export default function DashboardPage() {
     e.preventDefault();
     setLoginError("");
     try {
-      const res = await fetch(`http://localhost:8088/api/admin/login`, {
+      const res = await fetch(`${BACKEND_URL}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: loginPassphrase }),
@@ -964,7 +964,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                             const headers: Record<string, string> = { "Content-Type": "application/json" };
                             if (token) headers["X-Admin-Token"] = token;
                             
-                            const res = await fetch(`http://localhost:8088/api/repository/${proj.id}`, {
+                            const res = await fetch(`${BACKEND_URL}/api/repository/${proj.id}`, {
                               method: "DELETE",
                               headers
                             });

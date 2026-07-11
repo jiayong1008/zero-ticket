@@ -11,11 +11,15 @@ An autonomous AI Tier-3 support engineer that securely answers complex technical
 > [!NOTE]
 > **Live at [https://zero-ticket.vercel.app/](https://zero-ticket.vercel.app/)** — the full stack (Next.js frontend + FastAPI backend) is deployed together as a Vercel multi-service project, with the backend routed under `/api/backend`.
 >
-> The hosted demo doesn't have a live database replica connected (that's a separate piece of infrastructure), so the full experience — codebase ingestion, the SQL Security Guard rewriting queries against real replica data, the Sandbox Emulator, "Teach AI" — is best seen in our [video walkthrough](INSERT VIDEO LINK), and can be reproduced exactly by running it locally in one command:
+> The hosted demo doesn't have a live database replica connected (that's a separate piece of infrastructure), so the full experience — codebase ingestion, the SQL Security Guard rewriting queries against real replica data, the Sandbox Emulator, "Teach AI" — is best seen in our [1-Minute Video Summary](https://youtube.com/shorts/QjWnj3kK5w8), and can be reproduced exactly by running it locally in one command:
 > ```bash
 > docker compose up -d --build
 > ```
 > This local-first setup is actually representative of how we expect real customers to deploy ZeroTicket in production — self-hosted inside their own infrastructure, next to their own replica DB, for compliance reasons rather than as a hackathon workaround.
+
+### 📺 1-Minute Video Summary
+
+[![ZeroTicket 1-Minute Video Summary](https://img.youtube.com/vi/QjWnj3kK5w8/0.jpg)](https://youtube.com/shorts/QjWnj3kK5w8)
 
 ---
 

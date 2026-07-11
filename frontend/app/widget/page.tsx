@@ -46,7 +46,7 @@ function WidgetChatContent() {
     };
   }, []);
 
-  const BACKEND_URL = "http://localhost:8088";
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
 
   // Markdown format helper
   const renderFormattedContent = (content: string) => {

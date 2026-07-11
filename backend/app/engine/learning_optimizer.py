@@ -137,7 +137,7 @@ Your task is to merge a new user-provided correction or codebase rule into the e
     if os.path.exists(git_dir):
         import subprocess
         try:
-            subprocess.run(["git", "add", "ai_context_rules.txt"], cwd=repository_path, check=True, capture_output=True)
+            subprocess.run(["git", "add", "ai_context_rules.txt"], cwd=repository_path, check=True, capture_output=True, timeout=10)
             commit_msg = "chore(ai): auto-update context guidelines via teach loop"
             # Set author details to avoid error if git config user.name is missing in some server envs
             env = os.environ.copy()
@@ -145,7 +145,7 @@ Your task is to merge a new user-provided correction or codebase rule into the e
             env["GIT_AUTHOR_EMAIL"] = "engine@zeroticket.ai"
             env["GIT_COMMITTER_NAME"] = "ZeroTicket AI Engine"
             env["GIT_COMMITTER_EMAIL"] = "engine@zeroticket.ai"
-            subprocess.run(["git", "commit", "-m", commit_msg], cwd=repository_path, check=True, capture_output=True, env=env)
+            subprocess.run(["git", "commit", "-m", commit_msg], cwd=repository_path, check=True, capture_output=True, env=env, timeout=10)
         except Exception as git_err:
             # Safe fallback: don't crash the API response if git commit fails (e.g. no changes, lock, etc.)
             print(f"Git auto-commit failed: {str(git_err)}")

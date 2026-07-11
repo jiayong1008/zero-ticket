@@ -513,7 +513,8 @@ class CodeParser:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    check=False
+                    check=False,
+                    timeout=10
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     commit_log = result.stdout.strip()

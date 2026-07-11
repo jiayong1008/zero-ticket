@@ -3,7 +3,12 @@ import sqlglot
 from sqlglot import exp, parse_one
 from fastapi import HTTPException
 
-# Maps database column names to expected JWT claim names
+# Maps database column names to expected JWT claim names.
+# NOTE: a table whose tenant/owner column isn't one of these exact names gets
+# NO filter applied at all -- the query runs unscoped against that table. This
+# list only covers common conventions; it is not a guarantee of isolation for
+# every schema. See the "Safer alternative" note in FIX_PLAN.md for a stricter
+# reject-by-default option if that residual gap needs closing.
 CLAIM_COLUMN_MAPPING = {
     'tenant_id': 'tenant_id',
     'company_id': 'company_id',
@@ -11,6 +16,11 @@ CLAIM_COLUMN_MAPPING = {
     'owner_id': 'user_id',
     'customer_id': 'user_id',
     'client_id': 'tenant_id',
+    'org_id': 'tenant_id',
+    'organization_id': 'tenant_id',
+    'workspace_id': 'tenant_id',
+    'account_id': 'tenant_id',
+    'team_id': 'tenant_id',
 }
 
 def escape_sql_value(val) -> str:
