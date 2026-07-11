@@ -79,8 +79,9 @@ class ChromaStore:
                     base_url=base_url,
                     default_headers={"Bypass-Tunnel-Reminder": "true"}
                 )
+                embedding_model = "nomic-ai/nomic-embed-text-v1.5" if "fireworks.ai" in (base_url or "") else "nomic-embed-text"
                 response = client.embeddings.create(
-                    model="nomic-embed-text",
+                    model=embedding_model,
                     input=texts
                 )
                 return [data.embedding for data in response.data]
