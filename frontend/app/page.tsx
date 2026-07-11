@@ -499,28 +499,28 @@ export default function DashboardPage() {
     if (llmProvider === "gemini") {
       if (geminiPresets.includes(llmModel)) {
         setSelectedPresetModel(llmModel);
-      } else if (!llmModel) {
+      } else if (!llmModel && selectedPresetModel !== "other") {
         setSelectedPresetModel("gemini-2.5-flash");
         setLlmModel("gemini-2.5-flash");
-      } else {
+      } else if (llmModel && !geminiPresets.includes(llmModel)) {
         setSelectedPresetModel("other");
       }
     } else if (llmProvider === "openai") {
       if (openaiPresets.includes(llmModel)) {
         setSelectedPresetModel(llmModel);
-      } else if (!llmModel) {
+      } else if (!llmModel && selectedPresetModel !== "other") {
         setSelectedPresetModel("gpt-4o");
         setLlmModel("gpt-4o");
-      } else {
+      } else if (llmModel && !openaiPresets.includes(llmModel)) {
         setSelectedPresetModel("other");
       }
     } else if (llmProvider === "custom") {
       if (customPresets.includes(llmModel)) {
         setSelectedPresetModel(llmModel);
-      } else if (!llmModel) {
+      } else if (!llmModel && selectedPresetModel !== "other") {
         setSelectedPresetModel("gemma4");
         setLlmModel("gemma4");
-      } else {
+      } else if (llmModel && !customPresets.includes(llmModel)) {
         setSelectedPresetModel("other");
       }
     }
