@@ -1478,15 +1478,17 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   AI Provider:{" "}
                   {llmProvider === "custom" ? (
                     <>
-                      <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>AMD GPU (Local)</span>
+                      <span className={`font-semibold capitalize ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
+                        {llmBaseUrl.includes("fireworks.ai") ? "Fireworks AI" : "AMD GPU (Local)"}
+                      </span>
                       {rocmStatus === "checking" && (
-                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 animate-ping" title="Checking ROCm..." />
+                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 animate-ping" title="Checking Status..." />
                       )}
                       {rocmStatus === "online" && (
-                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="ROCm Online" />
+                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online" />
                       )}
                       {rocmStatus === "offline" && (
-                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="ROCm Offline" />
+                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Offline" />
                       )}
                     </>
                   ) : (

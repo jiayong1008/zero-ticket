@@ -801,6 +801,8 @@ def get_company_projects(company_id: str, db: Session = Depends(get_db)):
 @app.get("/api/admin/check_gpu")
 def check_gpu(base_url: str):
     import requests
+    if "fireworks.ai" in base_url:
+        return {"status": "online"}
     check_url = base_url.replace("/v1", "") if base_url.endswith("/v1") else base_url
     try:
         r = requests.get(f"{check_url}/api/tags", headers={"Bypass-Tunnel-Reminder": "true"}, timeout=2.0)
