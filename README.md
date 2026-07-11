@@ -348,6 +348,13 @@ Below is how ZeroTicket aligns with core B2B SaaS architecture, security, and sc
 
 ---
 
+## 🚀 Future Roadmap
+1. **Cross-Database Support:** Extend the compile-time AST Security Guard to parse and sanitize queries for popular NoSQL databases (e.g., MongoDB, DynamoDB).
+2. **Git-Native Auto-Fix PRs:** When ZeroTicket identifies a recurring support ticket caused by a confirmed codebase bug (by correlating server logs to code logic), it will automatically generate and open a GitHub Pull Request with the proposed bug fix for the development team to review.
+
+---
+
 ## 📦 Demo Active Connections
 * **Repository Path:** `playground/zero-billing-demo`
 * **Local Database:** MySQL replica `zero_billing_replica` (Host: `127.0.0.1:3306`)
+
