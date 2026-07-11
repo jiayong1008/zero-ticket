@@ -56,6 +56,12 @@ Suppose a SaaS startup with **5 developers** receives a modest **10 technical ti
 > [!IMPORTANT]
 > By deploying ZeroTicket to automate frontend technical customer queries, SaaS companies completely eliminate the overhead of routine support maintenance, saving thousands of dollars and hundreds of hours of high-value developer capacity every month.
 
+## 💼 How to Sell It (The Startup Angle)
+
+1.  **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads. They hate that developers are stuck doing support. ZeroTicket gives them their developers back.
+2.  **Why buy this over traditional support bots?** Traditional bots just read static FAQ documents and Notion pages. ZeroTicket reads the *actual live database records, server logs, and codebase logic* safely. 
+3.  **The "Data Privacy" Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use cloud-based AI tools because of compliance (SOC2/HIPAA). By focusing on self-hosted Docker deployments powered by Gemma 4 on AMD GPUs, you capture the high-end enterprise market that public APIs cannot touch.
+
 ---
 
 ## 🌟 Key Innovations & Technical Moats
@@ -139,188 +145,6 @@ Data and API flow tracing client requests, vector store matching, local LLM eval
 
 ---
 
-## 🚀 Setup & How to Run
-
-### Option 1: Docker (One-Click Compose)
-ZeroTicket comes with a full `docker-compose` configuration for one-click setup.
-```bash
-# From the project root directory
-docker compose up -d --build
-```
-* Renders Next.js Dashboard: `http://localhost:3000`
-* Runs FastAPI Backend Server: `http://localhost:8088`
-
----
-
-### Option 2: Local Development
-
-#### 1. Backend Setup
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-2. Setup virtual environment & dependencies:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-3. Configure environment variables in `backend/.env`:
-   ```env
-   DATABASE_URL=sqlite:///./zeroticket.db
-   ENCRYPTION_KEY=your-32-byte-base64-string-here
-   LICENSE_KEY=zt_license_trial_key
-   ADMIN_PASSWORD=your_secure_password
-   CUSTOM_LLM_BASE_URL=http://localhost:11434/v1
-   ```
-4. Launch Uvicorn development server:
-   ```bash
-   .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8088 --reload
-   ```
-
-#### 2. Frontend Setup
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-2. Install npm modules:
-   ```bash
-   npm install
-   ```
-3. Run development client:
-   ```bash
-   npm run dev
-   ```
-   *(Access frontend locally at `http://localhost:3000`)*
-
-
-
-
-## 🧠 Multi-LLM Support — Any Model, Any Provider
-
-ZeroTicket is **model-agnostic by design**. The same codebase RAG pipeline, SQL security guard, and streaming architecture work across every provider below. Simply swap the provider in the dashboard settings — no code changes required.
-
-### 🏎️ Primary Demo Recommendation: Qwen 3.7 Plus (via Fireworks AI)
-
-For live demos and evaluation, we recommend **[Qwen 3.7 Plus](https://fireworks.ai/models/fireworks/qwen3p7-plus)** hosted serverlessly on Fireworks AI:
-- ⚡ **Blazing fast** — serverless, no cold starts, streams tokens almost instantly
-- 🧠 **Built-in reasoning** — thinks step-by-step before answering (visible in the right-side Trace Debugger panel)
-- 👁️ **Vision-capable** — supports the multimodal OCR screenshot test scenario
-- 💰 **Ultra cheap** — $0.40/$1.60 per 1M tokens; a typical query costs ~$0.005
-
-**Setup (2 minutes):**
-1. Sign up at [fireworks.ai](https://fireworks.ai) and grab your API key.
-2. In the ZeroTicket dashboard → **Configure** → select **AMD GPU (Local Gemma)** (Custom provider).
-3. Set **Custom Base URL** → `https://api.fireworks.ai/inference/v1`
-4. Set **Custom Model Name** → `accounts/fireworks/models/qwen3p7-plus`
-5. Paste your API key → **Save Config** → the dashboard shows **AI Provider: Fireworks AI 🟢**
-
-> ⚠️ **Note:** All Gemma models on Fireworks AI are **Dedicated-only** (require paid GPU deployment, ~$1.50–$3/hr). Use the serverless models below for instant access.
-
-**Other serverless models you can experiment with on Fireworks AI** ([browse all →](https://fireworks.ai/models?type=serverless)):
-
-| Model | Fireworks Link | Context | Vision | Price (In / Out per 1M) |
-|---|---|---|---|---|
-| 🏆 **Qwen 3.7 Plus** *(Recommended)* | [→](https://fireworks.ai/models/fireworks/qwen3p7-plus) | — | ✅ | $0.40 / $1.60 |
-| **DeepSeek-V4-Pro** *(1M context window)* | [→](https://fireworks.ai/models/fireworks/deepseek-v4-pro) | 1M | ❌ | $1.74 / $3.48 |
-| **DeepSeek-V4-Flash** *(Fastest & cheapest)* | [→](https://fireworks.ai/models/fireworks/deepseek-v4-flash) | 1M | ❌ | $0.14 / $0.28 |
-| **Kimi K2.7 Code** *(Code-optimised + vision)* | [→](https://fireworks.ai/models/fireworks/kimi-k2-7-code) | 262k | ✅ | $0.95 / $4.00 |
-| **GLM 5.2** *(Function calling + 1M context)* | [→](https://fireworks.ai/models/fireworks/glm-5-2) | 1M | ❌ | $1.40 / $4.40 |
-| **Minimax M3** *(Budget-friendly + vision)* | [→](https://fireworks.ai/models/fireworks/minimax-m3) | 512k | ✅ | $0.30 / $1.20 |
-| **NVIDIA Nemotron 3 Ultra NVFP4** | [→](https://fireworks.ai/models/fireworks/nemotron-3-ultra-nvfp4) | 262k | ❌ | $0.60 / $2.40 |
-
-💡 With **$50 credit**, a typical ZeroTicket query costs **$0.004–$0.05** → **1,000–10,000+ test runs**.
-
----
-
-### 🔑 Other Supported Providers (Built-in, no custom URL needed)
-
-| Provider | Models | Select In Dashboard |
-|---|---|---|
-| **Google Gemini** | Gemini 2.5 Flash, Gemini 2.5 Pro | Select `Gemini (Google)` |
-| **OpenAI** | GPT-4o, GPT-4o-mini, o3 | Select `OpenAI` |
-| **Anthropic** | Claude 3.5 Sonnet, Claude 3.7 Sonnet | Select `Anthropic (Claude)` |
-| **DeepSeek** | DeepSeek Chat, DeepSeek Reasoner | Select `DeepSeek` |
-| **Any OpenAI-compatible API** | Ollama, vLLM, LM Studio, Together AI, Groq… | Select `AMD GPU (Local Gemma)` + set Custom Base URL |
-
----
-
-### 🖥️ Self-Hosted: AMD GPU + Gemma 4 (Hackathon Showcase)
-
-The core use case for the AMD Hackathon — run ZeroTicket **fully offline** on your AMD GPU hardware with no cloud dependency.
-
-To host Google's open-weights **Gemma 4** model locally on your AMD GPU-powered server using ROCm:
-
-#### Option A: Running with Ollama
-1. Install Ollama on your AMD server:
-   ```bash
-   curl -fsSL https://ollama.com/install.sh | sh
-   ```
-2. Pull and launch the model:
-   ```bash
-   ollama run gemma4
-   ```
-   *(Ollama serves the OpenAI-compatible API on port `11434` by default)*
-
-#### Option B: Running with vLLM & ROCm
-1. Pull the vLLM Docker container optimized for AMD ROCm:
-   ```bash
-   docker pull vllm/vllm-openai:rocm
-   ```
-2. Launch the OpenAI-compatible server:
-   ```bash
-   python3 -m vllm.entrypoints.openai.api_server \
-     --model google/gemma-4-9b-it \
-     --port 8000
-   ```
-
-#### Option C: Local Embeddings (Fully Air-Gapped)
-To compute vector embeddings locally without any cloud API key:
-```bash
-ollama pull nomic-embed-text
-```
-*(If local embeddings fail, ZeroTicket auto-falls back to Gemini embeddings if an API key is configured.)*
-
-#### Dashboard Configuration
-In the ZeroTicket onboarding flow:
-1. Select **AMD GPU (Local Gemma)** as your AI provider.
-2. Set **Custom Base URL** → `http://localhost:11434/v1` (Ollama) or `http://localhost:8000/v1` (vLLM).
-3. Set **Model Name** → `gemma4` or `google/gemma-4-9b-it`.
-4. The **ROCm Connection Status** indicator lights up 🟢 in the dashboard sidebar to confirm the GPU node is reachable.
-
-> [!TIP]
-> For a detailed walkthrough on manual installation, persistent storage, bypassing VM firewalls (via Bore/Localtunnel), and running verification tests, see the [AMD GPU Integration Guide](./AMD_GEMMA_INTEGRATION.md).
-
-## 🛠️ Repository Directory Map
-
-```
-zeroticket/
-├── backend/                  # FastAPI Backend Server
-│   ├── app/
-│   │   ├── main.py          # API Endpoints (Ingestion, Sandbox, Chat Session, Admin Security)
-│   │   ├── parser/
-│   │   │   ├── code_parser.py       # Scans repo and chunks models & controllers
-│   │   │   └── schema_extractor.py  # Connects to MySQL/PostgreSQL replica and extracts tables/schemas
-│   │   ├── vector/
-│   │   │   └── chroma_store.py      # Embeds chunks incrementally using Multi-LLM providers
-│   │   ├── engine/
-│   │   │   ├── agent.py             # Generates SQL queries and answers support tickets
-│   │   │   └── security.py          # SQL Security Guard to wrap/intercept queries for safety
-│   │   └── db.py            # Local SQLite database configurations
-│   ├── zeroticket.db        # Backend SQLite metadata DB (gitignored)
-│   └── chroma_db/           # Local Vector database (gitignored)
-│
-└── frontend/                 # Next.js Web Client
-    ├── app/
-    │   ├── layout.tsx       # Root Next.js layout (theme transition listener)
-    │   ├── page.tsx         # Dashboard / Connection details and Widget Integration
-    │   ├── onboarding/      # Onboarding flow (Git repo, DB credentials, Multi-LLM setup)
-    │   ├── sandbox/         # Developer console for JWT simulation and live widget testing
-    │   ├── widget/          # Customer-facing embedded chat widget (renders in iframe)
-    │   └── globals.css      # Design system, CSS variables, and light/dark styling overrides
-```
-
----
 
 ## 📊 Enterprise Capabilities & Platform Alignment
 
@@ -347,7 +171,3 @@ Below is how ZeroTicket aligns with core B2B SaaS architecture, security, and sc
 *   **Compliance Moat:** In high-compliance sectors (Healthcare, FinTech, GovTech), sending proprietary source code or database schemas to external cloud LLM APIs is a compliance violation. Self-hosting ZeroTicket on AMD developer clouds guarantees data privacy and GDPR/HIPAA compliance out-of-the-box.
 
 ---
-
-## 📦 Demo Active Connections
-* **Repository Path:** `playground/zero-billing-demo`
-* **Local Database:** MySQL replica `zero_billing_replica` (Host: `127.0.0.1:3306`)
