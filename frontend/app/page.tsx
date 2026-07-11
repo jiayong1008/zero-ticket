@@ -918,35 +918,93 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
                   isLightMode ? "bg-white border-slate-200 shadow-slate-200" : "bg-slate-900 border-white/10"
                 }`}>
                   {projects.map((proj) => (
-                    <button
-                      key={proj.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveRepoId(proj.id);
-                        setRepoPath(proj.repo_path);
-                        setRepoBranch(proj.branch);
-                        localStorage.setItem("repository_id", proj.id);
-                        localStorage.setItem("repo_path", proj.repo_path);
-                        localStorage.setItem("repo_branch", proj.branch);
-                        localStorage.setItem("repo_name", proj.name || proj.repo_path.split("/").pop() || "");
-                        setProjectDropOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 ${
-                        proj.id === activeRepoId
-                          ? isLightMode ? "bg-blue-50 text-blue-700 font-semibold" : "bg-blue-600/10 text-blue-400 font-semibold"
-                          : isLightMode ? "text-slate-700 hover:bg-slate-50" : "text-slate-300 hover:bg-white/5"
-                      }`}
+                    <div 
+                      key={proj.id} 
+                      className="group relative flex items-center justify-between"
                     >
-                      {proj.id === activeRepoId && (
-                        <svg className="w-3 h-3 text-blue-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveRepoId(proj.id);
+                          setRepoPath(proj.repo_path);
+                          setRepoBranch(proj.branch);
+                          localStorage.setItem("repository_id", proj.id);
+                          localStorage.setItem("repo_path", proj.repo_path);
+                          localStorage.setItem("repo_branch", proj.branch);
+                          localStorage.setItem("repo_name", proj.name || proj.repo_path.split("/").pop() || "");
+                          setProjectDropOpen(false);
+                        }}
+                        className={`w-full text-left pl-4 pr-10 py-2.5 text-xs transition-colors flex items-center gap-2 ${
+                          proj.id === activeRepoId
+                            ? isLightMode ? "bg-blue-50 text-blue-700 font-semibold" : "bg-blue-600/10 text-blue-400 font-semibold"
+                            : isLightMode ? "text-slate-700 hover:bg-slate-50" : "text-slate-300 hover:bg-white/5"
+                        }`}
+                      >
+                        {proj.id === activeRepoId && (
+                          <svg className="w-3 h-3 text-blue-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        <div>
+                          <div className="font-semibold">{proj.name || proj.repo_path.split("/").pop()}</div>
+                          <div className={`text-[10px] ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>{proj.branch}</div>
+                        </div>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const projName = proj.name || proj.repo_path.split("/").pop();
+                          if (!confirm(`Are you sure you want to delete project "${projName}"? This will clear its vector indexes and settings.`)) {
+                            return;
+                          }
+                          try {
+                            const token = localStorage.getItem("admin_token") || "";
+                            const headers: Record<string, string> = { "Content-Type": "application/json" };
+                            if (token) headers["X-Admin-Token"] = token;
+                            
+                            const res = await fetch(`http://localhost:8088/api/repository/${proj.id}`, {
+                              method: "DELETE",
+                              headers
+                            });
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => ({}));
+                              throw new Error(err.detail || "Failed to delete project");
+                            }
+                            
+                            toast.success("Project deleted successfully");
+                            
+                            const remaining = projects.filter((p) => p.id !== proj.id);
+                            if (remaining.length > 0) {
+                              const nextProj = remaining[0];
+                              setActiveRepoId(nextProj.id);
+                              setRepoPath(nextProj.repo_path);
+                              setRepoBranch(nextProj.branch);
+                              localStorage.setItem("repository_id", nextProj.id);
+                              localStorage.setItem("repo_path", nextProj.repo_path);
+                              localStorage.setItem("repo_branch", nextProj.branch);
+                              localStorage.setItem("repo_name", nextProj.name || nextProj.repo_path.split("/").pop() || "");
+                              loadProjects(companyId, token);
+                            } else {
+                              localStorage.removeItem("repository_id");
+                              localStorage.removeItem("repo_path");
+                              localStorage.removeItem("repo_branch");
+                              localStorage.removeItem("repo_name");
+                              router.push("/onboarding?step=2");
+                            }
+                          } catch (err: any) {
+                            toast.error(err.message || "Failed to delete project");
+                          }
+                        }}
+                        className="absolute right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded transition-all hover:bg-red-500/10 text-slate-500 hover:text-red-500 z-10"
+                        title="Delete Project"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                      )}
-                      <div>
-                        <div className="font-semibold">{proj.name || proj.repo_path.split("/").pop()}</div>
-                        <div className={`text-[10px] ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>{proj.branch}</div>
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   ))}
                   <div className={`border-t my-1 ${isLightMode ? "border-slate-100" : "border-white/5"}`} />
                   <button

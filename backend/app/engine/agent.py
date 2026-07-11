@@ -100,10 +100,10 @@ class AgentEngine:
         if not repo:
             repo = self.db.query(Repository).filter(Repository.company_id == company_id).first()
             
-        if not repo or not repo.repo_name or not os.path.exists(repo.repo_name):
+        if not repo or not repo.repo_name or not os.path.exists(repo.local_path):
             return "No active repository found or directory does not exist.", ["No repository mapped for live log scanning."]
             
-        repo_path = repo.repo_name
+        repo_path = repo.local_path
         log_files = []
         exclude_dirs = {'.venv', 'venv', 'node_modules', '.git', 'vendor'}
         
@@ -212,7 +212,7 @@ class AgentEngine:
             repo = self.db.query(Repository).filter(Repository.company_id == company_id).first()
             
         if repo and repo.repo_name:
-            rules_path = os.path.join(repo.repo_name, "ai_context_rules.txt")
+            rules_path = os.path.join(repo.local_path, "ai_context_rules.txt")
             if os.path.exists(rules_path):
                 try:
                     with open(rules_path, 'r', encoding='utf-8', errors='ignore') as f:

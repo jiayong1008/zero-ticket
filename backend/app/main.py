@@ -359,19 +359,54 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             ).first()
         # conn_details may be None for code-only projects — that's fine, we skip DB schema verification.
             
+        import os
+        # Git cloning/pulling if it's a git URL
+        if repo.is_git_url:
+            import subprocess
+            import shutil
+            clone_path = repo.local_path
+            os.makedirs(os.path.dirname(clone_path), exist_ok=True)
+            
+            if not os.path.exists(clone_path):
+                repo.sync_status = "cloning"
+                repo.sync_message = f"Cloning repository {repo.repo_name} (branch: {repo.branch})..."
+                db.commit()
+                
+                cmd = ["git", "clone", "-b", repo.branch, "--single-branch", repo.git_clone_url, clone_path]
+                res = subprocess.run(cmd, capture_output=True, text=True)
+                if res.returncode != 0:
+                    raise ValueError(f"Failed to clone repository: {res.stderr or res.stdout}")
+            else:
+                repo.sync_status = "cloning"
+                repo.sync_message = f"Updating repository (branch: {repo.branch})..."
+                db.commit()
+                
+                if not os.path.exists(os.path.join(clone_path, ".git")):
+                    shutil.rmtree(clone_path, ignore_errors=True)
+                    cmd = ["git", "clone", "-b", repo.branch, "--single-branch", repo.git_clone_url, clone_path]
+                    res = subprocess.run(cmd, capture_output=True, text=True)
+                    if res.returncode != 0:
+                        raise ValueError(f"Failed to clone repository: {res.stderr or res.stdout}")
+                else:
+                    res_fetch = subprocess.run(["git", "fetch", "--all"], cwd=clone_path, capture_output=True, text=True)
+                    if res_fetch.returncode != 0:
+                        raise ValueError(f"Failed to fetch updates: {res_fetch.stderr or res_fetch.stdout}")
+                    res_reset = subprocess.run(["git", "reset", "--hard", f"origin/{repo.branch}"], cwd=clone_path, capture_output=True, text=True)
+                    if res_reset.returncode != 0:
+                        raise ValueError(f"Failed to reset to branch {repo.branch}: {res_reset.stderr or res_reset.stdout}")
+
         # Step 1: Scan and Parse Codebase
         repo.sync_status = "parsing"
         db.commit()
         
-        import os
-        if not os.path.exists(repo.repo_name):
-            raise ValueError(f"Repository directory does not exist: '{repo.repo_name}'")
+        if not os.path.exists(repo.local_path):
+            raise ValueError(f"Repository directory does not exist: '{repo.local_path}'")
             
-        parser = CodeParser(repo.repo_name)
+        parser = CodeParser(repo.local_path)
         chunks = parser.scan_repository()
         
         if not chunks:
-            raise ValueError(f"No scanable code files (PHP, Python, JS, TS) found in directory: '{repo.repo_name}'")
+            raise ValueError(f"No scanable code files (PHP, Python, JS, TS) found in directory: '{repo.local_path}'")
         
         repo.chunks_total = len(chunks)
         # Only reset indexed count when doing a clean resync; preserve progress on resume
@@ -463,19 +498,19 @@ def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: 
     import re
     
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
-    if not repo or not repo.repo_name or not os.path.exists(repo.repo_name):
+    if not repo or not repo.repo_name or not os.path.exists(repo.local_path):
         return
         
     # 1. Collect file list (recursive relative files, ignoring hidden and vendor dirs)
     file_list = []
     ignore_dirs = {".git", "node_modules", "vendor", "venv", ".venv", "__pycache__", "dist", "build"}
-    for root, dirs, files in os.walk(repo.repo_name):
+    for root, dirs, files in os.walk(repo.local_path):
         dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
         for file in files:
             if file.startswith("."):
                 continue
             # Store relative path
-            rel_path = os.path.relpath(os.path.join(root, file), repo.repo_name)
+            rel_path = os.path.relpath(os.path.join(root, file), repo.local_path)
             # Only keep files with extensions matching code/logs/db
             ext = os.path.splitext(file)[1].lower()
             if ext in [".py", ".js", ".ts", ".tsx", ".php", ".sql", ".log"] or file == "server.log":
@@ -505,7 +540,7 @@ def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: 
             
     # 3. Read existing guidelines
     existing_guidelines = ""
-    rules_path = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    rules_path = os.path.join(repo.local_path, "ai_context_rules.txt")
     if os.path.exists(rules_path):
         try:
             with open(rules_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -918,7 +953,7 @@ def learn_sandbox_context(data: LearnContextRequest, db: Session = Depends(get_d
         
     try:
         updated_rules = optimize_and_save_context_rules(
-            repository_path=repo.repo_name,
+            repository_path=repo.local_path,
             user_correction=data.correction,
             chat_history=data.chat_history,
             company_id=data.company_id,
@@ -932,13 +967,41 @@ def learn_sandbox_context(data: LearnContextRequest, db: Session = Depends(get_d
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/repository/{repository_id}", dependencies=[Depends(verify_admin_passphrase)])
+def delete_repository(repository_id: str, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+        
+    # 1. Delete Chroma DB collection
+    try:
+        from app.vector.chroma_store import ChromaStore
+        chroma = ChromaStore(persist_dir="chroma_db", repository_id=repo.id)
+        chroma.client.delete_collection(name=chroma.collection_name)
+    except Exception as e:
+        print(f"Failed to delete Chroma DB collection: {e}")
+        
+    # 2. Delete cloned files if it is a Git repo
+    if repo.is_git_url:
+        import shutil
+        try:
+            shutil.rmtree(repo.local_path, ignore_errors=True)
+        except Exception as e:
+            print(f"Failed to delete cloned repo folder: {e}")
+            
+    # 3. Delete from internal SQLite DB
+    db.delete(repo)
+    db.commit()
+    
+    return {"status": "success", "message": "Project deleted successfully."}
+
 @app.get("/api/repository/{repository_id}/rules", dependencies=[Depends(verify_admin_passphrase)])
 def get_repository_rules(repository_id: str, db: Session = Depends(get_db)):
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
     
-    rules_filepath = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    rules_filepath = os.path.join(repo.local_path, "ai_context_rules.txt")
     rules_content = ""
     if os.path.exists(rules_filepath):
         try:
@@ -955,7 +1018,7 @@ def save_repository_rules(repository_id: str, data: SaveRulesRequest, db: Sessio
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
         
-    rules_filepath = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    rules_filepath = os.path.join(repo.local_path, "ai_context_rules.txt")
     try:
         os.makedirs(os.path.dirname(rules_filepath), exist_ok=True)
         with open(rules_filepath, "w", encoding="utf-8") as f:
@@ -1000,7 +1063,7 @@ def submit_onboarding_answers(repository_id: str, data: SubmitAnswersRequest, db
         raise HTTPException(status_code=404, detail="Repository not found")
         
     # Read existing guidelines file
-    rules_filepath = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    rules_filepath = os.path.join(repo.local_path, "ai_context_rules.txt")
     existing_rules = ""
     if os.path.exists(rules_filepath):
         try:
