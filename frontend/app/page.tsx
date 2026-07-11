@@ -522,7 +522,7 @@ export default function DashboardPage() {
       return;
     }
     setRocmStatus("checking");
-    fetch(`/api/admin/check_gpu?base_url=${encodeURIComponent(llmBaseUrl)}`)
+    fetch(`${BACKEND_URL}/api/admin/check_gpu?base_url=${encodeURIComponent(llmBaseUrl)}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === "online") {
