@@ -9,15 +9,13 @@ An autonomous AI Tier-3 support engineer that securely answers complex technical
 ## 🔗 Live Demo & Hosting Note
 
 > [!NOTE]
-> **Frontend is live at [INSERT VERCEL URL]** — the full Next.js dashboard, onboarding flow, and sandbox UI are all viewable there.
+> **Live at [https://zero-ticket.vercel.app/](https://zero-ticket.vercel.app/)** — the full stack (Next.js frontend + FastAPI backend) is deployed together as a Vercel multi-service project, with the backend routed under `/api/backend`.
 >
-> ZeroTicket's backend is intentionally **self-hosted by design**: it keeps a persistent vector index (ChromaDB) of the ingested codebase and a local metadata store (SQLite) on disk, and reasons live against a database replica — the same statefulness that lets high-compliance customers (FinTech, Healthcare, GovTech) run it entirely inside their own network (see the Compliance Moat section below). That's exactly what serverless/static platforms like Vercel aren't built for, so we weren't able to wire up a persistent, always-on backend host in time for submission — clicking through the hosted frontend alone won't be able to complete live queries.
->
-> The complete, end-to-end experience — codebase ingestion, the SQL Security Guard rewriting queries live, the Sandbox Emulator, "Teach AI" — is shown in full in our [video walkthrough](INSERT VIDEO LINK), and can be run locally in one command:
+> The hosted demo doesn't have a live database replica connected (that's a separate piece of infrastructure), so the full experience — codebase ingestion, the SQL Security Guard rewriting queries against real replica data, the Sandbox Emulator, "Teach AI" — is best seen in our [video walkthrough](INSERT VIDEO LINK), and can be reproduced exactly by running it locally in one command:
 > ```bash
 > docker compose up -d --build
 > ```
-> If we get a persistent backend host running before judging closes, we'll update this note and the demo link above.
+> This local-first setup is actually representative of how we expect real customers to deploy ZeroTicket in production — self-hosted inside their own infrastructure, next to their own replica DB, for compliance reasons rather than as a hackathon workaround.
 
 ---
 
