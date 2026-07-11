@@ -6,6 +6,21 @@ An autonomous AI Tier-3 support engineer that securely answers complex technical
 
 ---
 
+## 🔗 Live Demo & Hosting Note
+
+> [!NOTE]
+> **Frontend is live at [INSERT VERCEL URL]** — the full Next.js dashboard, onboarding flow, and sandbox UI are all viewable there.
+>
+> ZeroTicket's backend is intentionally **self-hosted by design**: it keeps a persistent vector index (ChromaDB) of the ingested codebase and a local metadata store (SQLite) on disk, and reasons live against a database replica — the same statefulness that lets high-compliance customers (FinTech, Healthcare, GovTech) run it entirely inside their own network (see the Compliance Moat section below). That's exactly what serverless/static platforms like Vercel aren't built for, so we weren't able to wire up a persistent, always-on backend host in time for submission — clicking through the hosted frontend alone won't be able to complete live queries.
+>
+> The complete, end-to-end experience — codebase ingestion, the SQL Security Guard rewriting queries live, the Sandbox Emulator, "Teach AI" — is shown in full in our [video walkthrough](INSERT VIDEO LINK), and can be run locally in one command:
+> ```bash
+> docker compose up -d --build
+> ```
+> If we get a persistent backend host running before judging closes, we'll update this note and the demo link above.
+
+---
+
 ## 💡 The Pain Point & Solution
 
 > [!NOTE]
@@ -354,7 +369,10 @@ Below is how ZeroTicket aligns with core B2B SaaS architecture, security, and sc
 
 ---
 
-## 📦 Demo Active Connections
-* **Repository Path:** `playground/zero-billing-demo`
-* **Local Database:** MySQL replica `zero_billing_replica` (Host: `127.0.0.1:3306`)
+## 📦 Sandbox Demo Testing Project
+
+To run sandbox tests and simulate support scenarios out-of-the-box, clone our pre-configured test codebase:
+- **Demo Project Codebase:** [zero-billing-demo](https://github.com/jiayong1008/zero-billing-demo)
+- **Local Database Replica:** MySQL `zero_billing_replica` (Host: `127.0.0.1:3306`)
+
 
