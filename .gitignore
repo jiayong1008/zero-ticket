@@ -44,3 +44,7 @@ backend/zt_admin.db
 presentation.docx
 presentation.html
 presentation.pdf
+
+# Hackathon Submission & Strategy (Internal Only)
+HACKATHON_SUBMISSION.md
+HACKATHON_EXECUTION_PLAN.md
