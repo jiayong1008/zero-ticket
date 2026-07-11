@@ -461,9 +461,10 @@ class AgentEngine:
         # Re-init chroma with the resolved repository_id if it wasn't set at construction time.
         if repository_id and repository_id != self._repository_id:
             from app.vector.chroma_store import ChromaStore as _CS
-            chroma = _CS(persist_dir="chroma_db", repository_id=repository_id)
+            chroma = _CS(persist_dir="chroma_db", repository_id=repository_id, llm_base_url=self._llm_base_url)
         else:
             chroma = self.chroma
+            chroma._llm_base_url = self._llm_base_url
         
         # Ingest live logs context and custom guidelines
         log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims, query)
@@ -735,9 +736,10 @@ INSTRUCTIONS:
         # 3. Retrieve relevant codebase chunks from Chroma
         if repository_id and repository_id != self._repository_id:
             from app.vector.chroma_store import ChromaStore as _CS
-            chroma = _CS(persist_dir="chroma_db", repository_id=repository_id)
+            chroma = _CS(persist_dir="chroma_db", repository_id=repository_id, llm_base_url=self._llm_base_url)
         else:
             chroma = self.chroma
+            chroma._llm_base_url = self._llm_base_url
             
         # Ingest live logs context and custom guidelines
         log_context, log_thoughts = self._get_live_logs(company_id, repository_id, jwt_claims, query)
