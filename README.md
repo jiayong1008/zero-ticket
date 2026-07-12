@@ -22,21 +22,27 @@ This is a real, deployed instance — frontend and backend both running on Verce
 | Field | Value |
 | :--- | :--- |
 | Type | PostgreSQL |
-| Host | `db.imfodooivsiupyoegufq.supabase.co` |
-| Port | `5432` |
-| User | `zeroticket_demo` (read-only) |
+| Host | `aws-0-ap-southeast-1.pooler.supabase.com` |
+| Port | `6543` |
+| User | `zeroticket_demo.imfodooivsiupyoegufq` |
 | Database | `postgres` |
 | Password | `ZeroTicketDemo2026!` |
+
+> [!NOTE]
+> This is Supabase's connection **pooler** (Supavisor), not the direct host — Vercel's Python serverless runtime has no outbound IPv6, and Supabase's direct connection is IPv6-only on the free tier. The pooler is IPv4 and is the correct way to reach any external Postgres from this deployment.
 
 Seeded users: Alice Johnson (`tenant_id=1`, premium tier, pending $1500 ACH payment, invoice #10 discounted from $1000 to $900) and Bob Smith (`tenant_id=2`, enterprise tier, active $45 payment, invoice #20 discounted from $200 to $160).
 
 **Suggested test flow:**
 1. Visit the [onboarding wizard](https://zero-ticket.vercel.app/onboarding) and log in with the passphrase above.
-2. Register a demo company, connect a repository, and connect the pre-seeded demo database above (PostgreSQL tab) to test the DB-aware Q&A path — or select "No database for this project" to test the code-only path. Pick an LLM provider (Fireworks AI / Qwen 3.7 Plus is fastest for live evaluation, see the Model Provider section below).
+2. Register a demo company. On the "Connect codebase" step, enter the GitHub URL `https://github.com/jiayong1008/zero-billing-demo` (or the shorthand `jiayong1008/zero-billing-demo`) — a local folder path only works if you're running ZeroTicket on your own machine, since the hosted demo can't reach your filesystem. Then connect the pre-seeded demo database above (PostgreSQL tab) to test the DB-aware Q&A path — or select "No database for this project" to test the code-only path. Pick an LLM provider (Fireworks AI / Qwen 3.7 Plus is fastest for live evaluation, see the Model Provider section below).
 3. Try the chat widget or Sandbox Emulator and ask a support question that requires reasoning over both codebase logic and live database state — e.g. *"Why was Alice Johnson's invoice #10 discounted, and is her payment still pending?"*
 
 > [!WARNING]
 > **Only use a free-tier / low-quota API key when testing the LLM provider step — never a key tied to real billing.** The admin passphrase above is public in this README, so anyone testing the live demo during the judging window can trigger LLM calls billed to whatever key is configured. Use a free-tier key (Gemini's free tier, or a capped Fireworks AI key) and don't reuse a production or billing-enabled key here.
+
+> [!NOTE]
+> **Known limitation on the hosted demo:** the "Teach AI / Correct" guideline-editing feature commits its updated `ai_context_rules.txt` directly back to the source repository via `git`. That requires local, git-writable disk access, which a GitHub-URL-connected repo on Vercel's serverless filesystem doesn't have — it'll fail with a clear error there. It works as designed on the local setup below, where the backend has real filesystem/git access to the repo you point it at.
 
 If anything looks broken when you test it, it's likely a live-deployment quirk rather than the core engine — the full local setup (below, under **Sandbox Demo Testing Project**) is the most reliable way to see every feature end-to-end.
 
@@ -346,8 +352,8 @@ zeroticket/
 │   │   ├── engine/
 │   │   │   ├── agent.py             # Generates SQL queries and answers support tickets
 │   │   │   └── security.py          # SQL Security Guard to wrap/intercept queries for safety
-│   │   └── db.py            # Local SQLite database configurations
-│   ├── zeroticket.db        # Backend SQLite metadata DB (gitignored)
+│   │   └── db.py            # App metadata DB models (SQLite for local dev, Postgres in production)
+│   ├── zeroticket.db        # Backend SQLite metadata DB, local dev only (gitignored)
 │   └── chroma_db/           # Local Vector database (gitignored)
 │
 └── frontend/                 # Next.js Web Client
