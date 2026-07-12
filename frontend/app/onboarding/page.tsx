@@ -10,6 +10,8 @@ function OnboardingPageContent() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const successTimeoutRef = useRef<any>(null);
   
   // State variables
   const [companyName, setCompanyName] = useState("");
@@ -73,6 +75,12 @@ function OnboardingPageContent() {
     setAdminToken("");
     setLoginError("Your admin session expired. Please log in again.");
     setLoginRequired(true);
+  };
+
+  const flashSuccess = (message: string) => {
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    setSuccessMessage(message);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(""), 2500);
   };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -167,6 +175,9 @@ function OnboardingPageContent() {
       if (pollRef.current) {
         clearInterval(pollRef.current);
       }
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
     };
   }, [router, searchParams]);
 
@@ -186,6 +197,7 @@ function OnboardingPageContent() {
     if (!companyName.trim()) return;
     setLoading(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       const res = await fetch(`${BACKEND_URL}/api/company/register`, {
@@ -206,7 +218,8 @@ function OnboardingPageContent() {
       localStorage.setItem("company_id", data.company_id);
       localStorage.setItem("api_key", data.api_key);
       localStorage.setItem("company_name", data.name);
-      
+
+      flashSuccess(`"${data.name}" registered successfully`);
       setStep(2);
     } catch (err: any) {
       setError(err.message || "An error occurred");
@@ -220,6 +233,7 @@ function OnboardingPageContent() {
     if (!repoPath.trim()) return;
     setLoading(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       let activeCompanyId = companyId;
@@ -278,7 +292,8 @@ function OnboardingPageContent() {
       localStorage.setItem("repo_branch", branch);
       localStorage.setItem("repository_id", data.repository_id);
       localStorage.setItem("repo_name", projectName || repoPath.split("/").pop() || "");
-      
+
+      flashSuccess("Repository connected successfully");
       setStep(3);
     } catch (err: any) {
       setError(err.message || "An error occurred");
@@ -292,6 +307,7 @@ function OnboardingPageContent() {
     if (!dbHost.trim() || !dbUser.trim() || !dbName.trim()) return;
     setLoading(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       const res = await fetch(`${BACKEND_URL}/api/db/connect`, {
@@ -322,7 +338,8 @@ function OnboardingPageContent() {
       localStorage.setItem("db_name", dbName);
       localStorage.setItem("db_user", dbUser);
       localStorage.setItem("db_type", dbType);
-      
+
+      flashSuccess("Database connected successfully");
       setStep(4);
     } catch (err: any) {
       setError(err.message || "An error occurred");
@@ -632,6 +649,19 @@ function OnboardingPageContent() {
             </div>
           ))}
         </div>
+
+        {successMessage && (
+          <div className={`mb-6 p-4 rounded-lg border text-sm flex items-center gap-2 ${
+            isLightMode
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              : "bg-emerald-950/20 border-emerald-500/20 text-emerald-400"
+          }`}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            {successMessage}
+          </div>
+        )}
 
         {error && (
           <div className={`mb-6 p-4 rounded-lg border text-sm ${
