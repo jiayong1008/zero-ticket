@@ -40,33 +40,6 @@ class Repository(Base):
     db_connection = relationship("DBConnection", back_populates="repository", uselist=False, cascade="all, delete-orphan")
     onboarding_questions = relationship("OnboardingQuestion", back_populates="repository", cascade="all, delete-orphan")
 
-    @property
-    def is_git_url(self) -> bool:
-        val = self.repo_name.strip()
-        if val.startswith(("http://", "https://", "git@", "ssh://")):
-            return True
-        import os
-        if not os.path.isabs(val) and "/" in val and len(val.split("/")) == 2:
-            return True
-        return False
-
-    @property
-    def git_clone_url(self) -> str:
-        val = self.repo_name.strip()
-        if val.startswith(("http://", "https://", "git@", "ssh://")):
-            return val
-        if "/" in val and len(val.split("/")) == 2:
-            return f"https://github.com/{val}.git"
-        return val
-
-    @property
-    def local_path(self) -> str:
-        if self.is_git_url:
-            import os
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            return os.path.join(backend_dir, "cloned_repos", self.id)
-        return self.repo_name
-
 class DBConnection(Base):
     __tablename__ = 'db_connections'
     id = Column(String(36), primary_key=True)
@@ -122,19 +95,25 @@ class OnboardingQuestion(Base):
     repository = relationship("Repository", back_populates="onboarding_questions")
 
 
-# Database Engine setup for SQLite system DB
-engine = create_engine(
-    settings.DATABASE_URL, 
-    connect_args={"check_same_thread": False, "timeout": 30}
-)
+# Database Engine setup for the app's own metadata store (companies, repos,
+# db_connections, chat history, etc -- NOT the customer's target database).
+# This used to be SQLite-only. On Vercel that meant every cold start (and
+# every redeploy) got a brand new, empty /tmp/zeroticket.db -- data from one
+# request could vanish by the next. Support Postgres too (point DATABASE_URL
+# at a real hosted Postgres in production) while keeping SQLite working for
+# local dev, since that's still the quickest zero-setup option there.
+_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+_engine_kwargs = {"connect_args": {"check_same_thread": False, "timeout": 30}} if _is_sqlite else {}
+engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 from sqlalchemy import event
-@event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA synchronous=NORMAL")
-    cursor.close()
+if _is_sqlite:
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -176,8 +155,13 @@ def _auto_migrate(connection):
 def init_db():
     Base.metadata.create_all(bind=engine)
     # Auto-migrate: add any columns present in the model but missing from the DB file.
-    with engine.connect() as conn:
-        _auto_migrate(conn.connection)
+    # This uses raw SQLite PRAGMA/ALTER TABLE syntax, so it only applies there.
+    # On Postgres, create_all() above already creates any missing tables; adding
+    # a real migration tool (e.g. Alembic) is the correct path for future schema
+    # changes against a persistent store, rather than ad hoc ALTER TABLE calls.
+    if _is_sqlite:
+        with engine.connect() as conn:
+            _auto_migrate(conn.connection)
 
 def get_db():
     db = SessionLocal()
