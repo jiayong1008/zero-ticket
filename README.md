@@ -6,16 +6,36 @@ An autonomous AI Tier-3 support engineer that securely answers complex technical
 
 ---
 
-## 🔗 Live Demo & Hosting Note
+## 🔗 Live Demo & How Judges Can Test It
+
+**Live URL:** [https://zero-ticket.vercel.app](https://zero-ticket.vercel.app)
+
+This is a real, deployed instance — frontend and backend both running on Vercel. Admin/onboarding endpoints are gated behind a passphrase so the live app isn't wide open to the public internet; use the demo credential below to walk through the full flow yourself.
 
 > [!NOTE]
-> **Live at [https://zero-ticket.vercel.app/](https://zero-ticket.vercel.app/)** — the full stack (Next.js frontend + FastAPI backend) is deployed together as a Vercel multi-service project, with the backend routed under `/api/backend`.
+> **Demo admin passphrase:** `zeroticket-demo-2026`
 >
-> The hosted demo doesn't have a live database replica connected (that's a separate piece of infrastructure), so the full experience — codebase ingestion, the SQL Security Guard rewriting queries against real replica data, the Sandbox Emulator, "Teach AI" — is best seen in our [1-Minute Video Summary](https://youtube.com/shorts/QjWnj3kK5w8), and can be reproduced exactly by running it locally in one command:
-> ```bash
-> docker compose up -d --build
-> ```
-> This local-first setup is actually representative of how we expect real customers to deploy ZeroTicket in production — self-hosted inside their own infrastructure, next to their own replica DB, for compliance reasons rather than as a hackathon workaround.
+> This is a throwaway credential scoped to this demo deployment only — it doesn't protect any real customer data or production secret. Enter it when the onboarding wizard's login screen prompts for the admin passphrase.
+
+**Pre-seeded demo database** — same schema and data as the [zero-billing-demo](https://github.com/jiayong1008/zero-billing-demo) sandbox codebase (`users` with `tenant_id`/`tier`, `payments`, `invoices`), just hosted on Postgres instead of local MySQL so it's actually reachable from the live deployment. Fake data only, safe to query freely:
+
+| Field | Value |
+| :--- | :--- |
+| Type | PostgreSQL |
+| Host | `db.imfodooivsiupyoegufq.supabase.co` |
+| Port | `5432` |
+| User | `postgres` |
+| Database | `postgres` |
+| Password | *(demo-only credential — see submission notes / ask us; rotated periodically)* |
+
+Seeded users: Alice Johnson (`tenant_id=1`, premium tier, pending $1500 ACH payment, invoice #10 discounted from $1000 to $900) and Bob Smith (`tenant_id=2`, enterprise tier, active $45 payment, invoice #20 discounted from $200 to $160).
+
+**Suggested test flow:**
+1. Visit the [onboarding wizard](https://zero-ticket.vercel.app/onboarding) and log in with the passphrase above.
+2. Register a demo company, connect a repository, and connect the pre-seeded demo database above (PostgreSQL tab) to test the DB-aware Q&A path — or select "No database for this project" to test the code-only path. Pick an LLM provider (Fireworks AI / Qwen 3.7 Plus is fastest for live evaluation, see the Model Provider section below).
+3. Try the chat widget or Sandbox Emulator and ask a support question that requires reasoning over both codebase logic and live database state — e.g. *"Why was Alice Johnson's invoice #10 discounted, and is her payment still pending?"*
+
+If anything looks broken when you test it, it's likely a live-deployment quirk rather than the core engine — the full local setup (below, under **Sandbox Demo Testing Project**) is the most reliable way to see every feature end-to-end.
 
 ### 📺 1-Minute Video Summary
 
