@@ -668,6 +668,9 @@ function OnboardingPageContent() {
                 <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
                   Input either the local folder path on your machine, or a public GitHub repository (e.g. https://github.com/owner/repo or owner/repo).
                 </p>
+                <p className={`mt-1 text-xs ${isLightMode ? "text-amber-600" : "text-amber-500/80"}`}>
+                  Note: a local folder path only works when you're running ZeroTicket on your own machine (localhost) — this hosted demo can't reach your filesystem. Use a public GitHub URL to test here.
+                </p>
               </div>
 
               <div>

@@ -11,7 +11,7 @@ class Company(Base):
     __tablename__ = 'companies'
     id = Column(String(36), primary_key=True)
     name = Column(String(255), nullable=False)
-    api_key_hash = Column(String(64), nullable=False, unique=True)
+    api_key_hash = Column(Text, nullable=False, unique=True)
     llm_provider = Column(String(50), nullable=True, default="gemini")
     encrypted_llm_api_key = Column(Text, nullable=True)
     llm_model = Column(String(100), nullable=True)

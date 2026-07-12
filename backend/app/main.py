@@ -396,13 +396,16 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             
         # Step 1: Scan and Parse Codebase
         repo.sync_status = "parsing"
+        repo.sync_message = "Fetching repository..."
         db.commit()
-        
-        import os
-        if not os.path.exists(repo.repo_name):
-            raise ValueError(f"Repository directory does not exist: '{repo.repo_name}'")
-            
-        parser = CodeParser(repo.repo_name)
+
+        from app.parser.repo_fetcher import resolve_repo_path
+        local_repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id)
+
+        repo.sync_message = None
+        db.commit()
+
+        parser = CodeParser(local_repo_path)
         chunks = parser.scan_repository()
         
         if not chunks:
@@ -461,8 +464,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
             print(f"[onboarding] Failed to trigger onboarding questions: {e_onboarding}")
     except Exception as e:
         import traceback
-        with open("ingestion_error.log", "w") as f:
-            traceback.print_exc(file=f)
+        traceback.print_exc()
         if repo:
             repo.sync_status = "failed"
             repo.sync_message = str(e)
