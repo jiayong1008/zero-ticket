@@ -834,7 +834,10 @@ export default function SandboxPage() {
 
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Token": localStorage.getItem("admin_token") || "",
+        },
         signal: controller.signal,
         body: JSON.stringify({
           company_id: companyId,
@@ -995,7 +998,10 @@ export default function SandboxPage() {
 
       const res = await fetch(`${BACKEND_URL}/api/sandbox/simulate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Token": localStorage.getItem("admin_token") || "",
+        },
         signal: controller.signal,
         body: JSON.stringify({
           company_id: companyId,
