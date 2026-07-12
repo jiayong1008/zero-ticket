@@ -38,6 +38,28 @@ from app.engine.agent import AgentEngine
 
 app = FastAPI(title="ZeroTicket API Engine", version="1.0.0")
 
+class StripBackendPrefixMiddleware:
+    """
+    Vercel's multi-service routing (see /vercel.json's "services"/"rewrites")
+    sends every request under /api/backend/... to this function, but forwards
+    the FULL original path unstripped -- e.g. a browser call to
+    "/api/backend/api/admin/status" arrives here with that exact path intact.
+    Every route below is defined without that prefix (e.g. "/api/admin/status"),
+    so without this, every single request 404s before it ever reaches a route
+    handler. Strip the prefix once here instead of rewriting ~25 decorators.
+    """
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path", "").startswith("/api/backend"):
+            scope = dict(scope)
+            stripped = scope["path"][len("/api/backend"):]
+            scope["path"] = stripped or "/"
+        await self.app(scope, receive, send)
+
+app.add_middleware(StripBackendPrefixMiddleware)
+
 # Enable CORS for the Next.js dashboard/onboarding UI and the embeddable widget.
 # allow_origins=["*"] combined with allow_credentials=True let any site make
 # credentialed requests to this API (Starlette reflects the request's Origin
