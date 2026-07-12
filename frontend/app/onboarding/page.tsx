@@ -65,6 +65,16 @@ function OnboardingPageContent() {
     return headers;
   };
 
+  // A cached admin_token can go stale (rotated passphrase, cleared server state, etc).
+  // Rather than let every call site fail with a generic error, drop back to the login
+  // screen with a clear reason so the user can just re-enter the passphrase.
+  const handleAuthExpired = () => {
+    localStorage.removeItem("admin_token");
+    setAdminToken("");
+    setLoginError("Your admin session expired. Please log in again.");
+    setLoginRequired(true);
+  };
+
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
@@ -184,9 +194,13 @@ function OnboardingPageContent() {
         body: JSON.stringify({ name: companyName }),
       });
       
+      if (res.status === 401) {
+        handleAuthExpired();
+        return;
+      }
       if (!res.ok) throw new Error("Failed to register company.");
       const data = await res.json();
-      
+
       setCompanyId(data.company_id);
       setCompanyApiKey(data.api_key);
       localStorage.setItem("company_id", data.company_id);
@@ -225,6 +239,11 @@ function OnboardingPageContent() {
 
       let res = await attemptConnect(activeCompanyId);
 
+      if (res.status === 401) {
+        handleAuthExpired();
+        return;
+      }
+
       // If company no longer exists in the DB (e.g. after a DB reset), auto re-register it.
       if (res.status === 404) {
         const errBody = await res.json().catch(() => ({}));
@@ -235,6 +254,10 @@ function OnboardingPageContent() {
             headers: getAdminHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ name: savedName }),
           });
+          if (regRes.status === 401) {
+            handleAuthExpired();
+            return;
+          }
           if (!regRes.ok) throw new Error("Failed to re-register company. Please reload and try again.");
           const regData = await regRes.json();
           activeCompanyId = regData.company_id;
@@ -286,6 +309,10 @@ function OnboardingPageContent() {
         }),
       });
       
+      if (res.status === 401) {
+        handleAuthExpired();
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.detail || `Failed to connect target ${dbType === "postgres" ? "PostgreSQL" : "MySQL"} DB connection details.`);
@@ -330,6 +357,11 @@ function OnboardingPageContent() {
           llm_base_url: llmBaseUrl
         })
       });
+      if (saveRes.status === 401) {
+        handleAuthExpired();
+        setSyncStatus("idle");
+        return;
+      }
       if (!saveRes.ok) {
         throw new Error("Failed to save LLM configuration securely.");
       }
@@ -368,6 +400,11 @@ function OnboardingPageContent() {
         }),
       });
       
+      if (res.status === 401) {
+        handleAuthExpired();
+        setSyncStatus("idle");
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.detail || "Ingestion process failed. Verify repository path and try again.");
