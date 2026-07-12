@@ -24,9 +24,9 @@ This is a real, deployed instance — frontend and backend both running on Verce
 | Type | PostgreSQL |
 | Host | `db.imfodooivsiupyoegufq.supabase.co` |
 | Port | `5432` |
-| User | `postgres` |
+| User | `zeroticket_demo` (read-only) |
 | Database | `postgres` |
-| Password | *(demo-only credential — see submission notes / ask us; rotated periodically)* |
+| Password | `ZeroTicketDemo2026!` |
 
 Seeded users: Alice Johnson (`tenant_id=1`, premium tier, pending $1500 ACH payment, invoice #10 discounted from $1000 to $900) and Bob Smith (`tenant_id=2`, enterprise tier, active $45 payment, invoice #20 discounted from $200 to $160).
 
@@ -34,6 +34,9 @@ Seeded users: Alice Johnson (`tenant_id=1`, premium tier, pending $1500 ACH paym
 1. Visit the [onboarding wizard](https://zero-ticket.vercel.app/onboarding) and log in with the passphrase above.
 2. Register a demo company, connect a repository, and connect the pre-seeded demo database above (PostgreSQL tab) to test the DB-aware Q&A path — or select "No database for this project" to test the code-only path. Pick an LLM provider (Fireworks AI / Qwen 3.7 Plus is fastest for live evaluation, see the Model Provider section below).
 3. Try the chat widget or Sandbox Emulator and ask a support question that requires reasoning over both codebase logic and live database state — e.g. *"Why was Alice Johnson's invoice #10 discounted, and is her payment still pending?"*
+
+> [!WARNING]
+> **Only use a free-tier / low-quota API key when testing the LLM provider step — never a key tied to real billing.** The admin passphrase above is public in this README, so anyone testing the live demo during the judging window can trigger LLM calls billed to whatever key is configured. Use a free-tier key (Gemini's free tier, or a capped Fireworks AI key) and don't reuse a production or billing-enabled key here.
 
 If anything looks broken when you test it, it's likely a live-deployment quirk rather than the core engine — the full local setup (below, under **Sandbox Demo Testing Project**) is the most reliable way to see every feature end-to-end.
 
