@@ -23,6 +23,25 @@ if os.getenv("GEMINI_API_KEY"):
     settings.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if os.getenv("DATABASE_URL"):
     settings.DATABASE_URL = os.getenv("DATABASE_URL")
+
+# On Vercel, everything except /tmp is a read-only filesystem. This app's
+# metadata store (companies/repositories/db_connections/etc, see db.py) is
+# SQLite-only -- db.py uses SQLite-specific connect_args, PRAGMAs, and raw
+# "ALTER TABLE" auto-migration, so it can't simply be pointed at Postgres/MySQL
+# without a real rewrite. That means the default "sqlite:///./zeroticket.db"
+# (and any other relative/non-/tmp sqlite path) tries to create a file in a
+# read-only directory on every cold start and crashes during app startup with
+# "sqlite3.OperationalError: unable to open database file" -- before the app
+# ever serves a single request. Redirect it to /tmp, which is writable.
+#
+# NOTE: /tmp on Vercel is ephemeral and local to one function instance -- it
+# is NOT durable storage. Data written here can vanish on the next cold start
+# and isn't shared across concurrent instances. This unblocks the demo (the
+# app can actually boot and respond), it does not make this a real production
+# datastore. The real fix is a hosted Postgres/MySQL plus reworking db.py's
+# SQLite-specific code to be dialect-agnostic.
+if os.getenv("VERCEL") and settings.DATABASE_URL.startswith("sqlite:///") and "/tmp/" not in settings.DATABASE_URL:
+    settings.DATABASE_URL = "sqlite:////tmp/zeroticket.db"
 if os.getenv("ENCRYPTION_KEY"):
     settings.ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 if os.getenv("ADMIN_PASSWORD"):
