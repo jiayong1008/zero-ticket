@@ -500,19 +500,25 @@ def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: 
     import re
     
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
-    if not repo or not repo.repo_name or not os.path.exists(repo.repo_name):
+    if not repo or not repo.repo_name:
         return
-        
+
+    from app.parser.repo_fetcher import resolve_repo_path
+    try:
+        local_repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id)
+    except Exception:
+        return
+
     # 1. Collect file list (recursive relative files, ignoring hidden and vendor dirs)
     file_list = []
     ignore_dirs = {".git", "node_modules", "vendor", "venv", ".venv", "__pycache__", "dist", "build"}
-    for root, dirs, files in os.walk(repo.repo_name):
+    for root, dirs, files in os.walk(local_repo_path):
         dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
         for file in files:
             if file.startswith("."):
                 continue
             # Store relative path
-            rel_path = os.path.relpath(os.path.join(root, file), repo.repo_name)
+            rel_path = os.path.relpath(os.path.join(root, file), local_repo_path)
             # Only keep files with extensions matching code/logs/db
             ext = os.path.splitext(file)[1].lower()
             if ext in [".py", ".js", ".ts", ".tsx", ".php", ".sql", ".log"] or file == "server.log":
@@ -542,7 +548,7 @@ def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: 
             
     # 3. Read existing guidelines
     existing_guidelines = ""
-    rules_path = os.path.join(repo.repo_name, "ai_context_rules.txt")
+    rules_path = os.path.join(local_repo_path, "ai_context_rules.txt")
     if os.path.exists(rules_path):
         try:
             with open(rules_path, "r", encoding="utf-8", errors="ignore") as f:
