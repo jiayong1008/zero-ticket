@@ -139,7 +139,7 @@ Test custom queries, simulate user JWT contexts, inspect live server log scannin
 
 #### 🧠 AI Reasoning Process (Right Panel Trace)
 When using reasoning models like Qwen 3.7 Plus, ZeroTicket isolates the step-by-step logic retrieval and displays it in a clean, formatted trace view on the right-hand panel:
-![AI Reasoning Trace](./screenshots/AI%20Reasoning.jpeg)
+![AI Reasoning Trace](./screenshots/ai_reasoning.jpeg)
 
 ### 📂 Multimodal Image OCR Diagnostics
 Upload billing failure images or payment errors. ZeroTicket extracts error details via OCR and automatically queries the code models for resolutions.
@@ -150,7 +150,7 @@ Onboard new codebases, databases, and AI configurations in minutes. ZeroTicket w
 
 | Step 1: Create Company Profile | Step 2: Connect Git Codebase | Step 3: Connect DB Replica & AI |
 |---|---|---|
-| ![Onboarding Step 1](./screenshots/Onboarding%201.jpeg) | ![Onboarding Step 2](./screenshots/Onboarding%202.jpeg) | ![Onboarding Step 3](./screenshots/Onboarding%203.jpeg) |
+| ![Onboarding Step 1](./screenshots/onboarding_1.jpeg) | ![Onboarding Step 2](./screenshots/onboarding_2.jpeg) | ![Onboarding Step 3](./screenshots/onboarding_3.jpeg) |
 
 ### 🧠 Human-in-the-Loop AI Tuning ("Teach AI")
 Directly edit AI guidelines within the chat widget. Corrections are compiled and committed directly back to `ai_context_rules.txt` in the source repository.
