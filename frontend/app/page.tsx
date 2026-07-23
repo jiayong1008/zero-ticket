@@ -6,6 +6,22 @@ import { toast } from "sonner";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, prism } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
+const formatLastSynced = (timestamp?: number | null) => {
+  if (!timestamp) return "Never";
+  try {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch (e) {
+    return "Never";
+  }
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -32,6 +48,7 @@ export default function DashboardPage() {
     chunks_total?: number;
     chunks_indexed?: number;
     sync_message?: string;
+    last_synced_at?: number | null;
   };
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeRepoId, setActiveRepoId] = useState("");
@@ -42,6 +59,7 @@ export default function DashboardPage() {
   const [chunksTotal, setChunksTotal] = useState(0);
   const [chunksIndexed, setChunksIndexed] = useState(0);
   const [syncMessage, setSyncMessage] = useState("");
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [llmApiKey, setLlmApiKey] = useState("");
   const [llmModel, setLlmModel] = useState("llama3");
   const [llmBaseUrl, setLlmBaseUrl] = useState("http://localhost:11434/v1");
@@ -139,6 +157,7 @@ export default function DashboardPage() {
             chunks_total: p.chunks_total,
             chunks_indexed: p.chunks_indexed,
             sync_message: p.sync_message,
+            last_synced_at: p.last_synced_at,
           }));
           setProjects(mapped);
         }
@@ -246,6 +265,7 @@ export default function DashboardPage() {
       setChunksTotal(active.chunks_total || 0);
       setChunksIndexed(active.chunks_indexed || 0);
       setSyncMessage(active.sync_message || "");
+      setLastSyncedAt(active.last_synced_at || null);
       if (active.sync_status === "cloning" || active.sync_status === "parsing") {
         setSyncing(true);
       } else {
@@ -723,7 +743,9 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!syncing || !companyId || !activeRepoId) return;
+    if (!companyId || !activeRepoId) return;
+
+    const pollInterval = syncing ? 3000 : 15000;
 
     const interval = setInterval(() => {
       const token = localStorage.getItem("admin_token") || "";
@@ -745,6 +767,7 @@ export default function DashboardPage() {
               chunks_total: p.chunks_total,
               chunks_indexed: p.chunks_indexed,
               sync_message: p.sync_message,
+              last_synced_at: p.last_synced_at,
             })));
 
             const active = data.find((p) => p.repository_id === activeRepoId);
@@ -753,20 +776,23 @@ export default function DashboardPage() {
               setChunksTotal(active.chunks_total || 0);
               setChunksIndexed(active.chunks_indexed || 0);
               setSyncMessage(active.sync_message || "");
-              if (active.sync_status === "linked") {
-                setSyncing(false);
-                setSuccess("Success! Codebase is fully synchronized and ready.");
-              } else if (active.sync_status === "failed") {
-                setSyncing(false);
-                setError("Ingestion process failed. Verify repository path or check backend logs.");
-              } else if (active.sync_status === "pending") {
+              setLastSyncedAt(active.last_synced_at || null);
+              
+              if (active.sync_status === "cloning" || active.sync_status === "parsing") {
+                setSyncing(true);
+              } else {
+                if (active.sync_status === "linked" && syncing) {
+                  setSuccess("Success! Codebase is fully synchronized and ready.");
+                } else if (active.sync_status === "failed" && syncing) {
+                  setError(active.sync_message || "Ingestion process failed. Verify repository path or check backend logs.");
+                }
                 setSyncing(false);
               }
             }
           }
         })
         .catch(() => {});
-    }, 2000);
+    }, pollInterval);
 
     return () => clearInterval(interval);
   }, [syncing, companyId, activeRepoId]);
@@ -1138,6 +1164,7 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
             <div className={`text-xs space-y-1 transition-colors ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
               <p>Path: <code className={`px-1 py-0.5 rounded text-[10px] ${isLightMode ? "bg-slate-100 text-slate-700" : "bg-white/5 text-slate-300"}`}>{repoPath}</code></p>
               <p>Branch: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{repoBranch}</span></p>
+              <p>Last Synced: <span className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>{formatLastSynced(lastSyncedAt)}</span></p>
               
               <div className={`mt-2 pt-2 border-t ${isLightMode ? "border-slate-200" : "border-white/10"}`}>
                 <p className={`font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"} mb-1`}>GitHub Webhook:</p>
