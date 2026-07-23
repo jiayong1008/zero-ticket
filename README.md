@@ -35,7 +35,7 @@ Seeded users: Alice Johnson (`tenant_id=1`, premium tier, pending $1500 ACH paym
 
 **Suggested test flow:**
 1. Visit the [onboarding wizard](https://zero-ticket.vercel.app/onboarding) and log in with the passphrase above.
-2. Register a demo company. On the "Connect codebase" step, enter the GitHub URL `https://github.com/jiayong1008/zero-billing-demo` (or the shorthand `jiayong1008/zero-billing-demo`) — a local folder path only works if you're running ZeroTicket on your own machine, since the hosted demo can't reach your filesystem. Then connect the pre-seeded demo database above (PostgreSQL tab) to test the DB-aware Q&A path — or select "No database for this project" to test the code-only path. Pick an LLM provider (Fireworks AI / Qwen 3.7 Plus is fastest for live evaluation, see the Model Provider section below).
+2. Register a demo company. On the "Connect codebase" step, enter any public or private GitHub URL `https://github.com/jiayong1008/zero-billing-demo` (or shorthand `jiayong1008/zero-billing-demo`). For private repositories, enter a read-only Personal Access Token (PAT). Note: a local folder path only works if you're running ZeroTicket on your own machine. Then connect the pre-seeded demo database above (PostgreSQL tab) to test the DB-aware Q&A path — or select "No database for this project" to test the code-only path. Pick an LLM provider (Fireworks AI / Qwen 3.7 Plus is fastest for live evaluation, see the Model Provider section below).
 3. Try the chat widget or Sandbox Emulator and ask a support question that requires reasoning over both codebase logic and live database state — e.g. *"Why was Alice Johnson's invoice #10 discounted, and is her payment still pending?"*
 
 > [!WARNING]

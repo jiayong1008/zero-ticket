@@ -35,10 +35,25 @@ class Repository(Base):
     chunks_total = Column(Integer, nullable=True, default=0)
     chunks_indexed = Column(Integer, nullable=True, default=0)
     sync_message = Column(Text, nullable=True)
+    encrypted_github_token = Column(Text, nullable=True)
     
     company = relationship("Company", back_populates="repositories")
     db_connection = relationship("DBConnection", back_populates="repository", uselist=False, cascade="all, delete-orphan")
     onboarding_questions = relationship("OnboardingQuestion", back_populates="repository", cascade="all, delete-orphan")
+
+    def set_github_token(self, token: str):
+        if not token or not token.strip():
+            self.encrypted_github_token = None
+        else:
+            self.encrypted_github_token = encrypt_password(token.strip())
+
+    def get_github_token(self) -> str:
+        if not self.encrypted_github_token:
+            return None
+        try:
+            return decrypt_password(self.encrypted_github_token)
+        except Exception:
+            return None
 
 class DBConnection(Base):
     __tablename__ = 'db_connections'

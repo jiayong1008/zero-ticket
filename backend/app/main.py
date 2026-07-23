@@ -120,6 +120,7 @@ class RepositoryConnect(BaseModel):
     repo_path: str  # local folder path for this developer tool
     branch: Optional[str] = "main"
     project_name: Optional[str] = None
+    github_token: Optional[str] = None
 
 class DBConnectRequest(BaseModel):
     company_id: str
@@ -320,11 +321,15 @@ def connect_repository(data: RepositoryConnect, db: Session = Depends(get_db)):
             branch=data.branch,
             sync_status="pending"
         )
+        if data.github_token:
+            repo.set_github_token(data.github_token)
         db.add(repo)
     else:
         repo.project_name = name
         repo.branch = data.branch
         repo.sync_status = "pending"
+        if data.github_token:
+            repo.set_github_token(data.github_token)
         
     db.commit()
     db.refresh(repo)
@@ -400,7 +405,7 @@ def start_ingestion_task(company_id: str, repository_id: str, api_key: str, prov
         db.commit()
 
         from app.parser.repo_fetcher import resolve_repo_path
-        local_repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id)
+        local_repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id, github_token=repo.get_github_token())
 
         repo.sync_message = None
         db.commit()
@@ -505,7 +510,7 @@ def _execute_onboarding_discovery(company_id: str, repository_id: str, api_key: 
 
     from app.parser.repo_fetcher import resolve_repo_path
     try:
-        local_repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id)
+        local_repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id, github_token=repo.get_github_token())
     except Exception:
         return
 

@@ -105,7 +105,7 @@ class AgentEngine:
 
         from app.parser.repo_fetcher import resolve_repo_path
         try:
-            repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id)
+            repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id, github_token=repo.get_github_token())
         except Exception as e:
             return "No active repository found or directory does not exist.", [f"Could not resolve repository path for live log scanning: {e}"]
         log_files = []
@@ -218,7 +218,7 @@ class AgentEngine:
         if repo and repo.repo_name:
             from app.parser.repo_fetcher import resolve_repo_path
             try:
-                repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id)
+                repo_path = resolve_repo_path(repo.repo_name, repo.branch, repo.id, github_token=repo.get_github_token())
                 rules_path = os.path.join(repo_path, "ai_context_rules.txt")
                 if os.path.exists(rules_path):
                     with open(rules_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -546,7 +546,7 @@ class AgentEngine:
         if has_db:
             sql_draft_prompt = f"""
 You are the database inspection unit of ZeroTicket.
-Your job is to write a single read-only {db_type.upper()} SELECT query that will extract the database state needed to answer the user's inquiry.
+Your job is to determine if answering the user's inquiry requires querying the database, and if so, write a single read-only {db_type.upper()} SELECT query.
 
 DATABASE SCHEMA:
 {schema_context}
@@ -562,10 +562,9 @@ JWT CLAIMS FOR LOGGED IN USER:
 {str(jwt_claims)}
 
 INSTRUCTIONS:
-1. Write a SELECT statement to query tables.
-2. Ensure you filter rows correctly using the columns. Do NOT worry about injecting security tenant filters yourself—our middleware security rewriter will automatically inject subqueries with WHERE statements for columns like `tenant_id` or `user_id`. But feel free to filter by appropriate keys if you know them.
-3. Keep the query simple and efficient.
-4. Output ONLY the raw SQL query inside a single ```sql ... ``` block. Do NOT write any conversational text or explanation.
+1. Determine if answering the user's inquiry requires looking up live database records from the schema.
+2. If a database query IS required: Output ONLY a single read-only SELECT query inside a ```sql ... ``` block. Do NOT write any conversational text.
+3. If NO database query is required (e.g. general questions, codebase/policy explanations, how-to questions, or if no relevant table exists): Output ONLY the word `NONE`.
 """
             thought_log.append("--- [Retrieved Code Snippets] ---")
             thought_log.append(code_context)
@@ -589,30 +588,34 @@ INSTRUCTIONS:
                     "thought_log": "\n".join(thought_log) + f"\nError generating SQL: {str(e)}"
                 }
     
-            # 5. Rewrite/Sanitize Query with SQLSecurityGuard
-            try:
-                guard = SQLSecurityGuard(db_schema, dialect=db_type)
-                sanitized_sql = guard.validate_and_rewrite(draft_sql, jwt_claims)
-                thought_log.append(f"\n--- [Security Guard Sanitized SQL] ---\n{sanitized_sql}")
-                
-                # 6. Execute SQL query on target replica
-                db_start = time.time()
-                target_conn = get_target_db_conn(conn_details)
-                with target_conn.cursor() as cursor:
-                    # Set session timeout of 500ms
-                    if db_type in ["postgres", "postgresql"]:
-                        cursor.execute("SET statement_timeout = 500")
-                    else:
-                        cursor.execute("SET max_execution_time = 500")
-                    cursor.execute(sanitized_sql)
-                    db_rows = cursor.fetchall()
-                target_conn.close()
-                execution_time_ms = int((time.time() - db_start) * 1000)
-                
-                thought_log.append(f"\n--- [Database Query Results] (Time: {execution_time_ms}ms) ---\n{str(db_rows)}")
-            except Exception as e:
-                thought_log.append(f"\n--- [SQL Execution/Security Error] ---\n{str(e)}")
-                db_rows = [{"error": str(e)}]
+            # 5. Rewrite/Sanitize Query with SQLSecurityGuard if query is needed
+            if draft_sql and draft_sql.upper() not in ["NONE", "NO_QUERY_NEEDED", "N/A"]:
+                try:
+                    guard = SQLSecurityGuard(db_schema, dialect=db_type)
+                    sanitized_sql = guard.validate_and_rewrite(draft_sql, jwt_claims)
+                    thought_log.append(f"\n--- [Security Guard Sanitized SQL] ---\n{sanitized_sql}")
+                    
+                    # 6. Execute SQL query on target replica
+                    db_start = time.time()
+                    target_conn = get_target_db_conn(conn_details)
+                    with target_conn.cursor() as cursor:
+                        # Set session timeout of 500ms
+                        if db_type in ["postgres", "postgresql"]:
+                            cursor.execute("SET statement_timeout = 500")
+                        else:
+                            cursor.execute("SET max_execution_time = 500")
+                        cursor.execute(sanitized_sql)
+                        db_rows = cursor.fetchall()
+                    target_conn.close()
+                    execution_time_ms = int((time.time() - db_start) * 1000)
+                    
+                    thought_log.append(f"\n--- [Database Query Results] (Time: {execution_time_ms}ms) ---\n{str(db_rows)}")
+                except Exception as e:
+                    thought_log.append(f"\n--- [SQL Execution/Security Error] ---\n{str(e)}")
+                    db_rows = [{"error": str(e)}]
+            else:
+                sanitized_sql = "N/A (No Database Query Required)"
+                thought_log.append("\n--- [Database] ---\nNo database query required for this inquiry.")
         else:
             thought_log.append("--- [Retrieved Code Snippets] ---")
             thought_log.append(code_context)
@@ -829,7 +832,7 @@ INSTRUCTIONS:
         if has_db:
             sql_draft_prompt = f"""
 You are the database inspection unit of ZeroTicket.
-Your job is to write a single read-only {db_type.upper()} SELECT query that will extract the database state needed to answer the user's inquiry.
+Your job is to determine if answering the user's inquiry requires querying the database, and if so, write a single read-only {db_type.upper()} SELECT query.
 
 DATABASE SCHEMA:
 {schema_context}
@@ -845,10 +848,9 @@ JWT CLAIMS FOR LOGGED IN USER:
 {str(jwt_claims)}
 
 INSTRUCTIONS:
-1. Write a SELECT statement to query tables.
-2. Ensure you filter rows correctly using the columns. Do NOT worry about injecting security tenant filters yourself—our middleware security rewriter will automatically inject subqueries with WHERE statements for columns like `tenant_id` or `user_id`. But feel free to filter by appropriate keys if you know them.
-3. Keep the query simple and efficient.
-4. Output ONLY the raw SQL query inside a single ```sql ... ``` block. Do NOT write any conversational text or explanation.
+1. Determine if answering the user's inquiry requires looking up live database records from the schema.
+2. If a database query IS required: Output ONLY a single read-only SELECT query inside a ```sql ... ``` block. Do NOT write any conversational text.
+3. If NO database query is required (e.g. general questions, codebase/policy explanations, how-to questions, or if no relevant table exists): Output ONLY the word `NONE`.
 """
             yield yield_event("thought", "--- [LLM Drafted SQL] ---\n")
             
@@ -869,29 +871,33 @@ INSTRUCTIONS:
                 yield yield_event("error", f"Error: Failed to generate SQL draft using LLM: {str(e)}")
                 return
     
-            # 5. Rewrite/Sanitize Query with SQLSecurityGuard
-            try:
-                guard = SQLSecurityGuard(db_schema, dialect=db_type)
-                sanitized_sql = guard.validate_and_rewrite(draft_sql, jwt_claims)
-                yield yield_event("thought", f"--- [Security Guard Sanitized SQL] ---\n{sanitized_sql}\n\n")
-                
-                # 6. Execute SQL query on target replica
-                db_start = time.time()
-                target_conn = get_target_db_conn(conn_details)
-                with target_conn.cursor() as cursor:
-                    if db_type in ["postgres", "postgresql"]:
-                        cursor.execute("SET statement_timeout = 500")
-                    else:
-                        cursor.execute("SET max_execution_time = 500")
-                    cursor.execute(sanitized_sql)
-                    db_rows = cursor.fetchall()
-                target_conn.close()
-                execution_time_ms = int((time.time() - db_start) * 1000)
-                
-                yield yield_event("thought", f"--- [Database Query Results] (Time: {execution_time_ms}ms) ---\n{str(db_rows)}\n\n")
-            except Exception as e:
-                yield yield_event("thought", f"--- [SQL Execution/Security Error] ---\n{str(e)}\n\n")
-                db_rows = [{"error": str(e)}]
+            # 5. Rewrite/Sanitize Query with SQLSecurityGuard if query is needed
+            if draft_sql and draft_sql.upper() not in ["NONE", "NO_QUERY_NEEDED", "N/A"]:
+                try:
+                    guard = SQLSecurityGuard(db_schema, dialect=db_type)
+                    sanitized_sql = guard.validate_and_rewrite(draft_sql, jwt_claims)
+                    yield yield_event("thought", f"--- [Security Guard Sanitized SQL] ---\n{sanitized_sql}\n\n")
+                    
+                    # 6. Execute SQL query on target replica
+                    db_start = time.time()
+                    target_conn = get_target_db_conn(conn_details)
+                    with target_conn.cursor() as cursor:
+                        if db_type in ["postgres", "postgresql"]:
+                            cursor.execute("SET statement_timeout = 500")
+                        else:
+                            cursor.execute("SET max_execution_time = 500")
+                        cursor.execute(sanitized_sql)
+                        db_rows = cursor.fetchall()
+                    target_conn.close()
+                    execution_time_ms = int((time.time() - db_start) * 1000)
+                    
+                    yield yield_event("thought", f"--- [Database Query Results] (Time: {execution_time_ms}ms) ---\n{str(db_rows)}\n\n")
+                except Exception as e:
+                    yield yield_event("thought", f"--- [SQL Execution/Security Error] ---\n{str(e)}\n\n")
+                    db_rows = [{"error": str(e)}]
+            else:
+                sanitized_sql = "N/A (No Database Query Required)"
+                yield yield_event("thought", "--- [Database] ---\nNo database query required for this inquiry.\n\n")
         else:
             yield yield_event("thought", "--- [Database] ---\nNo database connected. Skipped SQL generation and execution.\n\n")
 

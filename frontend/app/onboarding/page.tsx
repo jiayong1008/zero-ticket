@@ -20,6 +20,7 @@ function OnboardingPageContent() {
   const [repoPath, setRepoPath] = useState("");
   const [projectName, setProjectName] = useState("");
   const [branch, setBranch] = useState("main");
+  const [githubToken, setGithubToken] = useState("");
   const [repositoryId, setRepositoryId] = useState("");
   
   const [dbType, setDbType] = useState<"mysql" | "postgres">("mysql");
@@ -247,6 +248,7 @@ function OnboardingPageContent() {
             repo_path: repoPath,
             branch: branch,
             project_name: projectName || undefined,
+            github_token: githubToken || undefined,
           }),
         });
       };
@@ -748,10 +750,10 @@ function OnboardingPageContent() {
                   required
                 />
                 <p className={`mt-1 text-xs ${isLightMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Input either the local folder path on your machine, or a public GitHub repository (e.g. https://github.com/owner/repo or owner/repo).
+                  Input either the local folder path on your machine, or a public/private GitHub repository (e.g. https://github.com/owner/repo or owner/repo).
                 </p>
                 <p className={`mt-1 text-xs ${isLightMode ? "text-amber-600" : "text-amber-500/80"}`}>
-                  Note: a local folder path only works when you're running ZeroTicket on your own machine (localhost) — this hosted demo can't reach your filesystem. Use a public GitHub URL to test here.
+                  Note: a local folder path only works when you're running ZeroTicket on your own machine (localhost) — this hosted demo can't reach your filesystem. Use a GitHub URL (and PAT below if private) to test here.
                 </p>
               </div>
 
@@ -769,6 +771,49 @@ function OnboardingPageContent() {
                   placeholder="main"
                   className="w-full px-4 py-3 rounded-lg glass-input text-sm"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="githubToken" className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  isLightMode ? "text-slate-600" : "text-slate-400"
+                }`}>
+                  GitHub Personal Access Token (PAT) <span className={`normal-case font-normal ${
+                    isLightMode ? "text-slate-400" : "text-slate-600"
+                  }`}>(optional for private repos)</span>
+                </label>
+                <input
+                  id="githubToken"
+                  type="password"
+                  value={githubToken}
+                  onChange={(e) => setGithubToken(e.target.value)}
+                  placeholder="ghp_... or github_pat_..."
+                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
+                />
+                <div className={`mt-2.5 p-3 rounded-lg border text-xs space-y-1.5 ${
+                  isLightMode
+                    ? "bg-slate-100/90 border-slate-200 text-slate-700"
+                    : "bg-slate-900/60 border-white/10 text-slate-300"
+                }`}>
+                  <p className="font-semibold flex items-center gap-1.5 text-blue-400">
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    How to generate a read-only GitHub PAT:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1 pl-1 text-[11px] opacity-90 leading-relaxed">
+                    <li>
+                      Go to <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline font-medium inline-flex items-center gap-0.5">
+                        GitHub Token Settings
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    </li>
+                    <li>Generate a <strong>Fine-grained Personal Access Token</strong> selecting your private repository.</li>
+                    <li>Under <strong>Repository Permissions</strong>, set <strong>Contents</strong> to <strong>Read-only</strong> (or use a Classic Token with <code>repo</code> scope).</li>
+                    <li>Copy the generated token (starts with <code>github_pat_</code> or <code>ghp_</code>) and paste it above.</li>
+                  </ol>
+                </div>
               </div>
             </div>
 
