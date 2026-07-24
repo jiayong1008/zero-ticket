@@ -144,3 +144,29 @@ This plan outlines the end-to-end strategy for:
 - Index a repository containing `docs/ADMIN_MANUAL.md`.
 - Ask ticket question: *"How do I set up audio questions in the test system?"*
 - Confirm response cites `docs/ADMIN_MANUAL.md [1]` and accurately explains the rule.
+
+---
+
+## 6. Token Consumption & Cost Efficiency Analysis
+
+- **Ingestion / Embedding Stage:** 
+  - Token cost is near-zero (approx. $0.02 per 1,000,000 tokens on cloud APIs) or **$0 / completely free** when using local embeddings (e.g. `sentence-transformers` on CPU/AMD GPU).
+  - Ingestion runs only once during initial onboarding or on `git push`.
+- **Query / Retrieval Stage:**
+  - Instead of injecting full manuals/codebases (500,000+ tokens), ChromaDB acts as an intelligent **token filter**, retrieving only top 3–5 relevant chunks (~500–1,000 tokens total).
+  - Total prompt input cost per ticket query remains extremely low (~$0.0001 per ticket call or **$0** on local Gemma 4 / AMD hardware).
+
+---
+
+## 7. Comparative Advantage: ZeroTicket vs. NotebookLM
+
+| Capability | NotebookLM | ZeroTicket (Docs + AST + DB + Logs) |
+| :--- | :--- | :--- |
+| **Reads Manuals / PDFs / Markdown** | ✅ Yes | ✅ Yes (In-Repo & Manual Upload RAG) |
+| **Codebase AST Logic Parsing** | ❌ Blind | ✅ **Yes** (Tree-sitter AST syntax dependency graph) |
+| **Relational Database Replica Querying** | ❌ Blind | ✅ **Yes** (Compile-time SQL Security Guard) |
+| **Server Log Correlation** | ❌ Blind | ✅ **Yes** (Multi-dimensional temporal correlation) |
+| **Multi-Tenant JWT Security** | ❌ None | ✅ **Yes** (Mathematical tenant isolation) |
+| **Automated Git Push Synchronization** | ❌ Manual upload | ✅ **Yes** (Automatic webhook re-indexing) |
+
+**Key Takeaway:** While NotebookLM is limited to static document Q&A, **ZeroTicket cross-references static manual rules with live codebase AST, database replica states, and production logs**, making it a complete autonomous Tier-3 support engineer for B2B SaaS.
