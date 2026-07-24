@@ -349,7 +349,8 @@ zeroticket/
 ├── docs/                     # Project & Hackathon Documentation
 │   ├── AMD_GEMMA_INTEGRATION.md  # Local Gemma 4 + AMD ROCm GPU setup guide
 │   ├── HACKATHON_SUBMISSION.md   # Hackathon submission form & pitch details
-│   └── PRESENTATION_SLIDES.md    # Clean 10-slide pitch deck presentation outline
+│   ├── PRESENTATION_SLIDES.md    # Clean 10-slide pitch deck presentation outline
+│   └── presentation/             # Pitch decks and presentation exports (PPTX, PDF, HTML)
 │
 ├── backend/                  # FastAPI Backend Server
 │   ├── app/

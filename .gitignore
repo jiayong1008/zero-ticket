@@ -42,9 +42,10 @@ Thumbs.db
 *.sln
 *.sw?
 backend/zt_admin.db
-presentation.docx
-presentation.html
-presentation.pdf
+docs/presentation/presentation.docx
+docs/presentation/presentation.html
+docs/presentation/presentation.pdf
+*.log
 
 # Internal draft files
 /HACKATHON_EXECUTION_PLAN.md
