@@ -559,10 +559,12 @@ class CodeParser:
                             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                                 content = f.read()
                             doc_chunks.extend(MarkdownParser.parse(content, rel_path))
+                            if len(doc_chunks) >= 350:
+                                return doc_chunks[:350]
                         except Exception as e:
                             print(f"Error reading doc {file_path}: {e}")
 
-        return doc_chunks
+        return doc_chunks[:350]
 
     def scan_repository(self) -> list[dict]:
         """
