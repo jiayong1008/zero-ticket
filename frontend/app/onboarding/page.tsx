@@ -809,8 +809,8 @@ function OnboardingPageContent() {
                         </svg>
                       </a>
                     </li>
-                    <li>Generate a <strong>Fine-grained Personal Access Token</strong> selecting your private repository.</li>
-                    <li>Under <strong>Repository Permissions</strong>, set <strong>Contents</strong> to <strong>Read-only</strong> (or use a Classic Token with <code>repo</code> scope).</li>
+                    <li>Generate a <strong>Fine-grained Personal Access Token</strong> and select your repository under <em>Repository access</em>.</li>
+                    <li>Click <strong>Permissions</strong> &rarr; <strong>Repository permissions</strong> &rarr; search for <strong>Contents</strong> &rarr; set to <strong>Read-only</strong> (or for a Classic Token, check <code>repo</code>).</li>
                     <li>Copy the generated token (starts with <code>github_pat_</code> or <code>ghp_</code>) and paste it above.</li>
                   </ol>
                 </div>
