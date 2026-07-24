@@ -500,11 +500,18 @@ class AgentEngine:
             thought_log.append(t)
         thought_log.append(log_context + "\n")
 
+        # Build contextual search query for short follow-up messages (e.g., "how and where")
+        vector_search_query = query
+        if chat_history and len(query.strip().split()) <= 6:
+            last_user_msgs = [m.get("content", "") for m in chat_history if m.get("role") in ["user", "human"]]
+            if last_user_msgs:
+                vector_search_query = f"{last_user_msgs[-1]} {query}"
+
         code_snippets = []
         code_context = ""
         try:
             # Route embedding extraction based on active provider
-            results = chroma.query_similar_code(query, limit=6, api_key=api_key, provider=provider)
+            results = chroma.query_similar_code(vector_search_query, limit=6, api_key=api_key, provider=provider)
             for res in results:
                 meta = res['metadata']
                 code_snippets.append({
