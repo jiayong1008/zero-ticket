@@ -522,7 +522,10 @@ class CodeParser:
                             continue
                             
                         file_path = os.path.join(root, file)
-                        rel_path = file_path
+                        try:
+                            rel_path = os.path.relpath(file_path, self.repo_path)
+                        except Exception:
+                            rel_path = file_path
                         
                         try:
                             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -530,10 +533,26 @@ class CodeParser:
                             
                             if ext == '.php':
                                 chunks.extend(PHPParser.parse(content, rel_path))
-                            elif ext in ['.md', '.markdown', '.txt', '.rst']:
-                                chunks.extend(MarkdownParser.parse(content, rel_path))
                         except Exception as e:
                             print(f"Error parsing file {rel_path}: {str(e)}")
+
+            # Also scan for documentation files (.md, .markdown, .txt, .rst) across the entire Laravel repo!
+            for root, dirs, files in os.walk(self.repo_path):
+                dirs[:] = [d for d in dirs if d not in self.exclude_dirs and not d.startswith('.')]
+                for file in files:
+                    ext = os.path.splitext(file)[1].lower()
+                    if ext in ['.md', '.markdown', '.txt', '.rst'] and ext not in self.exclude_extensions and not file.startswith('.'):
+                        file_path = os.path.join(root, file)
+                        try:
+                            rel_path = os.path.relpath(file_path, self.repo_path)
+                        except Exception:
+                            rel_path = file_path
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                            chunks.extend(MarkdownParser.parse(content, rel_path))
+                        except Exception as e:
+                            print(f"Error parsing doc file {rel_path}: {str(e)}")
         else:
             for root, dirs, files in os.walk(self.repo_path):
                 # Prune directory search
@@ -545,7 +564,10 @@ class CodeParser:
                         continue
                         
                     file_path = os.path.join(root, file)
-                    rel_path = file_path
+                    try:
+                        rel_path = os.path.relpath(file_path, self.repo_path)
+                    except Exception:
+                        rel_path = file_path
                     
                     try:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
