@@ -148,15 +148,16 @@ class ChromaStore:
         already_indexed_count = len(existing_ids)
             
         # 2. Batch generate embeddings and add incrementally
-        # Gemini Free Tier limits embeddings to 15 Requests Per Minute.
-        # Since each string in the batch counts as 1 request, we must use a batch_size < 15.
-        batch_size = 10 if (provider or "gemini").lower() == "gemini" else 50
+        batch_size = 50
         import time
         
         for i in range(0, len(pending_chunks), batch_size):
             batch = pending_chunks[i:i+batch_size]
             batch_ids = [item[0] for item in batch]
             batch_chunks = [item[1] for item in batch]
+            
+            if (provider or "gemini").lower() == "gemini" and i > 0:
+                time.sleep(2.0) # Smooth pacing to prevent 429 rate limits
             
             # Combine content with metadata headers
             batch_docs = []
