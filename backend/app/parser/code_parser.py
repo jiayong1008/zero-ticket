@@ -52,15 +52,16 @@ class MarkdownParser:
     def parse(content: str, rel_path: str) -> list[dict]:
         """
         Parses Markdown and documentation files (.md, .markdown, .txt, .rst).
-        Splits sections by headings (#, ##, ###) or fallback sliding window chunks.
+        Splits by major headings (# H1, ## H2, ### H3) while merging small sections
+        to maintain semantic completeness and avoid over-chunking micro-headings.
         """
         chunks = []
         lines = content.splitlines()
         if not lines:
             return chunks
 
-        # Find heading lines (# Heading, ## Subheading, ### Subsubheading)
-        heading_regex = re.compile(r'^(#{1,6})\s+(.+)$')
+        # Match H1, H2, H3 headings (#, ##, ###)
+        heading_regex = re.compile(r'^(#{1,3})\s+(.+)$')
         matches = []
         for idx, line in enumerate(lines):
             m = heading_regex.match(line.strip())
@@ -68,13 +69,14 @@ class MarkdownParser:
                 matches.append((idx, m.group(1), m.group(2).strip()))
 
         if matches:
+            temp_chunks = []
             for i, (line_idx, level, title) in enumerate(matches):
                 start_line = line_idx + 1
                 end_line = matches[i + 1][0] if i + 1 < len(matches) else len(lines)
                 section_lines = lines[start_line - 1:end_line]
                 sec_text = '\n'.join(section_lines).strip()
                 if sec_text:
-                    chunks.append({
+                    temp_chunks.append({
                         'file_path': rel_path,
                         'content': sec_text,
                         'name': f"doc::{title}",
@@ -82,10 +84,24 @@ class MarkdownParser:
                         'end_line': end_line,
                         'chunk_type': 'documentation'
                     })
+
+            # Merge consecutive empty/micro chunks (< 30 characters) to avoid empty micro-chunks
+            curr = None
+            for tc in temp_chunks:
+                if curr is None:
+                    curr = tc
+                elif len(curr['content'].strip()) < 30 or len(tc['content'].strip()) < 30:
+                    curr['content'] += "\n\n" + tc['content']
+                    curr['end_line'] = tc['end_line']
+                else:
+                    chunks.append(curr)
+                    curr = tc
+            if curr:
+                chunks.append(curr)
         
-        # If no headings or empty chunks returned, fallback to 50-line window chunking
+        # Fallback to sliding window for plain text or files without H1-H3 headings
         if not chunks and content.strip():
-            chunk_size = 50
+            chunk_size = 60
             overlap = 10
             step = chunk_size - overlap
             total_lines = len(lines)
