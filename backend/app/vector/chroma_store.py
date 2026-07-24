@@ -157,7 +157,7 @@ class ChromaStore:
             batch_chunks = [item[1] for item in batch]
             
             if (provider or "gemini").lower() == "gemini" and i > 0:
-                time.sleep(2.0) # Smooth pacing to prevent 429 rate limits
+                time.sleep(4.2) # Complies strictly with Gemini 15 RPM free tier embedding limit
             
             # Combine content with metadata headers
             batch_docs = []

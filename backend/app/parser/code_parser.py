@@ -60,8 +60,8 @@ class MarkdownParser:
         if not lines:
             return chunks
 
-        # Match H1, H2, H3 headings (#, ##, ###)
-        heading_regex = re.compile(r'^(#{1,3})\s+(.+)$')
+        # Match H1 (#) and H2 (##) headings to keep sub-sections together
+        heading_regex = re.compile(r'^(#{1,2})\s+(.+)$')
         matches = []
         for idx, line in enumerate(lines):
             m = heading_regex.match(line.strip())

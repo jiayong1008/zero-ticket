@@ -28,12 +28,15 @@ A: Ensure category contains Memory.
         chunks = MarkdownParser.parse(sample_md, "docs/ADMIN_MANUAL.md")
         self.assertGreater(len(chunks), 0)
         
-        # Check headings
+        # Check headings (H1 and H2)
         chunk_names = [c['name'] for c in chunks]
         self.assertIn("doc::Admin Manual", chunk_names)
         self.assertIn("doc::Audio Question Setup", chunk_names)
-        self.assertIn("doc::Supported Audio Formats", chunk_names)
         self.assertIn("doc::Common FAQ", chunk_names)
+        
+        # Verify H3 sub-heading is included within H2 section
+        audio_setup_chunk = next(c for c in chunks if c['name'] == 'doc::Audio Question Setup')
+        self.assertIn("Supported Audio Formats", audio_setup_chunk['content'])
         
         # Verify chunk types
         for c in chunks:
