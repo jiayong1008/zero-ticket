@@ -21,6 +21,7 @@ function OnboardingPageContent() {
   const [projectName, setProjectName] = useState("");
   const [branch, setBranch] = useState("main");
   const [githubToken, setGithubToken] = useState("");
+  const [showGithubToken, setShowGithubToken] = useState(false);
   const [repositoryId, setRepositoryId] = useState("");
   
   const [dbType, setDbType] = useState<"mysql" | "postgres">("mysql");
@@ -781,14 +782,37 @@ function OnboardingPageContent() {
                     isLightMode ? "text-slate-400" : "text-slate-600"
                   }`}>(optional for private repos)</span>
                 </label>
-                <input
-                  id="githubToken"
-                  type="password"
-                  value={githubToken}
-                  onChange={(e) => setGithubToken(e.target.value)}
-                  placeholder="ghp_... or github_pat_..."
-                  className="w-full px-4 py-3 rounded-lg glass-input text-sm"
-                />
+                <div className="relative">
+                  <input
+                    id="githubToken"
+                    type={showGithubToken ? "text" : "password"}
+                    value={githubToken}
+                    onChange={(e) => setGithubToken(e.target.value)}
+                    placeholder="ghp_... or github_pat_..."
+                    className="w-full px-4 py-3 pr-11 rounded-lg glass-input text-sm"
+                  />
+                  {githubToken && (
+                    <button
+                      type="button"
+                      onClick={() => setShowGithubToken(!showGithubToken)}
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${
+                        isLightMode ? "text-slate-500 hover:text-slate-800" : "text-slate-400 hover:text-slate-200"
+                      }`}
+                      title={showGithubToken ? "Hide token" : "Show token"}
+                    >
+                      {showGithubToken ? (
+                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.005 10.005 0 014.122-.963c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m-4.692-4.692a3 3 0 11-4.243-4.243m4.242 4.242L3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <div className={`mt-2.5 p-3 rounded-lg border text-xs space-y-1.5 ${
                   isLightMode
                     ? "bg-slate-100/90 border-slate-200 text-slate-700"
