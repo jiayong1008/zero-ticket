@@ -1593,6 +1593,7 @@ export default function SandboxPage() {
             className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
           />
         </div>
+      )}
       {/* Full-screen / Modal Trace Log Inspector */}
       {showTraceModal && activeThoughtLog && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-8 bg-black/70 backdrop-blur-sm animate-fadeIn">
