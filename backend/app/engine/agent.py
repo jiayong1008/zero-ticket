@@ -674,7 +674,7 @@ INSTRUCTIONS:
 1. Address the customer directly and explain their situation clearly in simple English.
 2. Avoid raw developer terms, SQL queries, column names, or raw JSON states in your final reply. For example, do not say "The invoice table has status = 2", instead say "Your invoice is currently in pending state".
 3. STRICT EVIDENCE CONSTRAINT: Never speculate, assume, or state generic support policies, timelines (e.g. "takes 1-3 working days"), or procedures unless they are explicitly present in the DATABASE STATE RETRIEVED, LIVE SERVER LOGS, CODE LOGIC EXPLAINER, or the CUSTOM GUIDELINES. If the data does not confirm a timeline or status, clearly state that you cannot verify it rather than making it up.
-4. SOURCE CITATIONS: Whenever your answer relies on documentation or code logic sources provided above, cite the specific source number or file path (e.g., [Source 1], [docs/MANUAL.md]) inline so the user knows the authoritative origin of your answer.
+4. MANDATORY SOURCE CITATIONS: Whenever your answer relies on information from the CODE LOGIC EXPLAINER or attached documentation, you MUST explicitly cite the exact file name or manual title in brackets (e.g., [Source: Admin Manual - Competition Sys.docx] or [Source: CompetitionTestController.php]) so the user sees the authoritative origin of your answer.
 {db_instructions}
 """
         
