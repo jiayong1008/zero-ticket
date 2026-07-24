@@ -504,20 +504,29 @@ class AgentEngine:
         code_context = ""
         try:
             # Route embedding extraction based on active provider
-            results = chroma.query_similar_code(query, limit=5, api_key=api_key, provider=provider)
+            results = chroma.query_similar_code(query, limit=6, api_key=api_key, provider=provider)
             for res in results:
                 meta = res['metadata']
                 code_snippets.append({
                     "file_path": meta['file_path'],
                     "lines": f"{meta['start_line']}-{meta['end_line']}",
                     "name": meta['name'],
-                    "content": res['document']
+                    "content": res['document'],
+                    "chunk_type": meta.get('chunk_type', 'general_logic')
                 })
             
-            code_context = "\n\n".join([
-                f"### File: {s['file_path']} (Lines {s['lines']}, function/class: {s['name']})\n```\n{s['content']}\n```" 
-                for s in code_snippets
-            ])
+            formatted_snippets = []
+            for idx, s in enumerate(code_snippets, 1):
+                ctype = s.get('chunk_type', 'general_logic')
+                if ctype == 'documentation':
+                    formatted_snippets.append(
+                        f"### Source [{idx}] DOCUMENTATION: {s['file_path']} (Lines {s['lines']}, Section: {s['name']})\n```markdown\n{s['content']}\n```"
+                    )
+                else:
+                    formatted_snippets.append(
+                        f"### Source [{idx}] CODE LOGIC: {s['file_path']} (Lines {s['lines']}, Symbol: {s['name']})\n```\n{s['content']}\n```"
+                    )
+            code_context = "\n\n".join(formatted_snippets)
         except Exception as e:
             print(f"Codebase search skipped/failed: {str(e)}")
             code_context = "No codebase context retrieved."
@@ -658,6 +667,7 @@ INSTRUCTIONS:
 1. Address the customer directly and explain their situation clearly in simple English.
 2. Avoid raw developer terms, SQL queries, column names, or raw JSON states in your final reply. For example, do not say "The invoice table has status = 2", instead say "Your invoice is currently in pending state".
 3. STRICT EVIDENCE CONSTRAINT: Never speculate, assume, or state generic support policies, timelines (e.g. "takes 1-3 working days"), or procedures unless they are explicitly present in the DATABASE STATE RETRIEVED, LIVE SERVER LOGS, CODE LOGIC EXPLAINER, or the CUSTOM GUIDELINES. If the data does not confirm a timeline or status, clearly state that you cannot verify it rather than making it up.
+4. SOURCE CITATIONS: Whenever your answer relies on documentation or code logic sources provided above, cite the specific source number or file path (e.g., [Source 1], [docs/MANUAL.md]) inline so the user knows the authoritative origin of your answer.
 {db_instructions}
 """
         

@@ -47,6 +47,66 @@ class PrismaParser:
         return chunks
 
 
+class MarkdownParser:
+    @staticmethod
+    def parse(content: str, rel_path: str) -> list[dict]:
+        """
+        Parses Markdown and documentation files (.md, .markdown, .txt, .rst).
+        Splits sections by headings (#, ##, ###) or fallback sliding window chunks.
+        """
+        chunks = []
+        lines = content.splitlines()
+        if not lines:
+            return chunks
+
+        # Find heading lines (# Heading, ## Subheading, ### Subsubheading)
+        heading_regex = re.compile(r'^(#{1,6})\s+(.+)$')
+        matches = []
+        for idx, line in enumerate(lines):
+            m = heading_regex.match(line.strip())
+            if m:
+                matches.append((idx, m.group(1), m.group(2).strip()))
+
+        if matches:
+            for i, (line_idx, level, title) in enumerate(matches):
+                start_line = line_idx + 1
+                end_line = matches[i + 1][0] if i + 1 < len(matches) else len(lines)
+                section_lines = lines[start_line - 1:end_line]
+                sec_text = '\n'.join(section_lines).strip()
+                if sec_text:
+                    chunks.append({
+                        'file_path': rel_path,
+                        'content': sec_text,
+                        'name': f"doc::{title}",
+                        'start_line': start_line,
+                        'end_line': end_line,
+                        'chunk_type': 'documentation'
+                    })
+        
+        # If no headings or empty chunks returned, fallback to 50-line window chunking
+        if not chunks and content.strip():
+            chunk_size = 50
+            overlap = 10
+            step = chunk_size - overlap
+            total_lines = len(lines)
+            for start_idx in range(0, total_lines, step):
+                end_idx = min(start_idx + chunk_size, total_lines)
+                chunk_lines = lines[start_idx:end_idx]
+                chunk_text = '\n'.join(chunk_lines).strip()
+                if chunk_text:
+                    chunks.append({
+                        'file_path': rel_path,
+                        'content': chunk_text,
+                        'name': f"doc_chunk_{start_idx + 1}",
+                        'start_line': start_idx + 1,
+                        'end_line': end_idx,
+                        'chunk_type': 'documentation'
+                    })
+
+        return chunks
+
+
+
 class PythonParser:
     @staticmethod
     def parse(content: str, rel_path: str) -> list[dict]:
@@ -432,7 +492,7 @@ class CodeParser:
         self.exclude_extensions = {
             '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', 
             '.css', '.scss', '.less', '.html', '.json', '.lock', 
-            '.md', '.pdf', '.zip', '.tar', '.gz', '.blade.php'
+            '.pdf', '.zip', '.tar', '.gz', '.blade.php'
         }
         
     def scan_repository(self) -> list[dict]:
@@ -470,6 +530,8 @@ class CodeParser:
                             
                             if ext == '.php':
                                 chunks.extend(PHPParser.parse(content, rel_path))
+                            elif ext in ['.md', '.markdown', '.txt', '.rst']:
+                                chunks.extend(MarkdownParser.parse(content, rel_path))
                         except Exception as e:
                             print(f"Error parsing file {rel_path}: {str(e)}")
         else:
@@ -498,6 +560,8 @@ class CodeParser:
                             chunks.extend(JavaScriptParser.parse(content, rel_path))
                         elif ext == '.prisma':
                             chunks.extend(PrismaParser.parse(content, rel_path))
+                        elif ext in ['.md', '.markdown', '.txt', '.rst']:
+                            chunks.extend(MarkdownParser.parse(content, rel_path))
                     except Exception as e:
                         # Log error internally and continue
                         print(f"Error parsing file {rel_path}: {str(e)}")
