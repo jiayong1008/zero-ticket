@@ -46,9 +46,7 @@ presentation.docx
 presentation.html
 presentation.pdf
 
-# Hackathon Submission & Strategy (Internal Only)
-HACKATHON_SUBMISSION.md
-HACKATHON_EXECUTION_PLAN.md
-FIX_PLAN.md
+# Internal draft files
+/HACKATHON_EXECUTION_PLAN.md
 
 zeroticket.code-workspace

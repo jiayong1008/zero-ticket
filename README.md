@@ -102,6 +102,11 @@ Suppose a SaaS startup with **5 developers** receives a modest **10 technical ti
 > [!IMPORTANT]
 > By deploying ZeroTicket to automate frontend technical customer queries, SaaS companies completely eliminate the overhead of routine support maintenance, saving thousands of dollars and hundreds of hours of high-value developer capacity every month.
 
+### 💼 How to Sell It (The Startup Angle)
+1. **Who is the buyer?** CTOs, VPs of Engineering, and Customer Operations leads who want to reclaim engineering bandwidth.
+2. **Why buy this over traditional support bots?** Traditional bots read static FAQ docs. ZeroTicket securely reads actual live database records, server logs, and codebase logic.
+3. **The Data Privacy Moat:** Enterprise companies (Healthcare, FinTech, GovTech) cannot use public cloud AI tools due to SOC2/HIPAA compliance. By offering a self-hosted Docker deployment powered by Gemma 4 on AMD GPUs, ZeroTicket captures high-security enterprise markets that public APIs cannot touch.
+
 ---
 
 ## 🌟 Key Innovations & Technical Moats
@@ -335,12 +340,18 @@ In the ZeroTicket onboarding flow:
 4. The **ROCm Connection Status** indicator lights up 🟢 in the dashboard sidebar to confirm the GPU node is reachable.
 
 > [!TIP]
-> For a detailed walkthrough on manual installation, persistent storage, bypassing VM firewalls (via Bore/Localtunnel), and running verification tests, see the [AMD GPU Integration Guide](./AMD_GEMMA_INTEGRATION.md).
+> For a detailed walkthrough on manual installation, persistent storage, bypassing VM firewalls (via Bore/Localtunnel), and running verification tests, see the [AMD GPU Integration Guide](./docs/AMD_GEMMA_INTEGRATION.md).
 
 ## 🛠️ Repository Directory Map
 
 ```
 zeroticket/
+├── docs/                     # Project & Hackathon Documentation
+│   ├── AMD_GEMMA_INTEGRATION.md  # Local Gemma 4 + AMD ROCm GPU setup guide
+│   ├── HACKATHON_SUBMISSION.md   # Hackathon submission form & pitch details
+│   ├── PRESENTATION_SLIDES.md    # Clean 10-slide pitch deck presentation outline
+│   └── FIX_PLAN.md               # Security audit & fixes tracking
+│
 ├── backend/                  # FastAPI Backend Server
 │   ├── app/
 │   │   ├── main.py          # API Endpoints (Ingestion, Sandbox, Chat Session, Admin Security)

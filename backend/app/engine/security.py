@@ -7,7 +7,7 @@ from fastapi import HTTPException
 # NOTE: a table whose tenant/owner column isn't one of these exact names gets
 # NO filter applied at all -- the query runs unscoped against that table. This
 # list only covers common conventions; it is not a guarantee of isolation for
-# every schema. See the "Safer alternative" note in FIX_PLAN.md for a stricter
+# every schema. See the "Safer alternative" note in docs/FIX_PLAN.md for a stricter
 # reject-by-default option if that residual gap needs closing.
 CLAIM_COLUMN_MAPPING = {
     'tenant_id': 'tenant_id',
