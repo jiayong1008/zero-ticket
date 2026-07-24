@@ -495,10 +495,63 @@ class CodeParser:
             '.pdf', '.zip', '.tar', '.gz', '.blade.php'
         }
         
+    def _scan_documentation_files(self) -> list[dict]:
+        """
+        Scans for project documentation files (.md, .markdown, .txt, .rst).
+        Targets:
+        1. Files in the root directory of the repository (e.g., README.md, MANUAL.md, FAQ.md).
+        2. Files in documentation folders (e.g., docs/, doc/, documentation/, guides/, manual/).
+        Ignores third-party vendor packages, node_modules, storage, logs, and build dirs.
+        """
+        doc_chunks = []
+        doc_dir_names = {'docs', 'doc', 'documentation', 'guides', 'manual', 'manuals', 'faqs', 'knowledge', 'wiki'}
+
+        # 1. Scan root directory files
+        try:
+            for item in os.listdir(self.repo_path):
+                item_path = os.path.join(self.repo_path, item)
+                if os.path.isfile(item_path):
+                    ext = os.path.splitext(item)[1].lower()
+                    if ext in ['.md', '.markdown', '.txt', '.rst'] and not item.startswith('.'):
+                        if os.path.getsize(item_path) > 1024 * 1024:  # skip files > 1MB
+                            continue
+                        try:
+                            with open(item_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                            rel_path = os.path.relpath(item_path, self.repo_path)
+                            doc_chunks.extend(MarkdownParser.parse(content, rel_path))
+                        except Exception as e:
+                            print(f"Error reading root doc {item}: {e}")
+        except Exception:
+            pass
+
+        # 2. Scan dedicated documentation folders and their subdirectories
+        for d_name in doc_dir_names:
+            target_doc_dir = os.path.join(self.repo_path, d_name)
+            if not os.path.exists(target_doc_dir):
+                continue
+            for root, dirs, files in os.walk(target_doc_dir):
+                dirs[:] = [d for d in dirs if d not in self.exclude_dirs and not d.startswith('.')]
+                for file in files:
+                    ext = os.path.splitext(file)[1].lower()
+                    if ext in ['.md', '.markdown', '.txt', '.rst'] and not file.startswith('.'):
+                        file_path = os.path.join(root, file)
+                        if os.path.getsize(file_path) > 1024 * 1024:
+                            continue
+                        try:
+                            rel_path = os.path.relpath(file_path, self.repo_path)
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                            doc_chunks.extend(MarkdownParser.parse(content, rel_path))
+                        except Exception as e:
+                            print(f"Error reading doc {file_path}: {e}")
+
+        return doc_chunks
+
     def scan_repository(self) -> list[dict]:
         """
         Scans the repository and returns chunks of code representing 
-        routes, authorization rules, and database-interacting business logic.
+        routes, authorization rules, database logic, and project documentation.
         """
         chunks = []
         if not os.path.exists(self.repo_path):
@@ -536,23 +589,6 @@ class CodeParser:
                         except Exception as e:
                             print(f"Error parsing file {rel_path}: {str(e)}")
 
-            # Also scan for documentation files (.md, .markdown, .txt, .rst) across the entire Laravel repo!
-            for root, dirs, files in os.walk(self.repo_path):
-                dirs[:] = [d for d in dirs if d not in self.exclude_dirs and not d.startswith('.')]
-                for file in files:
-                    ext = os.path.splitext(file)[1].lower()
-                    if ext in ['.md', '.markdown', '.txt', '.rst'] and ext not in self.exclude_extensions and not file.startswith('.'):
-                        file_path = os.path.join(root, file)
-                        try:
-                            rel_path = os.path.relpath(file_path, self.repo_path)
-                        except Exception:
-                            rel_path = file_path
-                        try:
-                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                                content = f.read()
-                            chunks.extend(MarkdownParser.parse(content, rel_path))
-                        except Exception as e:
-                            print(f"Error parsing doc file {rel_path}: {str(e)}")
         else:
             for root, dirs, files in os.walk(self.repo_path):
                 # Prune directory search
@@ -582,11 +618,13 @@ class CodeParser:
                             chunks.extend(JavaScriptParser.parse(content, rel_path))
                         elif ext == '.prisma':
                             chunks.extend(PrismaParser.parse(content, rel_path))
-                        elif ext in ['.md', '.markdown', '.txt', '.rst']:
-                            chunks.extend(MarkdownParser.parse(content, rel_path))
                     except Exception as e:
                         # Log error internally and continue
                         print(f"Error parsing file {rel_path}: {str(e)}")
+                    
+        # Ingest project documentation files (.md, .txt, .rst)
+        doc_chunks = self._scan_documentation_files()
+        chunks.extend(doc_chunks)
                     
         # Ingest recent Git commit history as a virtual chunk
         git_dir = os.path.join(self.repo_path, ".git")
