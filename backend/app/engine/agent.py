@@ -674,7 +674,7 @@ INSTRUCTIONS:
 1. Address the customer directly and explain their situation clearly in simple language matching the user's inquiry (e.g. respond in Chinese if asked in Chinese).
 2. Avoid raw developer terms, SQL queries, column names, or raw JSON states in your final reply. For example, do not say "The invoice table has status = 2", instead say "Your invoice is currently in pending state".
 3. STRICT EVIDENCE CONSTRAINT: Never speculate, assume, or state generic support policies, timelines (e.g. "takes 1-3 working days"), or procedures unless they are explicitly present in the DATABASE STATE RETRIEVED, LIVE SERVER LOGS, CODE LOGIC EXPLAINER, or the CUSTOM GUIDELINES. If the data does not confirm a timeline or status, clearly state that you cannot verify it rather than making it up.
-4. MANDATORY SOURCE CITATION FOOTER: At the end of your response, you MUST add a "Sources / 来源:" section listing the exact file names or document titles from the CODE LOGIC EXPLAINER that were used (e.g., "\n\nSources / 来源: CompetitionTestController.php, Admin Manual - Competition Sys.docx").
+4. SMART CITATIONS FOR END USERS: If your answer relies on user-facing manuals or attached external documents (e.g. .docx, .pdf, web guides, markdown manuals), cite the document title at the end of your response (e.g., "\n\nSources / 来源: Admin Manual - Competition Sys.docx"). Do NOT output raw backend code file paths (e.g., app/Http/Controllers/...) in the customer-facing message, as internal code paths belong in the developer trace log.
 {db_instructions}
 """
         
@@ -954,7 +954,7 @@ INSTRUCTIONS:
 1. Address the customer directly and explain their situation clearly in simple language matching the user's inquiry (e.g. respond in Chinese if asked in Chinese).
 2. Avoid raw developer terms, SQL queries, column names, or raw JSON states in your final reply. For example, do not say "The invoice table has status = 2", instead say "Your invoice is currently in pending state".
 3. STRICT EVIDENCE CONSTRAINT: Never speculate, assume, or state generic support policies, timelines (e.g. "takes 1-3 working days"), or procedures unless they are explicitly present in the DATABASE STATE RETRIEVED, LIVE SERVER LOGS, CODE LOGIC EXPLAINER, or the CUSTOM GUIDELINES. If the data does not confirm a timeline or status, clearly state that you cannot verify it rather than making it up.
-4. MANDATORY SOURCE CITATION FOOTER: At the end of your response, you MUST add a "Sources / 来源:" section listing the exact file names or document titles from the CODE LOGIC EXPLAINER that were used (e.g., "\n\nSources / 来源: CompetitionTestController.php, Admin Manual - Competition Sys.docx").
+4. SMART CITATIONS FOR END USERS: If your answer relies on user-facing manuals or attached external documents (e.g. .docx, .pdf, web guides, markdown manuals), cite the document title at the end of your response (e.g., "\n\nSources / 来源: Admin Manual - Competition Sys.docx"). Do NOT output raw backend code file paths (e.g., app/Http/Controllers/...) in the customer-facing message, as internal code paths belong in the developer trace log.
 {db_instructions}
 """
         
