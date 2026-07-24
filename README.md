@@ -130,6 +130,17 @@ Standard file chunking loses semantic code context (e.g., which route maps to wh
 ### 5. ⚡ Local Air-Gapped ROCm Compute Engine (AMD + Gemma 4)
 Built for high-compliance industries (FinTech, Healthcare, GovTech) that cannot expose source code or database records to public cloud LLM APIs. ZeroTicket compiles natively with AMD ROCm to run optimized, low-latency local inference on Google's open-weights **Gemma 4**, providing a 100% private, on-premise deployment. It natively supports **Ollama** for low-overhead local testing and **vLLM** for scaling up to high-throughput, concurrent multi-user production serving.
 
+### 6. 📚 In-Repo Document RAG & Hybrid Source Citations
+Traditional RAG systems only index text, ignoring codebase structure—or index code while ignoring product documentation. ZeroTicket automatically discovers and vector-indexes Markdown user manuals, FAQs, and guides (`.md`, `.txt`, `.rst`) across the entire repository tree. It cross-references static manual rules with live code AST and database replica states, returning inline markdown citations (`[Source 1]`, `[docs/ADMIN_MANUAL.md]`) so users can verify the exact authoritative source of every answer.
+
+### 7. 🔌 Model Context Protocol (MCP) & 4-Tool Engine Architecture
+ZeroTicket structures its core capabilities into OpenAPI/MCP-compatible tool schemas:
+- 📚 `search_user_manuals`: Vector RAG over Markdown manuals, guides, and FAQs.
+- 💻 `search_codebase_ast`: Tree-Sitter AST syntax graph searching across routes, controllers, and models.
+- 🔒 `query_database_replica`: Compiler-checked read-only SQL queries protected by SQL Security Guard.
+- 📜 `parse_server_logs`: Contextual log scanning correlated with user JWT claims and timestamps.
+This modular architecture allows external MCP clients (Notion MCP, Zendesk MCP, Confluence MCP) to connect seamlessly with ZeroTicket's support engine.
+
 ---
 
 ## 🎨 User Interface & Console Tour
