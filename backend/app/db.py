@@ -40,6 +40,7 @@ class Repository(Base):
     company = relationship("Company", back_populates="repositories")
     db_connection = relationship("DBConnection", back_populates="repository", uselist=False, cascade="all, delete-orphan")
     onboarding_questions = relationship("OnboardingQuestion", back_populates="repository", cascade="all, delete-orphan")
+    external_documents = relationship("ExternalDocument", back_populates="repository", cascade="all, delete-orphan")
 
     def set_github_token(self, token: str):
         if not token or not token.strip():
@@ -108,6 +109,19 @@ class OnboardingQuestion(Base):
     answered_at = Column(Integer, nullable=True)
 
     repository = relationship("Repository", back_populates="onboarding_questions")
+
+
+class ExternalDocument(Base):
+    __tablename__ = 'external_documents'
+    id = Column(String(36), primary_key=True)
+    repository_id = Column(String(36), ForeignKey('repositories.id', ondelete='CASCADE'), nullable=False)
+    doc_type = Column(String(50), nullable=False)  # 'file' or 'url'
+    title = Column(String(255), nullable=False)
+    source_location = Column(Text, nullable=False)  # File path or Web URL
+    chunks_count = Column(Integer, default=0)
+    created_at = Column(Integer, default=lambda: int(time.time()))
+
+    repository = relationship("Repository", back_populates="external_documents")
 
 
 # Database Engine setup for the app's own metadata store (companies, repos,

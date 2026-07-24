@@ -207,13 +207,28 @@ class ChromaStore:
                         raise e
             
             if batch_embeddings:
-                # Add this batch to Chroma immediately
-                self.collection.add(
-                    ids=batch_ids,
-                    embeddings=batch_embeddings,
-                    documents=batch_docs,
-                    metadatas=batch_metadatas
-                )
+                # Add this batch to Chroma immediately with dimension mismatch fallback
+                try:
+                    self.collection.add(
+                        ids=batch_ids,
+                        embeddings=batch_embeddings,
+                        documents=batch_docs,
+                        metadatas=batch_metadatas
+                    )
+                except Exception as add_err:
+                    if "dimension" in str(add_err).lower():
+                        print(f"[chroma] Vector dimension mismatch detected ({add_err}). Regenerating with local default embedding.")
+                        import chromadb.utils.embedding_functions as ef
+                        default_ef = ef.DefaultEmbeddingFunction()
+                        batch_embeddings = default_ef(batch_docs)
+                        self.collection.add(
+                            ids=batch_ids,
+                            embeddings=batch_embeddings,
+                            documents=batch_docs,
+                            metadatas=batch_metadatas
+                        )
+                    else:
+                        raise add_err
                 if on_progress:
                     try:
                         on_progress(already_indexed_count + i + len(batch))

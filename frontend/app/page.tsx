@@ -96,6 +96,29 @@ export default function DashboardPage() {
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
 
+  // External Documentation state (.pdf, .docx, Web URLs, Google Docs)
+  const [externalDocs, setExternalDocs] = useState<any[]>([]);
+  const [extUrlInput, setExtUrlInput] = useState("");
+  const [extUrlTitle, setExtUrlTitle] = useState("");
+  const [isSubmittingUrl, setIsSubmittingUrl] = useState(false);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+
+  const fetchExternalDocs = useCallback(async (repoId: string) => {
+    if (!repoId) return;
+    try {
+      const token = localStorage.getItem("admin_token") || "";
+      const headers: Record<string, string> = {};
+      if (token) headers["X-Admin-Token"] = token;
+      const res = await fetch(`${BACKEND_URL}/api/repository/${repoId}/external-docs`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setExternalDocs(data || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch external docs", e);
+    }
+  }, []);
+
   // Admin lock states
   const [loginRequired, setLoginRequired] = useState(false);
   const [adminToken, setAdminToken] = useState("");
@@ -325,14 +348,92 @@ export default function DashboardPage() {
         const unanswered = (data || []).filter((q: any) => !q.is_answered);
         setOnboardingQuestions(unanswered);
         setCurrentQuestionIdx(0);
-        setSelectedOption("");
-        setWriteInAnswer("");
       })
       .catch((err) => {
         console.error("Error loading onboarding questions:", err);
       })
       .finally(() => setIsLoadingQuestions(false));
-  }, [activeRepoId, adminToken]);
+
+    fetchExternalDocs(activeRepoId);
+  }, [activeRepoId, adminToken, fetchExternalDocs]);
+
+  const handleAttachExternalUrl = async () => {
+    if (!extUrlInput.trim() || !activeRepoId) return;
+    setIsSubmittingUrl(true);
+    try {
+      const token = adminToken || localStorage.getItem("admin_token") || "";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["X-Admin-Token"] = token;
+      const res = await fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/external-doc/url`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: extUrlInput.trim(), title: extUrlTitle.trim() })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Failed to attach URL");
+      }
+      const data = await res.json();
+      toast.success(`URL indexed successfully (${data.chunks_count} vector chunks)!`);
+      setExtUrlInput("");
+      setExtUrlTitle("");
+      fetchExternalDocs(activeRepoId);
+    } catch (err: any) {
+      toast.error(err.message || "Scraping failed");
+    } finally {
+      setIsSubmittingUrl(false);
+    }
+  };
+
+  const handleUploadExternalFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeRepoId) return;
+    setIsUploadingDoc(true);
+    try {
+      const token = adminToken || localStorage.getItem("admin_token") || "";
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const headers: Record<string, string> = {};
+      if (token) headers["X-Admin-Token"] = token;
+
+      const res = await fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/external-doc/upload`, {
+        method: "POST",
+        headers,
+        body: formData
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "File upload failed");
+      }
+      const data = await res.json();
+      toast.success(`Document indexed successfully (${data.chunks_count} vector chunks)!`);
+      fetchExternalDocs(activeRepoId);
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteExternalDoc = async (docId: string) => {
+    if (!activeRepoId) return;
+    try {
+      const token = adminToken || localStorage.getItem("admin_token") || "";
+      const headers: Record<string, string> = {};
+      if (token) headers["X-Admin-Token"] = token;
+      const res = await fetch(`${BACKEND_URL}/api/repository/${activeRepoId}/external-doc/${docId}`, {
+        method: "DELETE",
+        headers
+      });
+      if (res.ok) {
+        toast.success("Document removed");
+        fetchExternalDocs(activeRepoId);
+      }
+    } catch (e) {
+      toast.error("Failed to delete document");
+    }
+  };
 
   const handleNextQuestion = () => {
     if (onboardingQuestions.length === 0) return;
@@ -1869,6 +1970,163 @@ $jwt = JWT::encode($payload, '${apiKey}', 'HS256');`;
               )}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* External Documentation & Knowledge Base URLs Section */}
+      {activeRepoId && (
+        <div className={`rounded-xl p-5 border flex flex-col gap-4 transition-all shadow-sm ${
+          isLightMode ? "bg-white border-slate-200/80 shadow-slate-100" : "glass-panel border-white/5 shadow-black/45"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-purple-500">
+                Multi-Format RAG & Live Connectors
+              </span>
+              <h2 className={`text-sm font-bold transition-colors ${isLightMode ? "text-slate-800" : "text-white"}`}>
+                External Documentation & Google Docs Live Sync
+              </h2>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${isLightMode ? "bg-purple-50 text-purple-700 border border-purple-200" : "bg-purple-500/10 text-purple-300 border border-purple-500/20"}`}>
+              {externalDocs.length} Active Sources
+            </span>
+          </div>
+
+          <p className={`text-xs ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+            Attach external manuals, PDF reports, Word files (<code>.docx</code>), Google Docs live links, or public documentation web pages. Content is automatically parsed and vectorized for AI widget retrieval.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Input 1: Attach Web Page or Google Doc URL */}
+            <div className={`p-4 rounded-lg border flex flex-col justify-between gap-3 ${
+              isLightMode ? "bg-slate-50 border-slate-200" : "bg-slate-950/40 border-white/5"
+            }`}>
+              <div className="space-y-2">
+                <label className={`block text-[10px] font-bold uppercase tracking-wider ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
+                  Link Documentation URL or Google Doc
+                </label>
+                <input
+                  type="text"
+                  value={extUrlTitle}
+                  onChange={(e) => setExtUrlTitle(e.target.value)}
+                  placeholder="Optional Title (e.g. Admin User Guide)"
+                  className={`w-full px-2.5 py-1.5 text-xs rounded border outline-none ${
+                    isLightMode ? "bg-white border-slate-200 text-slate-800 focus:border-purple-500" : "bg-slate-900 border-white/10 text-slate-200 focus:border-purple-500/50"
+                  }`}
+                />
+                <input
+                  type="url"
+                  value={extUrlInput}
+                  onChange={(e) => setExtUrlInput(e.target.value)}
+                  placeholder="https://docs.google.com/document/d/... or https://docs.example.com"
+                  className={`w-full px-2.5 py-1.5 text-xs rounded border outline-none ${
+                    isLightMode ? "bg-white border-slate-200 text-slate-800 focus:border-purple-500" : "bg-slate-900 border-white/10 text-slate-200 focus:border-purple-500/50"
+                  }`}
+                />
+              </div>
+              <button
+                onClick={handleAttachExternalUrl}
+                disabled={isSubmittingUrl || !extUrlInput.trim()}
+                className={`w-full py-1.5 text-xs font-semibold rounded-md transition-all active:scale-95 flex items-center justify-center gap-1.5 ${
+                  isSubmittingUrl || !extUrlInput.trim()
+                    ? "bg-slate-400 text-slate-200 cursor-not-allowed"
+                    : "bg-purple-600 hover:bg-purple-500 text-white shadow-sm"
+                }`}
+              >
+                {isSubmittingUrl ? (
+                  <>
+                    <div className="w-3 h-3 rounded-full border border-white border-t-transparent animate-spin" />
+                    Scraping & Indexing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    Index Webpage / Google Doc
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Input 2: Upload Binary File (.pdf, .docx, .md) */}
+            <div className={`p-4 rounded-lg border flex flex-col justify-between gap-3 ${
+              isLightMode ? "bg-slate-50 border-slate-200" : "bg-slate-950/40 border-white/5"
+            }`}>
+              <div className="space-y-2">
+                <label className={`block text-[10px] font-bold uppercase tracking-wider ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
+                  Upload PDF / Word (.docx) Document
+                </label>
+                <div className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${
+                  isLightMode ? "border-slate-300 hover:border-purple-500 bg-white" : "border-white/10 hover:border-purple-500/50 bg-slate-900"
+                }`}>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.md,.txt"
+                    onChange={handleUploadExternalFile}
+                    className="hidden"
+                    id="doc-file-upload"
+                  />
+                  <label htmlFor="doc-file-upload" className="cursor-pointer space-y-1 block">
+                    <svg className="w-6 h-6 mx-auto text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className={`text-xs font-semibold ${isLightMode ? "text-slate-700" : "text-slate-300"}`}>
+                      {isUploadingDoc ? "Parsing & Indexing File..." : "Click to select .pdf, .docx, or .md file"}
+                    </p>
+                    <p className="text-[10px] text-slate-400">PDF, Word Document, or Markdown (max 10MB)</p>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* List of Attached External Documents */}
+          {externalDocs.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <h3 className={`text-xs font-bold uppercase tracking-wider ${isLightMode ? "text-slate-600" : "text-slate-400"}`}>
+                Attached External Knowledge Sources
+              </h3>
+              <div className="space-y-1.5">
+                {externalDocs.map((doc) => (
+                  <div key={doc.id} className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors ${
+                    isLightMode ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/5"
+                  }`}>
+                    <div className="flex items-center gap-2 truncate">
+                      <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase rounded ${
+                        doc.doc_type === "url"
+                          ? (isLightMode ? "bg-blue-100 text-blue-700" : "bg-blue-500/20 text-blue-300")
+                          : (isLightMode ? "bg-emerald-100 text-emerald-700" : "bg-emerald-500/20 text-emerald-300")
+                      }`}>
+                        {doc.doc_type}
+                      </span>
+                      <span className={`font-semibold truncate ${isLightMode ? "text-slate-800" : "text-slate-200"}`}>
+                        {doc.title}
+                      </span>
+                      <span className="text-[10px] text-slate-400 truncate max-w-xs">
+                        ({doc.source_location})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[10px] font-semibold ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>
+                        {doc.chunks_count} chunks
+                      </span>
+                      <button
+                        onClick={() => handleDeleteExternalDoc(doc.id)}
+                        className="text-red-500 hover:text-red-600 p-1 rounded transition-colors"
+                        title="Delete source"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

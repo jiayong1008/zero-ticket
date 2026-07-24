@@ -550,15 +550,22 @@ class CodeParser:
                 dirs[:] = [d for d in dirs if d not in self.exclude_dirs and not d.startswith('.')]
                 for file in files:
                     ext = os.path.splitext(file)[1].lower()
-                    if ext in ['.md', '.markdown', '.txt', '.rst'] and not file.startswith('.'):
+                    if ext in ['.md', '.markdown', '.txt', '.rst', '.pdf', '.docx'] and not file.startswith('.'):
                         file_path = os.path.join(root, file)
-                        if os.path.getsize(file_path) > 1024 * 1024:
+                        if os.path.getsize(file_path) > 10 * 1024 * 1024:
                             continue
                         try:
                             rel_path = os.path.relpath(file_path, self.repo_path)
-                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                                content = f.read()
-                            doc_chunks.extend(MarkdownParser.parse(content, rel_path))
+                            if ext == '.pdf':
+                                from app.parser.document_parser import PDFParser
+                                doc_chunks.extend(PDFParser.parse(file_path, rel_path))
+                            elif ext == '.docx':
+                                from app.parser.document_parser import DocxParser
+                                doc_chunks.extend(DocxParser.parse(file_path, rel_path))
+                            else:
+                                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                    content = f.read()
+                                doc_chunks.extend(MarkdownParser.parse(content, rel_path))
                             if len(doc_chunks) >= 350:
                                 return doc_chunks[:350]
                         except Exception as e:

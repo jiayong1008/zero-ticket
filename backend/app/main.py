@@ -4,7 +4,7 @@ import secrets
 import hashlib
 import json
 import time
-from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks, Security, Request
+from fastapi import FastAPI, Depends, HTTPException, Header, status, BackgroundTasks, Security, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
@@ -818,6 +818,123 @@ def cancel_ingestion(data: IngestCancelRequest, db: Session = Depends(get_db)):
     
     _ingestion_in_progress.discard(repo.id)
     return {"status": "success", "message": "Sync cancellation requested."}
+
+# External Documentation Endpoints (.pdf, .docx, .md, Web URLs)
+def get_company_llm_credentials(company_id: str, db: Session):
+    from app.db import Company, decrypt_password
+    comp = db.query(Company).filter(Company.id == company_id).first()
+    api_key = decrypt_password(comp.encrypted_llm_api_key) if comp and comp.encrypted_llm_api_key else ""
+    provider = (comp.llm_provider if comp else "gemini") or "gemini"
+    llm_base_url = (comp.llm_base_url if comp else "") or ""
+    return api_key, provider, llm_base_url
+
+class ExternalUrlRequest(BaseModel):
+    url: str
+    title: str = ""
+
+@app.post("/api/repository/{repository_id}/external-doc/url", dependencies=[Depends(verify_admin_passphrase)])
+def attach_external_url(repository_id: str, data: ExternalUrlRequest, db: Session = Depends(get_db)):
+    from app.db import Repository, ExternalDocument
+    from app.parser.document_parser import WebPageParser
+    from app.vector.chroma_store import ChromaStore
+
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found.")
+
+    chunks = WebPageParser.scrape(data.url, custom_title=data.title)
+    if not chunks:
+        raise HTTPException(status_code=400, detail="Could not extract documentation content from the provided URL.")
+
+    ext_doc = ExternalDocument(
+        id=str(uuid.uuid4()),
+        repository_id=repository_id,
+        doc_type="url",
+        title=data.title or chunks[0]['name'].replace('doc::', ''),
+        source_location=data.url,
+        chunks_count=len(chunks)
+    )
+    db.add(ext_doc)
+    db.commit()
+
+    chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id)
+    api_key, provider, llm_base_url = get_company_llm_credentials(repo.company_id, db)
+    chroma.add_code_chunks(chunks, api_key=api_key, provider=provider)
+
+    return {"status": "success", "doc_id": ext_doc.id, "chunks_count": len(chunks)}
+
+
+@app.post("/api/repository/{repository_id}/external-doc/upload", dependencies=[Depends(verify_admin_passphrase)])
+async def upload_external_doc(repository_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    from app.db import Repository, ExternalDocument
+    from app.parser.document_parser import PDFParser, DocxParser
+    from app.parser.code_parser import MarkdownParser
+    from app.vector.chroma_store import ChromaStore
+
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found.")
+
+    content_bytes = await file.read()
+    filename = file.filename or "upload_doc"
+    ext = os.path.splitext(filename)[1].lower()
+
+    if ext == ".pdf":
+        chunks = PDFParser.parse(content_bytes, rel_path=f"upload_{filename}")
+    elif ext == ".docx":
+        chunks = DocxParser.parse(content_bytes, rel_path=f"upload_{filename}")
+    elif ext in [".md", ".txt", ".markdown", ".rst"]:
+        text = content_bytes.decode("utf-8", errors="ignore")
+        chunks = MarkdownParser.parse(text, rel_path=f"upload_{filename}")
+        for c in chunks:
+            c['chunk_type'] = 'documentation'
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported file format '{ext}'. Please upload PDF, DOCX, MD, or TXT files.")
+
+    if not chunks:
+        raise HTTPException(status_code=400, detail="Document appears to be empty or could not be parsed.")
+
+    ext_doc = ExternalDocument(
+        id=str(uuid.uuid4()),
+        repository_id=repository_id,
+        doc_type="file",
+        title=filename,
+        source_location=f"upload_{filename}",
+        chunks_count=len(chunks)
+    )
+    db.add(ext_doc)
+    db.commit()
+
+    chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id)
+    api_key, provider, llm_base_url = get_company_llm_credentials(repo.company_id, db)
+    chroma.add_code_chunks(chunks, api_key=api_key, provider=provider)
+
+    return {"status": "success", "doc_id": ext_doc.id, "chunks_count": len(chunks)}
+
+
+@app.get("/api/repository/{repository_id}/external-docs", dependencies=[Depends(verify_admin_passphrase)])
+def get_external_docs(repository_id: str, db: Session = Depends(get_db)):
+    from app.db import ExternalDocument
+    docs = db.query(ExternalDocument).filter(ExternalDocument.repository_id == repository_id).all()
+    return [{
+        "id": d.id,
+        "doc_type": d.doc_type,
+        "title": d.title,
+        "source_location": d.source_location,
+        "chunks_count": d.chunks_count,
+        "created_at": d.created_at
+    } for d in docs]
+
+
+@app.delete("/api/repository/{repository_id}/external-doc/{doc_id}", dependencies=[Depends(verify_admin_passphrase)])
+def delete_external_doc(repository_id: str, doc_id: str, db: Session = Depends(get_db)):
+    from app.db import ExternalDocument
+    doc = db.query(ExternalDocument).filter(ExternalDocument.id == doc_id, ExternalDocument.repository_id == repository_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="External document not found.")
+    db.delete(doc)
+    db.commit()
+    return {"status": "success", "message": "Document deleted."}
 
 @app.get("/api/company/projects", dependencies=[Depends(verify_admin_passphrase)])
 def get_company_projects(company_id: str, db: Session = Depends(get_db)):
