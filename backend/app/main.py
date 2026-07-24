@@ -929,12 +929,22 @@ def get_external_docs(repository_id: str, db: Session = Depends(get_db)):
 @app.delete("/api/repository/{repository_id}/external-doc/{doc_id}", dependencies=[Depends(verify_admin_passphrase)])
 def delete_external_doc(repository_id: str, doc_id: str, db: Session = Depends(get_db)):
     from app.db import ExternalDocument
+    from app.vector.chroma_store import ChromaStore
+
     doc = db.query(ExternalDocument).filter(ExternalDocument.id == doc_id, ExternalDocument.repository_id == repository_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="External document not found.")
+
+    # Purge vector embeddings from ChromaDB
+    try:
+        chroma = ChromaStore(persist_dir="chroma_db", repository_id=repository_id)
+        chroma.collection.delete(where={"file_path": doc.source_location})
+    except Exception as e:
+        print(f"Failed to delete ChromaDB vector chunks for {doc.source_location}: {e}")
+
     db.delete(doc)
     db.commit()
-    return {"status": "success", "message": "Document deleted."}
+    return {"status": "success", "message": "Document and indexed vector chunks deleted."}
 
 @app.get("/api/company/projects", dependencies=[Depends(verify_admin_passphrase)])
 def get_company_projects(company_id: str, db: Session = Depends(get_db)):
