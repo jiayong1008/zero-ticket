@@ -627,6 +627,7 @@ export default function SandboxPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [activeThoughtLog, setActiveThoughtLog] = useState<string>("");
+  const [showTraceModal, setShowTraceModal] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1341,7 +1342,10 @@ export default function SandboxPage() {
                   <div className="mt-2 flex flex-col gap-2">
                     <div className="flex items-center gap-4">
                       <button
-                        onClick={() => setActiveThoughtLog(msg.thoughtLog || "")}
+                        onClick={() => {
+                          setActiveThoughtLog(msg.thoughtLog || "");
+                          setShowTraceModal(true);
+                        }}
                         className="text-xs text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 font-semibold"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1588,6 +1592,65 @@ export default function SandboxPage() {
             alt="Fullscreen" 
             className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
           />
+        </div>
+      {/* Full-screen / Modal Trace Log Inspector */}
+      {showTraceModal && activeThoughtLog && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-8 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-full max-w-4xl max-h-[85vh] rounded-2xl border flex flex-col shadow-2xl transition-all duration-300 ${
+            isLightMode ? "bg-white border-slate-200" : "bg-[#0b1329] border-white/10"
+          }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${
+              isLightMode ? "border-slate-200 bg-slate-100" : "border-white/10 bg-slate-900/50"
+            }`}>
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <h3 className={`text-sm font-bold uppercase tracking-wider ${isLightMode ? "text-slate-800" : "text-white"}`}>
+                  ZeroTicket AI Execution Trace Debugger
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowTraceModal(false)}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  isLightMode ? "hover:bg-slate-200 text-slate-500 hover:text-slate-800" : "hover:bg-white/10 text-slate-400 hover:text-white"
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className={`flex-1 overflow-y-auto p-6 font-mono text-xs leading-relaxed ${
+              isLightMode ? "text-slate-800 bg-white" : "text-slate-200 bg-[#0b1329]"
+            }`}>
+              {(() => {
+                const lines = activeThoughtLog.split("\n");
+                const sections: { title: string, content: string[] }[] = [];
+                let currentSection: { title: string, content: string[] } | null = null;
+                for (const line of lines) {
+                  if (line.startsWith("---") && line.endsWith("---")) {
+                    if (currentSection) sections.push(currentSection);
+                    currentSection = { title: line.replace(/---/g, "").trim(), content: [] };
+                  } else {
+                    if (currentSection) currentSection.content.push(line);
+                    else if (line.trim()) currentSection = { title: "Initialization", content: [line] };
+                  }
+                }
+                if (currentSection) sections.push(currentSection);
+                return sections.map((sec, idx) => (
+                  <ThoughtLogSection 
+                    key={idx} 
+                    title={sec.title} 
+                    content={sec.content} 
+                    isLightMode={isLightMode} 
+                    defaultExpanded={true} 
+                  />
+                ));
+              })()}
+            </div>
+          </div>
         </div>
       )}
 
