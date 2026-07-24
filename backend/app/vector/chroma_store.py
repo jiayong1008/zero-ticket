@@ -67,12 +67,20 @@ class ChromaStore:
             )
             return [data.embedding for data in response.data]
         elif prov == "gemini":
-            client = self._get_gemini_client(api_key)
-            response = client.models.embed_content(
-                model="gemini-embedding-001",
-                contents=texts
-            )
-            return [e.values for e in response.embeddings]
+            try:
+                client = self._get_gemini_client(api_key)
+                response = client.models.embed_content(
+                    model="gemini-embedding-001",
+                    contents=texts
+                )
+                return [e.values for e in response.embeddings]
+            except Exception as e:
+                if any(k in str(e) for k in ["429", "RESOURCE_EXHAUSTED", "quota"]):
+                    print(f"[embeddings] Cloud Gemini API quota/rate-limit hit ({e}). Using local default embeddings fallback.")
+                    import chromadb.utils.embedding_functions as ef
+                    default_ef = ef.DefaultEmbeddingFunction()
+                    return default_ef(texts)
+                raise e
         elif prov == "custom":
             from openai import OpenAI
             base_url = self._llm_base_url or settings.CUSTOM_LLM_BASE_URL
@@ -242,14 +250,29 @@ class ChromaStore:
                 except Exception:
                     pass  # Global collection doesn't exist either — return empty
 
-        # 3. Query Chroma
+        # 3. Query Chroma with robust fallback handling
         try:
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=limit
             )
-        except Exception:
-            return []
+        except Exception as e:
+            try:
+                import chromadb.utils.embedding_functions as ef
+                default_ef = ef.DefaultEmbeddingFunction()
+                local_emb = default_ef([query])[0]
+                results = collection.query(
+                    query_embeddings=[local_emb],
+                    n_results=limit
+                )
+            except Exception:
+                try:
+                    results = collection.query(
+                        query_texts=[query],
+                        n_results=limit
+                    )
+                except Exception:
+                    return []
 
         formatted_results = []
         if results and results["documents"]:
